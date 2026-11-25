@@ -81,7 +81,10 @@
       !!window.CouncilQuality?.repeated(cue.text) || !!window.CouncilQuality?.repeated(cue.rawText);
   }
   function safeText(cue) {
-    if (!rejected(cue)) return String((cue.flags?.includes('segment_review') && cue.rawText) || cue.text || '');
+    if (!rejected(cue)) {
+      const value = String((cue.flags?.includes('segment_review') && cue.rawText) || cue.text || '');
+      return window.CouncilKoreanCorrections ? window.CouncilKoreanCorrections.correct(value).text : value;
+    }
     return cue.flags?.includes('low_confidence') || cue.flags?.includes('segment_review') ? '[음성 재확인 필요]' : '[음성 인식 반복 오류 · 해당 구간 재확인 필요]';
   }
   function render(cues) {
@@ -94,6 +97,9 @@
       time.textContent = cue.observedAt ? new Date(cue.observedAt).toLocaleTimeString('ko-KR', {timeZone:'Asia/Seoul',hour12:false}) : stamp(cue.start);
       time.title = interval;
       const text = document.createElement('span'); text.textContent = safeText(cue); content.append(text);
+      const sourceText = String((cue.flags?.includes('segment_review') && cue.rawText) || cue.text || '');
+      const corrected = !rejected(cue) && safeText(cue) !== sourceText;
+      if (corrected) { const label = document.createElement('small'); label.className = 'cue-review'; label.textContent = '문맥 교정됨 · 원문 대조'; content.append(label); }
       if (Array.isArray(cue.flags) && cue.flags.length) {
         const flag = document.createElement('small'); flag.className = 'cue-review'; flag.textContent = `검토 필요: ${reviewFlags(cue).join(', ')}`; content.append(flag);
       }
@@ -103,8 +109,8 @@
         details.open = expanded.has(cue.id);
         summary.textContent = '인식 원문 대조'; raw.textContent = cue.rawText || cue.text || '';
         details.append(summary, raw); content.append(details);
-      } else if (cue.rawText && cue.rawText !== cue.text) {
-        const raw = document.createElement('small'); raw.className = 'cue-raw'; raw.textContent = `인식 원문: ${cue.rawText}`; content.append(raw);
+      } else if ((cue.rawText || cue.text) && ((cue.rawText && cue.rawText !== cue.text) || corrected)) {
+        const raw = document.createElement('small'); raw.className = 'cue-raw'; raw.textContent = `인식 원문: ${cue.rawText || cue.text}`; content.append(raw);
       }
       line.append(time, content); captions.append(line);
     }
@@ -169,7 +175,7 @@
   el('capture-stop').onclick = () => { window.CouncilTabCapture.stop(); };
   function saveCues(cues, personal, textOnly = false) {
     if (!cues.length) return;
-    const segments = cues.map(cue => ({id:cue.id,start:cue.start,end:cue.end,speaker:'',text:[cue.observedAt ? `수집 시각: ${new Date(cue.observedAt).toLocaleString('ko-KR', {timeZone:'Asia/Seoul'})}` : '', safeText(cue), !rejected(cue) && cue.rawText && cue.rawText !== cue.text ? `인식 원문: ${cue.rawText}` : '', reviewFlags(cue).length ? `검토 필요: ${reviewFlags(cue).join(', ')}` : ''].filter(Boolean).join('\n'),status:rejected(cue) ? '인식 오류 · 재확인 필요' : 'AI 전사 · 미검토'}));
+    const segments = cues.map(cue => ({id:cue.id,start:cue.start,end:cue.end,speaker:'',text:[cue.observedAt ? `수집 시각: ${new Date(cue.observedAt).toLocaleString('ko-KR', {timeZone:'Asia/Seoul'})}` : '', safeText(cue), !rejected(cue) && safeText(cue) !== String((cue.flags?.includes('segment_review') && cue.rawText) || cue.text || '') ? '문맥 교정됨' : '', !rejected(cue) && (cue.rawText || cue.text) && ((cue.rawText && cue.rawText !== cue.text) || safeText(cue) !== String(cue.text || '')) ? `인식 원문: ${cue.rawText || cue.text}` : '', reviewFlags(cue).length ? `검토 필요: ${reviewFlags(cue).join(', ')}` : ''].filter(Boolean).join('\n'),status:rejected(cue) ? '인식 오류 · 재확인 필요' : 'AI 전사 · 미검토'}));
     const doc={title:`${meeting.title} ${meeting.label}`,date:meeting.scheduledAt?.slice(0,10) || '',body:`성남시의회 ${meeting.title}`,sourceUrl:source,coverage:personal ? '이 브라우저에서 수집한 자동 자막.' : '저장 시 표시된 공유 자동 자막.',segments};
     const blob = textOnly ? new Blob([CouncilExports.minutesText(doc)], {type:'text/plain;charset=utf-8'}) : CouncilExports.minutesHwpx(doc);
     const url=URL.createObjectURL(blob), a=document.createElement('a');

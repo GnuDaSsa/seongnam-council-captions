@@ -1,9 +1,9 @@
-﻿(function (root, factory) {
-  if (typeof module !== 'undefined' && module.exports) require('./asr/quality.js');
-  const api = factory(root.CouncilQuality);
+(function (root, factory) {
+  if (typeof module !== 'undefined' && module.exports) { require('./asr/quality.js'); root.CouncilKoreanCorrections = require('./korean-corrections.js'); }
+  const api = factory(root.CouncilQuality, root.CouncilKoreanCorrections);
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.CouncilMinutesFormat = api;
-})(typeof window !== 'undefined' ? window : globalThis, function (quality) {
+})(typeof window !== 'undefined' ? window : globalThis, function (quality, corrections) {
   'use strict';
 
   function stamp(value) {
@@ -27,8 +27,8 @@
 
   function initial(cue) {
     if (bad(cue)) return '[음성 인식 오류 · 원음 재확인 필요]';
-    if (cue.flags?.includes('segment_review')) return String(cue.rawText || '[원문 없음 · 재확인 필요]');
-    return String(cue.text || cue.rawText || '');
+    const source = cue.flags?.includes('segment_review') ? cue.rawText || '[원문 없음 · 재확인 필요]' : cue.text || cue.rawText || '';
+    return corrections ? corrections.correct(source).text : String(source);
   }
 
   function tidy(text) {

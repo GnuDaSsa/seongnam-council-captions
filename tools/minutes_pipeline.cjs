@@ -51,7 +51,8 @@ function run() {
     const text = read(cue);
     const glossary = terms.suggestions(meeting, text);
     const department = departments.suggestions(text, meeting.agenda || []);
-    return {id:cue.id, sourceText:format.initial(cue), reviewedText:text, minutesText:format.tidy(text),
+    const sourceText = String((cue.flags?.includes('segment_review') && cue.rawText) || cue.text || cue.rawText || '');
+    return {id:cue.id, sourceText, rawText:cue.rawText || cue.text || '', correctionApplied:!Object.hasOwn(changeFor(cue), 'text') && !format.bad(cue) && sourceText !== format.initial(cue), reviewedText:text, minutesText:format.tidy(text),
       edited:Object.hasOwn(changeFor(cue), 'text'), suggestions:[...glossary, ...department]};
   });
   const candidates = speakers.guesses(meeting, cues);

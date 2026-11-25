@@ -75,12 +75,12 @@ with serve_dist() as base_url, sync_playwright() as p:
  page.locator('.minutes-cue').first.locator('textarea').fill('quota edit')
  assert 'quota edit' in page.locator('#minutes-preview').inner_text()
  assert page.locator('.minutes-cue').first.locator('small').first.inner_text() != ''
- page.evaluate("window.CouncilTabCapture.start = async o => o.onCue({text:'personal cue',start:0,end:8,observedAt:1795579200000}); window.CouncilTabCapture.stop = () => {}")
+ page.evaluate("window.CouncilTabCapture.start = async o => o.onCue({text:'유인물로 가름하겠습니다.',start:0,end:8,observedAt:1795579200000}); window.CouncilTabCapture.stop = () => {}")
  page.locator('.caption-footer details > summary').click(); page.locator('#capture-start').click(); page.wait_for_timeout(100)
  with page.expect_download() as d: page.locator('#local-save').click()
  hw=zipfile.ZipFile(d.value.path()).read('Preview/PrvText.txt').decode()
  with page.expect_download() as d: page.locator('#local-save-txt').click()
  txt=open(d.value.path(),encoding='utf-8').read()
- assert hw==txt and 'personal cue' in txt and '2026' in txt
+ assert hw==txt and '유인물로 갈음하겠습니다.' in txt and '유인물로 가름하겠습니다.' in txt and '문맥 교정됨' in txt and '2026' in txt
  print('PASS: low confidence visible, edits retain original, personal HWPX/TXT timestamp parity')
  b.close()

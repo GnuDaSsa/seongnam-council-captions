@@ -106,7 +106,7 @@
         try { const url = new URL(candidate.source); if (url.protocol === 'https:') { const link = document.createElement('a'); link.href=url.href; link.textContent=' 공식 근거'; link.target='_blank'; link.rel='noopener noreferrer'; suggestions.append(link); } } catch (_) {}
       }
       const editState = document.createElement('small');
-      function markEdit() { editState.textContent = area.value !== initial(cue) ? '담당자 편집됨' : '자동 전사 원문'; }
+      function markEdit() { const original = String((cue.flags?.includes('segment_review') && cue.rawText) || cue.text || cue.rawText || ''); const corrected = !bad(cue) && window.CouncilKoreanCorrections?.correct(original).changed; editState.textContent = area.value !== initial(cue) ? '담당자 편집됨' : corrected ? '문맥 교정됨 · 원문 대조' : '자동 전사 원문'; }
       markEdit(); area.addEventListener('input', () => { write(cue, area.value); markEdit(); preview(); });
       area.addEventListener('change', () => { recordHistory(cue, area.value); showHistory(); });
       const historyText = document.createElement('pre');

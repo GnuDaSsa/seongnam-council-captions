@@ -39,6 +39,7 @@ const context = {
 };
 vm.runInNewContext(fs.readFileSync('dist/asr/quality.js','utf8'),context);
 context.window.CouncilQuality = context.CouncilQuality;
+context.window.CouncilKoreanCorrections = require('../dist/korean-corrections.js');
 assert.equal(context.CouncilQuality.repeated('-그러니까요.'.repeat(41)),true);
 assert.equal(context.CouncilQuality.repeated('이 제품은 '.repeat(80)),true);
 assert.equal(context.CouncilQuality.repeated('네 네, 그렇습니다. 네 네, 알겠습니다.'),false);
@@ -78,6 +79,16 @@ async function run() {
   el('live-save').onclick();
   assert.match(context.exported.segments[0].text,/재확인 필요/);
   assert.doesNotMatch(context.exported.segments[0].text,/그러니까요/);
+  for (const [id,timer] of [...timers.entries()].filter(([,t])=>t.delay===3000)) { timers.delete(id); timer.fn(); }
+  const publicCue=require('./garum_public_fixture.json').find(item=>item.meetingId==='2852').text;
+  const observed=feed('2852',publicCue); observed.cues[0].rawText=publicCue; observed.cues[0].flags=[];
+  pending.shift().resolve(response(observed)); await settle();
+  assert.match(el('live-captions').allText,/갈음하겠습니다/);
+  assert.match(el('live-captions').allText,/문맥 교정됨/);
+  assert.match(el('live-captions').allText,/가름하겠습니다/);
+  el('live-save').onclick();
+  assert.match(context.exported.segments[0].text,/갈음하겠습니다/);
+  assert.match(context.exported.segments[0].text,/인식 원문:.*가름하겠습니다/);
   console.log('PASS: second polling, late response isolation, default selection, status, flags and export');
 }
 run().catch(error=>{console.error(error);process.exitCode=1});
