@@ -152,4 +152,9 @@ console.log('PASS live speaker attribution: actual 2853 turns, self-intros, staf
   const handoff=turn('handoff',8,2,'다음 위원님 질의해 주십시오.');
   assert.equal(attribute(meeting,[opening,handoff,question],[plate(10,'서은경')],[])['4372'].name,'');
   assert.equal(attribute(meeting,[question],[plate(15,'서은경')],[]).q.name,'');
+  const checkQuestion=turn('again',34,4,'여기는 해제돼서는 안 될 곳이라고 생각하는데 과장임은 어떠세요?');
+  const handBack=turn('ask',27,6,'제가 여쭤볼게요. 그러면 어차피...');
+  const twoTurns=turn('both',40,5,'총 13개소가 남아있습니다. 그런데 왜 다른 건 안 올라왔어요?');
+  const candidates=attribute(meeting,[...rows.slice(0,4),handBack,checkQuestion,twoTurns],[plate(10,'서은경')],[]);
+  assert.equal(candidates.ask.name,'서은경'); assert.equal(candidates.again.name,'서은경'); assert.equal(candidates.both,undefined);
 }
