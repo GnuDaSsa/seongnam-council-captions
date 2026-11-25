@@ -29,6 +29,8 @@ function run() {
   assert.equal(result['11'].name, '홍길동');
   assert.equal(result['11'].role, '환경보건국장');
   assert.equal(result['11'].confidence, 'low');
+  result = guesses(meeting, [cue('12', '장일남 위원장님 발언해 주시기 바랍니다.'), cue('13', '안건에 관해 말씀드리겠습니다.')]);
+  assert.equal(result['13'].role, '위원장');
 
   for (const cases of [
     [cue('20', '안광환 의원님 질문해 주시기 바랍니다.'), cue('21', '네.')],
