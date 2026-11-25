@@ -10,7 +10,9 @@
     [string]$VideoUrl,
 
     [Nullable[double]]$VideoSeconds = $null,
-    [string]$CapturedAt = $null
+    [string]$CapturedAt = $null,
+    [switch]$FullOnly,
+    [switch]$IncludeLowerCrops
 )
 
 $ErrorActionPreference = 'Stop'
@@ -26,6 +28,8 @@ Add-Type -AssemblyName System.Runtime.WindowsRuntime
 $null = [Windows.Storage.StorageFile, Windows.Storage, ContentType = WindowsRuntime]
 $null = [Windows.Storage.FileAccessMode, Windows.Storage, ContentType = WindowsRuntime]
 $null = [Windows.Graphics.Imaging.BitmapDecoder, Windows.Graphics.Imaging, ContentType = WindowsRuntime]
+$null = [Windows.Graphics.Imaging.BitmapTransform, Windows.Graphics.Imaging, ContentType = WindowsRuntime]
+$null = [Windows.Graphics.Imaging.BitmapBounds, Windows.Graphics.Imaging, ContentType = WindowsRuntime]
 $null = [Windows.Media.Ocr.OcrEngine, Windows.Foundation, ContentType = WindowsRuntime]
 $null = [Windows.Globalization.Language, Windows.Globalization, ContentType = WindowsRuntime]
 
@@ -63,7 +67,65 @@ try {
     }
 
     $ocr = Await-Op ($engine.RecognizeAsync($bitmap)) ([Windows.Media.Ocr.OcrResult])
-    $text = [string]$ocr.Text
+    $texts = @([string]$ocr.Text)
+    $lines = @($ocr.Lines | ForEach-Object { $_.Text })
+    $useCrops = -not $FullOnly -and ($CapturedAt -or $IncludeLowerCrops)
+    if ($useCrops) {
+      try {
+        # Layout reference: 1280x720, left x=65,y=535,w=220,h=95;
+        # mirror the rectangle for the right side. These are independent of identities.
+        $width = [int]$decoder.PixelWidth
+        $height = [int]$decoder.PixelHeight
+        if ($width * $height -gt 16000000) { throw 'Image exceeds crop resource limit.' }
+        $cropWidth = [int][Math]::Floor($width * 220 / 1280)
+        $cropHeight = [int][Math]::Floor($height * 95 / 720)
+        $left = [int][Math]::Floor($width * 65 / 1280)
+        $top = [int][Math]::Floor($height * 535 / 720)
+        $right = $width - $left - $cropWidth
+        # Bound scaled decoding to 16 million pixels; 1280x720 can use 4x.
+        $scale = [Math]::Max(1, [Math]::Min(4, [Math]::Floor([Math]::Sqrt(16000000 / ($width * $height)))))
+        $cropXs = @($left, $right)
+        if ($cropWidth -lt 1 -or $cropHeight -lt 1) {
+            [Console]::Error.WriteLine('Image too small for nameplate crop; retaining full-frame result.')
+            $cropXs = @()
+        }
+        foreach ($x in $cropXs) {
+            $bounds = [Windows.Graphics.Imaging.BitmapBounds]::new()
+            $bounds.X = [uint32]($x * $scale)
+            $bounds.Y = [uint32]($top * $scale)
+            $bounds.Width = [uint32]($cropWidth * $scale)
+            $bounds.Height = [uint32]($cropHeight * $scale)
+            $transform = [Windows.Graphics.Imaging.BitmapTransform]::new()
+            $transform.Bounds = $bounds
+            $transform.ScaledWidth = [uint32]($width * $scale)
+            $transform.ScaledHeight = [uint32]($height * $scale)
+            $cropBitmap = $null
+            try {
+                $operation = $decoder.GetSoftwareBitmapAsync(
+                    [Windows.Graphics.Imaging.BitmapPixelFormat]::Bgra8,
+                    [Windows.Graphics.Imaging.BitmapAlphaMode]::Premultiplied,
+                    $transform,
+                    [Windows.Graphics.Imaging.ExifOrientationMode]::IgnoreExifOrientation,
+                    [Windows.Graphics.Imaging.ColorManagementMode]::DoNotColorManage
+                )
+                $cropBitmap = Await-Op $operation ([Windows.Graphics.Imaging.SoftwareBitmap])
+                $cropOcr = Await-Op ($engine.RecognizeAsync($cropBitmap)) ([Windows.Media.Ocr.OcrResult])
+                $texts += [string]$cropOcr.Text
+                $lines += @($cropOcr.Lines | ForEach-Object { $_.Text })
+            }
+            catch {
+                [Console]::Error.WriteLine('Nameplate crop OCR failed; retaining other successful regions.')
+            }
+            finally {
+                if ($cropBitmap) { $cropBitmap.Dispose() }
+            }
+        }
+      }
+      catch {
+        [Console]::Error.WriteLine('Nameplate crop setup failed; retaining full-frame result.')
+      }
+    }
+    $text = $texts -join "`n"
     $matches = @(
         $Members | Where-Object {
             $name = $_
@@ -75,7 +137,7 @@ try {
                 [regex]::Escape([string]$_)
             }
             $pattern = '(?<![가-힣])' + ($characters -join '\s*') + '(?![가-힣])'
-            return @($ocr.Lines | Where-Object { $_.Text -match $pattern }).Count -gt 0
+            return @($lines | Where-Object { $_ -match $pattern }).Count -gt 0
         } | Select-Object -Unique
     )
 

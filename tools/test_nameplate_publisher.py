@@ -1,6 +1,7 @@
 ﻿import base64
 import datetime as dt
 import json
+import os
 import tempfile
 from types import SimpleNamespace
 from urllib.error import HTTPError
@@ -170,6 +171,54 @@ class NameplatePublisherTests(unittest.TestCase):
                     p.capture_and_ocr(self.meeting, self.end)
                 self.assertEqual(run.call_count, 1)
             self.assertEqual(list(Path(directory).iterdir()), [])
+    @unittest.skipUnless(os.name == 'nt', 'Windows OCR integration test')
+    def test_windows_ocr_unions_two_lower_nameplates(self):
+        # Two synthetic names in the exact left/right screen regions. Full-frame
+        # OCR can miss one; the crop union must retain both and never nominate one.
+        with tempfile.TemporaryDirectory() as directory:
+            image = Path(directory) / 'two.png'
+            quoted = str(image).replace("'", "''")
+            tiny = Path(directory) / 'tiny.png'
+            tiny_quoted = str(tiny).replace("'", "''")
+            script = f"""
+Add-Type -AssemblyName System.Drawing
+$b=[Drawing.Bitmap]::new(1280,720)
+$g=[Drawing.Graphics]::FromImage($b)
+$g.Clear([Drawing.Color]::White)
+$f=[Drawing.Font]::new('맑은 고딕',24)
+$g.DrawString('서은경',$f,[Drawing.Brushes]::Black,80,550)
+$g.DrawString('김옥수',$f,[Drawing.Brushes]::Black,1020,550)
+$b.Save('{quoted}',[Drawing.Imaging.ImageFormat]::Png)
+$g.Dispose(); $f.Dispose(); $b.Dispose()
+$b=[Drawing.Bitmap]::new(5,5)
+$g=[Drawing.Graphics]::FromImage($b)
+$g.Clear([Drawing.Color]::White)
+$b.Save('{tiny_quoted}',[Drawing.Imaging.ImageFormat]::Png)
+$g.Dispose(); $b.Dispose()
+"""
+            encoded = base64.b64encode(script.encode('utf-16le')).decode('ascii')
+            p.subprocess.run(['powershell.exe','-NoProfile','-NonInteractive','-EncodedCommand',encoded],
+                             check=True, capture_output=True, timeout=20)
+            roster = ['서은경','김옥수','정연화']
+            roster_arg = base64.b64encode(json.dumps(roster, ensure_ascii=False).encode('utf8')).decode('ascii')
+            result = p.subprocess.run(['powershell.exe','-NoProfile','-NonInteractive','-File',str(p.OCR),
+                                       '-ImagePath',str(image),'-MembersBase64',roster_arg,
+                                       '-VideoUrl','https://example.org/synthetic',
+                                       '-CapturedAt','2026-11-25T16:30:54+09:00'],
+                                      check=True, capture_output=True, timeout=20)
+            output = json.loads(result.stdout.decode('utf-8-sig'))
+            self.assertEqual(set(output['matchedMembers']), {'서은경','김옥수'})
+            self.assertIsNone(output['candidate'])
+            self.assertEqual(output['status'], 'abstain')
+            tiny_result = p.subprocess.run(['powershell.exe','-NoProfile','-NonInteractive','-File',str(p.OCR),
+                                            '-ImagePath',str(tiny),'-MembersBase64',roster_arg,
+                                            '-VideoUrl','https://example.org/synthetic',
+                                            '-CapturedAt','2026-11-25T16:30:54+09:00'],
+                                           check=True, capture_output=True, timeout=20)
+            tiny_output = json.loads(tiny_result.stdout.decode('utf-8-sig'))
+            self.assertEqual(tiny_output['matchedMembers'], [])
+            self.assertEqual(tiny_output['status'], 'abstain')
+            self.assertIn(b'too small', tiny_result.stderr)
     def test_meeting_lock_is_exclusive(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(p, 'HOME', Path(directory)):
             with p.meeting_lock('2853'):
