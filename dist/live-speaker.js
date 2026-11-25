@@ -9,6 +9,7 @@
   const ANSWER_TO_OTHER = /(?:의원님?\s*질의(?:에\s*대해|에\s*대한|하신\s*내용)|(?:질의|질문)\s*답변|답변(?:을|은|드리)|답해\s*드리)/;
   const OBSERVED_MISHEARD_CALL = /지리하시러/;
   const ROLE_SUFFIXES = ['과장','국장','팀장','부장','소장','센터장','담당관','주무관'];
+  const INTRO_TITLES = /(?:센터장|담당관|주무관|과장|국장|팀장|부장|소장|위원장|의원|위원)(?:\s+[가-힣]{2,4})?\s*입니다/g;
   const QUOTED = /(?:라고\s*(?:소개|말씀|하|했)|라며\s*(?:소개|말씀|하|했)|라고\s*전했)/;
   const CONTINUATION = /^(?:그리고\s*(?:저는|제가)|또\s*(?:저는|제가)|추가로\s*(?:말씀드리면|제가)|이어서\s*(?:제가|말씀드리면))/;
   const TERMINAL = /[.!?。！？]$/;
@@ -20,7 +21,15 @@
   function idOf(cue) { return cue && cue.id != null ? String(cue.id) : ''; }
   function safeId(id) { return !!id && !['__proto__','constructor','prototype'].includes(id); }
   function textOf(cue) { return clean(cue?.text); }
-  function uncertain(cue) { return !!cue?.rejected || (Array.isArray(cue?.flags) && cue.flags.some(flag=>UNCERTAIN.has(flag))); }
+  function uncertain(cue) { return !!cue?.rejected || (Array.isArray(cue?.flags) && cue.flags.some(flag=>UNCERTAIN.has(flag))) || (textOf(cue).match(INTRO_TITLES) || []).length>1; }
+  function displayCandidate(cue,candidate) {
+    if (!candidate || uncertain(cue)) return undefined;
+    if (!candidate.name && /직책 자기소개/.test(candidate.method || '')) {
+      const role = ROLE_SUFFIXES.find(suffix=>clean(candidate.role).endsWith(suffix));
+      return role ? {...candidate,role} : undefined;
+    }
+    return candidate;
+  }
   function number(cue,key) { const n=Number(cue?.[key]); return Number.isFinite(n)?n:NaN; }
   function escapeRegExp(value) { return value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
   function orderedCues(cues) {
@@ -120,7 +129,7 @@
     for (let ix=0;ix<ordered.length;ix++) {
       const {id,cue}=ordered[ix],candidate=raw[id],previous=ix?ordered[ix-1].cue:null;
       const staff=staffIntro(cue);
-      if (staff) { if (!uncertain(cue)) result[id]=staff; continue; }
+      if (staff) { if (!uncertain(cue)) result[id]=displayCandidate(cue,staff); continue; }
       const intro=memberIntro(cue,meeting,previous);
       if (intro) {
         if (uncertain(cue)) continue;
@@ -170,5 +179,5 @@
     }
     return result;
   }
-  return Object.freeze({attribute});
+  return Object.freeze({attribute,displayCandidate});
 });

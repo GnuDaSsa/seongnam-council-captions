@@ -33,6 +33,13 @@ assert.equal(attribute(meeting,[answerCall,answer])[answer.id],undefined);
 
 // A named staff role is offered only on its own explicit self-introduction cue.
 const staff=cue('staff','\uD658\uACBD\uC815\uCC45 \uACFC\uC7A5\uC785\uB2C8\uB2E4.',1,3);
+const staffNameInRole=cue('staff-single','김정아 자원행정팀장입니다.',3,5);
+const twoOfficials=cue('two-officials','구본양 녹취과장입니다. 오제성 생태하점과장입니다.',5,9);
+assert.equal(attribute(meeting,[staffNameInRole])['staff-single'].role,'팀장');
+assert.equal(attribute(meeting,[twoOfficials])['two-officials'],undefined);
+const {displayCandidate}=require('../dist/live-speaker.js');
+assert.equal(displayCandidate(twoOfficials,{name:'',role:'구본양 녹취과장',method:'직책 자기소개'}),undefined);
+assert.equal(displayCandidate(staffNameInRole,{name:'',role:'김정아 자원행정팀장',method:'직책 자기소개'}).role,'팀장');
 const question=cue('question','\uD658\uACBD\uC815\uCC45 \uACFC\uC7A5\uC774 \uB4E4\uC5B4\uAC00\uC694?',3,5);
 result=attribute(meeting,[staff,question]);
 assert.equal(result.staff.name,''); assert.ok(result.staff.role); assert.equal(result.staff.confidence,'medium'); assert.ok(result.staff.method); assert.deepEqual(result.staff.evidence,['staff']);

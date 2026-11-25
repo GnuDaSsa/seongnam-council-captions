@@ -190,7 +190,11 @@
       if (String(archive.meetingId) !== id || !Array.isArray(archive.cues)) throw new Error('회의록을 확인할 수 없습니다.');
       let candidates = {};
       try { candidates = window.CouncilLiveSpeaker?.attribute(meeting, archive.cues, [], archive.gaps || []) || {}; } catch (_) {}
-      const matches = uniqueCues(archive.cues).map(cue => ({...cue, speaker:cue.speaker || candidates[String(cue.id)]})).filter(hasSpeaker);
+      const matches = uniqueCues(archive.cues).map(cue => {
+        const candidate = cue.speaker || candidates[String(cue.id)];
+        const speaker = window.CouncilLiveSpeaker?.displayCandidate ? window.CouncilLiveSpeaker.displayCandidate(cue,candidate) : candidate;
+        return {...cue,speaker};
+      }).filter(hasSpeaker);
       const rows = matches.slice(-30).reverse();
       if (!rows.length) { status.textContent = '이름이나 역할이 추정된 이전 발언이 없습니다.'; return; }
       status.textContent = `이 회의에서 추정한 발언 ${matches.length}건 · 최근 ${rows.length}건 표시`;
