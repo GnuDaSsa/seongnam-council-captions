@@ -87,6 +87,54 @@
       "sourceSha256": "a475c0f1f5d7d187cae1e2e7760908a6c5366064a0657eb1392c5181fe696a54"
     },
     {
+      "id": "1795587268650153525",
+      "start": 4573.793,
+      "speaker": {
+        "status": "candidate",
+        "method": "직책 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795587268650153525"
+        ]
+      },
+      "sourceSha256": "cd89ab24f998ecc54c6480e877d094982201f08bf3f8d143741c20a42f631405"
+    },
+    {
+      "id": "1795587268650153526",
+      "start": 4579.133,
+      "speaker": {
+        "status": "candidate",
+        "method": "직책 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795587268650153526"
+        ]
+      },
+      "sourceSha256": "bff80be896ad82ed33f3f657a11e0a40a77c20899c2985c6d2870af6253946f6"
+    },
+    {
+      "id": "1795587268650153527",
+      "start": 4582.843,
+      "speaker": {
+        "status": "candidate",
+        "method": "직책 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795587268650153527"
+        ]
+      },
+      "sourceSha256": "fa4d47ce16158dd02baa134ef94df8d2c21277270caab2d9c1f0c5a6a6b224eb"
+    },
+    {
+      "id": "1795587268650153528",
+      "start": 4586.873,
+      "speaker": {
+        "status": "candidate",
+        "method": "직책 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795587268650153528"
+        ]
+      },
+      "sourceSha256": "f300bd30a89fdf01f2db763e29ac6e119f21849ccb16bc2552eddf7a6f0d1335"
+    },
+    {
       "id": "1795587268650153530",
       "start": 4609.703,
       "spelling": "corrected_in_context",
@@ -147,12 +195,160 @@
       "sourceSha256": "c73efdc6480ed2ed7f92cbf9a0922de1ad3fa5b76abd0507f943902a15faaa86"
     },
     {
+      "id": "1795587268650153789",
+      "start": 6235.923,
+      "speaker": {
+        "status": "candidate",
+        "method": "의원 명시적 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795587268650153789"
+        ]
+      },
+      "sourceSha256": "e2732aa0d97a0a721b56dad21e4212c897fe9af9f4fd622514553f8b2dbb2226"
+    },
+    {
       "id": "1795587268650153871",
       "start": 6859.793,
       "speaker": {
         "status": "address_in_text"
       },
       "sourceSha256": "1da6a9530a41bf206b8c8d583f50ab14c546468c2323ffd386e69e003748b82f"
+    },
+    {
+      "id": "1795587268650153872",
+      "start": 6867.263,
+      "speaker": {
+        "status": "candidate",
+        "method": "명부 의원의 명시적 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795587268650153872"
+        ]
+      },
+      "sourceSha256": "5d181a7267b518b2cc7d963cb39ceb5dfb7a8572f369e591be6c6baadb1b9ae5"
+    },
+    {
+      "id": "1795587268650154003",
+      "start": 7588.793,
+      "speaker": {
+        "status": "candidate",
+        "method": "직책 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795587268650154003"
+        ]
+      },
+      "sourceSha256": "83893cb46e10379ffb9fb22ed6892d568d239c9f16e060afd8c9bb4b90815a67"
+    },
+    {
+      "id": "1795587268650154052",
+      "start": 7919.793,
+      "spelling": "corrected_in_context",
+      "sourceSha256": "235a930579354b685ced1f8ff3f55cb663e2a70324301ad6fee8b00cc490a1d3"
+    },
+    {
+      "id": "1795587268650154055",
+      "start": 7931.293,
+      "speaker": {
+        "status": "candidate",
+        "method": "직책 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795587268650154055"
+        ]
+      },
+      "sourceSha256": "9d470bc663e961d54d4a57aef8f5643a68f79853b824819b5156238026e8ab44"
+    },
+    {
+      "id": "1795587268650154056",
+      "start": 7934.793,
+      "speaker": {
+        "status": "candidate",
+        "method": "직책 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795587268650154056"
+        ]
+      },
+      "sourceSha256": "dda2279a9276dbc9e0c99493cc5e88f130d931936a2a9bd34f26a3f24dba2347"
+    },
+    {
+      "id": "1795587268650154061",
+      "start": 7963.223,
+      "speaker": {
+        "status": "address_in_text"
+      },
+      "sourceSha256": "65e53b9b145fcc529db28874de22e6cf93827fa58b9452d91d9d7adfa1f2f02c"
+    },
+    {
+      "id": "1795587268650154062",
+      "start": 7966.863,
+      "speaker": {
+        "status": "candidate",
+        "method": "직접 호명 뒤 동일 의원 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795587268650154061",
+          "1795587268650154062"
+        ]
+      },
+      "sourceSha256": "91a981371ef296d3f90c312b836514a0c0c857484300c3789ca40c547151efdb"
+    },
+    {
+      "id": "1795587268650154077",
+      "start": 8074.373,
+      "spelling": "corrected_in_context",
+      "sourceSha256": "ec1523dba353546248ffe618b5a7faadb7f90ec08ae4b54f0e396b1bdf57b59b"
+    },
+    {
+      "id": "1795587268650154081",
+      "start": 8100.793,
+      "spelling": "corrected_in_context",
+      "sourceSha256": "571957fbdc16c2e91d889819e42ec7ccb428905073cf4be35c869bbfea9dd36a"
+    },
+    {
+      "id": "1795587268650154096",
+      "start": 8225.793,
+      "spelling": "corrected_in_context",
+      "sourceSha256": "e5d5c4fc48dcc50e67a0704658e922095a9cbf3bc166964efeab4852b8c175e4"
+    },
+    {
+      "id": "1795587268650154097",
+      "start": 8238.793,
+      "spelling": "corrected_in_context",
+      "sourceSha256": "8576e6006b2794bf5a1a7479cf8f8535139b7773b7aa505dee3e5eeb014bc876"
+    },
+    {
+      "id": "1795587268650154098",
+      "start": 8245.973,
+      "spelling": "corrected_in_context",
+      "sourceSha256": "e35212fef78473e44817048b39608fd72d58d00612c5ce2cb0fdb39c41be8487"
+    },
+    {
+      "id": "1795587268650154099",
+      "start": 8250.893,
+      "spelling": "corrected_in_context",
+      "sourceSha256": "b03101ce8edce1126ea2630ef812f976b8527a2c1cce8fdba6f90274bb025dd0"
+    },
+    {
+      "id": "1795587268650154168",
+      "start": 8717.153,
+      "speaker": {
+        "status": "candidate",
+        "method": "직책을 호칭하고 질문한 cue (실명 미확인)",
+        "evidence": [
+          "1795587268650154168"
+        ]
+      },
+      "sourceSha256": "fea3006d3e3985250d5e71c38f9e5418a040af4af8c77d1da632811f408a251d"
+    },
+    {
+      "id": "1795587268650154169",
+      "start": 8723.423,
+      "speaker": {
+        "status": "candidate",
+        "method": "직책을 호칭한 질문 뒤 바로 이어진 답변 cue (실명 미확인)",
+        "evidence": [
+          "1795587268650154168",
+          "1795587268650154169"
+        ]
+      },
+      "sourceSha256": "9068bd2be235612669bf4f72b848a10934733cc2a66e7e96e1e5b33ce71c1c83"
     }
   ]
 }

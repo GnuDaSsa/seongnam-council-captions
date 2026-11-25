@@ -5,10 +5,46 @@
   "source": "https://seongnam-council-desk.gnudas0923.chatgpt.site/api/live/minutes?meetingId=2855",
   "observations": [
     {
+      "id": "1795585934998639647",
+      "start": 1733.688,
+      "spelling": "corrected_in_context",
+      "sourceSha256": "65f57c37262e2b18a2a15d52c98082a8e7ab07bab147a507b7ebb5c4c9a9c382"
+    },
+    {
+      "id": "1795585934998639649",
+      "start": 1738.668,
+      "spelling": "corrected_in_context",
+      "sourceSha256": "332b7452fc5254634ed2e4e30961c1261a930eae8bf1a8198fc6c20e47f0dce5"
+    },
+    {
+      "id": "1795586250618821717",
+      "start": 1998.445,
+      "speaker": {
+        "status": "candidate",
+        "method": "명부 의원의 명시적 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795586250618821717"
+        ]
+      },
+      "sourceSha256": "3e6e10d52ca20d867035f9f87056774f421f9ac42f94c245df918c6a058d4e5c"
+    },
+    {
       "id": "1795587269017471199",
       "start": 3594.991,
       "spelling": "corrected_in_context",
       "sourceSha256": "5e5ae35ba81e83d8239ef473c667676399e2760bd41aed196bc04c4363e336c2"
+    },
+    {
+      "id": "1795587269017471202",
+      "start": 3612.041,
+      "speaker": {
+        "status": "candidate",
+        "method": "직책 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795587269017471202"
+        ]
+      },
+      "sourceSha256": "86ff475b6caaee9c9dfdaff2efc014499b9418d5f8f089f578164e7abfca3d57"
     },
     {
       "id": "1795587269017471208",
@@ -17,10 +53,82 @@
       "sourceSha256": "925e6734b61ebb3d6a7329402addc0b985c56db196cb7913d33e954cc0c52b1d"
     },
     {
+      "id": "1795587269017471213",
+      "start": 3683.151,
+      "speaker": {
+        "status": "candidate",
+        "method": "명부 의원의 명시적 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795587269017471213"
+        ]
+      },
+      "sourceSha256": "836404541bca2506e3e7d715eceecabb5545c9a11ac2ad417c99047a5aade2ff"
+    },
+    {
+      "id": "1795587269017471438",
+      "start": 5117.901,
+      "spelling": "corrected_in_context",
+      "sourceSha256": "e2547ae6b3463b3f79e46b86608e209a669bd0e8e7de0dbd5a1337ffc0533824"
+    },
+    {
       "id": "1795587269017471452",
       "start": 5950.721,
       "spelling": "corrected_in_context",
       "sourceSha256": "676cb11dfb00600ffa188dc3744a6be356f30c6782d431ea077cd08e3465c993"
+    },
+    {
+      "id": "1795587269017471457",
+      "start": 5986.891,
+      "speaker": {
+        "status": "candidate",
+        "method": "직책 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795587269017471457"
+        ]
+      },
+      "sourceSha256": "9ddce82f3945849b25b14fff9d3db511c796afad10edf9a916eced6d7c9bd7db"
+    },
+    {
+      "id": "1795587269017471458",
+      "start": 5991.651,
+      "speaker": {
+        "status": "candidate",
+        "method": "직책 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795587269017471458"
+        ]
+      },
+      "sourceSha256": "53a2caeb2b3de50c4371cc3ef6f7cba90e37421279562f2e4db240ad70b43a8c"
+    },
+    {
+      "id": "1795587269017471459",
+      "start": 5998.991,
+      "speaker": {
+        "status": "candidate",
+        "method": "직책 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795587269017471459"
+        ]
+      },
+      "sourceSha256": "15540383d867e8714abe1981518d810cdd8004503a823f23f0df9c8f46768fc1"
+    },
+    {
+      "id": "1795587269017471484",
+      "start": 6222.421,
+      "spelling": "corrected_in_context",
+      "sourceSha256": "7c8acc14cd87373b249818830fa8e1eb09e807d000e8290b53f91fbbf3479b27"
+    },
+    {
+      "id": "1795587269017471551",
+      "start": 6714.651,
+      "spelling": "unchanged",
+      "sourceSha256": "424c7d9e40aca5dcc2e7251c1fec72099dfc129f418213db58b0d6c7955dc44c"
+    },
+    {
+      "id": "1795587269017471729",
+      "start": 7718.151,
+      "spelling": "corrected_in_context",
+      "sourceSha256": "50477a69912449e072da5dc6dfa32c5840eb2a630ae1db2b433d15e93547ad98"
     }
   ]
 }

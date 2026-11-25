@@ -5,22 +5,97 @@
   "source": "https://seongnam-council-desk.gnudas0923.chatgpt.site/api/live/minutes?meetingId=2852",
   "observations": [
     {
+      "id": "1795584783028762025",
+      "start": 626.069,
+      "speaker": {
+        "status": "candidate",
+        "method": "직책 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795584783028762025"
+        ]
+      },
+      "sourceSha256": "2d5f5bc0dfafbfb63b96dd45d44d0cc6df616cda213515cd1d4c413bf090ae06"
+    },
+    {
+      "id": "1795584783028762026",
+      "start": 633.669,
+      "speaker": {
+        "status": "candidate",
+        "method": "직책 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795584783028762026"
+        ]
+      },
+      "sourceSha256": "995dbc1e11c02551ffe3cb9caa1b32c658a78cbd6bf1e39c94338a362e9e0edc"
+    },
+    {
       "id": "1795584783028762052",
       "start": 806.319,
       "spelling": "corrected_in_context",
       "sourceSha256": "4986d40baf73d2068d1b021445e4d82d026ac4a958ab8003da9c9c5d108feaf1"
     },
     {
+      "id": "1795587268636517168",
+      "start": 4739.341,
+      "speaker": {
+        "status": "candidate",
+        "method": "직책 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795587268636517168"
+        ]
+      },
+      "sourceSha256": "296b7d151284260a7b80c429d6746923e9fc79531a7831c2b3b81107794ca99e"
+    },
+    {
+      "id": "1795587268636517169",
+      "start": 4742.921,
+      "speaker": {
+        "status": "candidate",
+        "method": "직책 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795587268636517169"
+        ]
+      },
+      "sourceSha256": "ffba67fcba510424096eba35f73fe4560027030bc1c47931ecc72f0a391a35f1"
+    },
+    {
       "id": "1795587268636517265",
       "start": 5434.791,
       "speaker": {
         "status": "candidate",
-        "method": "명부 이름의 명시적 자기소개 문구",
+        "method": "직접 호명 뒤 동일 의원 자기소개 (원음 확인 필요)",
         "evidence": [
+          "1795587268636517264",
           "1795587268636517265"
         ]
       },
       "sourceSha256": "e6775709d755f0032612cd90c163585a6ed5a1b1a5f51ad6c55ec29e67203711"
+    },
+    {
+      "id": "1795587268636517322",
+      "start": 5829.841,
+      "speaker": {
+        "status": "candidate",
+        "method": "직접 호명 뒤 동일 의원 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795587268636517321",
+          "1795587268636517322"
+        ]
+      },
+      "sourceSha256": "09a535c307afa7e803b9730b1e95e6bea191b3779365e19f34442f2e260e17cf"
+    },
+    {
+      "id": "1795587268636517423",
+      "start": 6525.921,
+      "speaker": {
+        "status": "candidate",
+        "method": "직접 호명 뒤 동일 의원 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795587268636517422",
+          "1795587268636517423"
+        ]
+      },
+      "sourceSha256": "3ddd875b24c7fa50ea6ae9cb53efd6fad937b4506e04b1b127c9141f08c30b5b"
     }
   ]
 }
