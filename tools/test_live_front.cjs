@@ -95,6 +95,11 @@ async function run() {
   speakerFeed.cues.push({...speakerFeed.cues[0]});
   pending.shift().resolve(response(speakerFeed)); await settle();
   assert.match(el('live-captions').allText,/정연화 위원 · 추정/);
+  assert.match(el('live-speaker-name').textContent,/정연화 위원 · 추정/);
+  assert.match(el('live-speaker-meta').textContent,/호명 단서.*자동 추정/);
+  assert.match(el('live-speaker-count').textContent,/전체 1건 중 이름 1건 · 역할만 0건/);
+  el('live-speaker-filter').checked=true; el('live-speaker-filter').handlers.change();
+  assert.match(el('live-captions').allText,/정연화/);
   assert.match(el('live-captions').allText,/발언자 추정 근거/);
   assert.match(el('live-captions').allText,/호명 단서/);
   assert.equal((el('live-captions').allText.match(/정연화 위원 · 추정/g)||[]).length,1);
@@ -112,9 +117,14 @@ async function run() {
   roleOnly.cues[0].speaker={name:'',role:'환경정책 과장',method:'직책 자기소개',evidence:['x']};
   pending.shift().resolve(response(roleOnly)); await settle();
   assert.match(el('live-captions').allText,/환경정책 과장 \(실명 미확인\)/);
+  assert.match(el('live-speaker-count').textContent,/이름 0건 · 역할만 1건 · 표시 1건/);
   for (const [id,timer] of [...timers.entries()].filter(([,t])=>t.delay===3000)) { timers.delete(id); timer.fn(); }
   const cleared=feed('2852','발언 내용','interrupted'); cleared.updatedAt='2000-01-01T00:00:00Z';
   pending.shift().resolve(response(cleared)); await settle();
+  assert.equal(el('live-speaker-name').textContent,'발언자 미확인');
+  assert.match(el('live-captions').allText,/이름이나 직책이 표시된 발언이 없습니다/);
+  assert.match(el('live-speaker-count').textContent,/표시 0건/);
+  el('live-speaker-filter').checked=false; el('live-speaker-filter').handlers.change();
   assert.match(el('live-captions').allText,/발언자 미확인/);
   assert.doesNotMatch(el('live-captions').allText,/김정아|현재 발언/);
   assert.match(el('caption-status').textContent,/중단/);
@@ -137,10 +147,31 @@ async function run() {
   await el('capture-start').onclick();
   localOptions.onCue({text:'다른 탭 발언',start:0,end:1,observedAt:Date.now()});
   assert.equal(attributionCalls,1,'unrelated tab audio never uses the council roster');
+  assert.equal(el('live-speaker-name').textContent,'발언자 미확인');
+  el('live-speaker-filter').checked=true; el('live-speaker-filter').handlers.change();
+  assert.match(el('live-captions').allText,/이름이나 직책이 표시된 발언이 없습니다/);
+  el('live-speaker-filter').checked=false; el('live-speaker-filter').handlers.change();
   assert.match(el('live-captions').allText,/발언자 미확인/);
   assert.doesNotMatch(el('live-captions').allText,/박정민/);
   el('local-save').onclick();
   assert.equal(context.exported.segments[0].speaker,'발언자 미확인');
+  el('capture-stop').onclick();
+  const history=el('live-speaker-history'); history.open=true; history.handlers.toggle();
+  assert.match(pending.at(-1).url,/minutes\?meetingId=2852/);
+  const historyCall=pending.pop();
+  historyCall.resolve(response({meetingId:'2852',gaps:[],cues:[{id:'historic',start:9,end:10,text:'조우현 의원입니다.',rawText:'조우현 의원입니다.',flags:[],speaker:{name:'조우현',role:'의원',method:'자기소개',evidence:['historic']}}]}));
+  await settle();
+  assert.match(el('live-speaker-history-list').allText,/조우현 의원/);
+  assert.match(el('live-speaker-history-status').textContent,/이 회의에서 추정한 발언 1건/);
+  assert.equal(el('live-speaker-name').textContent,'발언자 미확인');
+  history.handlers.toggle(); const stale=pending.pop();
+  el('live-meeting-select').handlers.change({target:{value:'2853'}});
+  assert.equal(el('live-speaker-history-list').allText,'');
+  stale.resolve(response({meetingId:'2852',cues:[{id:'old',start:1,end:2,text:'old',speaker:{name:'옛이름'}}]}));
+  await settle(); assert.doesNotMatch(el('live-speaker-history-list').allText,/옛이름/);
+  const nextHistory=pending.find(item=>item.url.includes('minutes?meetingId=2853'));
+  nextHistory.resolve(response({meetingId:'2853',cues:[]})); await settle();
+  assert.match(el('live-speaker-history-status').textContent,/없습니다/);
   console.log('PASS: second polling, late response isolation, default selection, status, flags and export');
 }
 run().catch(error=>{console.error(error);process.exitCode=1});

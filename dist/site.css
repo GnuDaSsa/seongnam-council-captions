@@ -51,3 +51,49 @@
 .vod-resolve input { flex: 1 1 240px; min-width: 0; max-width: 460px; padding: 7px; }
 .vod-resolve p { flex-basis: 100%; margin: 0; color: #566577; font-size: .9rem; }
 .vod-caption-now { white-space: pre-line; }
+
+.live-layout .caption-panel { min-width: 0; max-height: none; }
+.live-captions, .vod-captions { flex: 0 1 auto; max-height: clamp(17rem, 39vh, 28rem); }
+.live-captions { padding-block: 0; }
+.live-speaker-card { margin: .95rem 1.5rem .7rem; padding: .75rem 1rem; background: #edf4fb; border-left: 3px solid #215b93; border-radius: 4px; }
+.live-speaker-card h3 { margin: 0 0 .2rem; color: #334d67; font-size: .875rem; font-weight: 600; }
+#live-speaker-name { display: block; font-size: 1.2rem; color: #123b5d; overflow-wrap: anywhere; }
+#live-speaker-meta { margin: .2rem 0 0; color: #455c73; font-size: .875rem; line-height: 1.5; }
+.speaker-filter-bar { padding: .45rem 1.5rem .85rem; display: flex; align-items: baseline; flex-wrap: wrap; gap: .25rem .85rem; border-bottom: 1px solid #dde5ed; font-size: .875rem; }
+.speaker-filter-bar label { display: inline-flex; align-items: center; gap: .4rem; cursor: pointer; font-weight: 600; }
+.speaker-filter-bar input { margin: 0; accent-color: #20588a; width: 1rem; height: 1rem; }
+#live-speaker-count { color: #4d6276; font-variant-numeric: tabular-nums; }
+.cue-speaker { font-size: .9375rem; color: #164f7d; }
+.cue-speaker-evidence { font-size: .875rem; }
+.live-captions .cue-speaker-empty { display: block; color: #4d6276; }
+.live-speaker-history { margin: .65rem 1.5rem; color: #344e67; font-size: .875rem; }
+.live-speaker-history summary { width: fit-content; cursor: pointer; color: #215780; font-weight: 600; }
+.live-speaker-history p { margin: .5rem 0; }
+.live-speaker-history ol { margin: 0; padding-left: 1.35rem; max-height: 12rem; overflow: auto; line-height: 1.55; }
+.live-speaker-history li { padding: .3rem 0; }
+.live-speaker-history li > * { display: block; }
+.live-speaker-history li small { display: block; white-space: pre-line; overflow-wrap: anywhere; color: #4a5f73; font-size: .875rem; }
+.vod-mode { display: flex; margin: 0 1.5rem; padding: 4px; gap: 4px; border: 1px solid #c8d5e2; border-radius: 8px; background: #f3f6fa; }
+.vod-mode label { flex: 1; position: relative; min-width: 0; cursor: pointer; }
+.vod-mode input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.vod-mode span { display: block; text-align: center; padding: .55rem .25rem; color: #354c63; font-size: .95rem; font-weight: 600; border-radius: 5px; }
+.vod-mode input:checked + span { color: white; background: #1c4c79; }
+.vod-mode input:focus-visible + span { outline: 3px solid #327dc1; outline-offset: 2px; }
+.track-summary { margin: .55rem 1.5rem 0; color: #334d67; line-height: 1.55; font-size: .925rem; }
+.vod-capture-controls { display: flex; gap: .5rem; padding-inline: 1.5rem; }
+.vod-capture-controls button { border: 1px solid #376583; background: white; color: #17466b; border-radius: 5px; margin-top: .65rem; padding: .45rem .8rem; font: inherit; font-size: .925rem; font-weight: 600; }
+.vod-caption-panel .caption-status { padding: .5rem 0; font-size: .875rem; color: #465c70; line-height: 1.5; }
+.vod-caption-now { margin: .7rem 1.5rem; padding: .85rem 1rem; }
+.vod-now-speaker, .vod-cue-speaker { font-weight: 700; color: #1c4467; }
+.vod-now-text, .vod-cue-text { display: block; font-size: 1rem; line-height: 1.6; overflow-wrap: anywhere; }
+.vod-now-source, .vod-cue-source { color: #465b72; font-size: .875rem; font-weight: 500; }
+.vod-now-source, .vod-now-speaker, .vod-now-recent { display: block; }
+.vod-cue { padding: .75rem 1.5rem; }
+.vod-cue-time { color: #3d5c76; font-size: .875rem; font-variant-numeric: tabular-nums; margin-right: .65rem; }
+.vod-cue-speaker { font-size: .9375rem; }
+.vod-cue[aria-current="true"] { box-shadow: inset 3px 0 #3171a3; }
+@media (max-width: 600px) {
+  .live-speaker-card, .vod-mode, .vod-caption-now { margin-inline: 1rem; }
+  .speaker-filter-bar, .vod-capture-controls, .vod-cue { padding-inline: 1rem; }
+  .track-summary { margin-inline: 1rem; }
+}

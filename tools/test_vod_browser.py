@@ -48,7 +48,8 @@ with server() as base, sync_playwright() as p:
     page.locator('#tab-vod').click()
     page.wait_for_function("document.querySelectorAll('#vod-meeting-select option').length === 2")
     assert page.locator('#vod-meeting-select').input_value() == '5483'
-    assert page.locator('#vod-generate').is_visible()
+    assert page.locator('#vod-mode-existing').is_checked()
+    assert page.locator('#vod-generate').is_hidden()
     page.locator('#vod-resolve-input').fill('https://evil.example/vod/vod_view.jsp?pk_vod_no=123')
     page.locator('#vod-resolve-form button').click()
     assert page.locator('#vod-resolve-status').inner_text()
@@ -83,25 +84,50 @@ with server() as base, sync_playwright() as p:
     page.evaluate("v=document.querySelector('#vod-video');v._time=3;v.dispatchEvent(new Event('timeupdate'))")
     assert 'first cache' in page.locator('#vod-caption-now').inner_text()
     assert 'Chair' in page.locator('#vod-caption-now').inner_text()
+    assert '기록 확인' in page.locator('#vod-caption-now').inner_text()
+    assert '공식 회의록 대조' in page.locator('#vod-caption-now').inner_text()
+    assert '발언자 미확인' in page.locator('.vod-cue').nth(1).inner_text()
     page.evaluate("v._time=9;v.dispatchEvent(new Event('timeupdate'))")
     assert 'second cache' in page.locator('#vod-caption-now').inner_text()
     page.locator('.vod-cue').first.click()
     assert page.evaluate('v.currentTime') == 2
+    page.locator('#vod-mode-personal').check()
+    assert page.locator('#vod-generate').is_visible()
+    assert page.locator('.vod-cue').count() == 0
+    assert 'first cache' not in page.locator('#vod-caption-now').inner_text()
+    page.evaluate('''() => { window.CouncilLiveSpeaker = {attribute: (_meeting,cues) =>
+      ({[cues[0].id]:{name:'홍길동',role:'홍길동 과장',confidence:'low',method:'자기소개'}})}; }''')
     page.evaluate('v.play()')
     page.locator('#vod-generate').click()
     assert page.evaluate('window.captureArgs.mediaTimeline') is True
     page.evaluate("window.oldCapture=window.captureArgs;window.captureArgs.onCue({start:12,end:15,text:'new speech'});v._time=13;v.dispatchEvent(new Event('timeupdate'))")
     assert 'new speech' in page.locator('#vod-caption-now').inner_text()
-    assert page.locator('.vod-cue').count() == 3
+    assert '지금 음성 인식 · 미검토' in page.locator('#vod-caption-now').inner_text()
+    assert '과장 · 추정' in page.locator('#vod-caption-now').inner_text()
+    assert '홍길동' not in page.locator('#vod-caption-now').inner_text()
+    assert 'Chair' not in page.locator('#vod-caption-now').inner_text()
+    assert 'first cache' not in page.locator('#vod-captions').inner_text()
+    assert page.locator('.vod-cue').count() == 1
+    assert 'first cache' not in page.locator('#vod-captions').inner_text()
     page.evaluate("v._time=16;v.dispatchEvent(new Event('timeupdate'))")
     assert 'new speech' in page.locator('#vod-caption-now').inner_text()
     page.evaluate("v.dispatchEvent(new Event('seeking'));v.dispatchEvent(new Event('seeked'))")
     assert 'new speech' not in page.locator('#vod-caption-now').inner_text()
-    page.evaluate("v.pause();v.play()")
+    page.evaluate("v.pause()")
+    assert '대기' in page.locator('#vod-caption-status').inner_text()
+    page.evaluate("v.play()")
     assert page.locator('#vod-stop').is_visible()
-    page.evaluate("window.captureArgs.onCue({start:2.9,end:5.3,text:'unreviewed overlap'});v._time=3;v.dispatchEvent(new Event('timeupdate'))")
-    assert 'first cache' in page.locator('#vod-caption-now').inner_text()
-    assert 'unreviewed overlap' not in page.locator('#vod-caption-now').inner_text()
+    before = page.evaluate('v.currentTime')
+    page.locator('#vod-mode-existing').check()
+    assert page.evaluate('v.currentTime') == before
+    assert page.locator('#vod-stop').is_hidden()
+    assert page.locator('#vod-generate').is_hidden()
+    assert page.locator('.vod-cue').count() == 2
+    assert 'new speech' not in page.locator('#vod-captions').inner_text()
+    page.locator('#vod-mode-personal').check()
+    assert page.locator('#vod-generate').is_visible()
+    assert page.locator('.vod-cue').count() == 1
+    assert 'new speech' in page.locator('#vod-captions').inner_text()
     assert page.locator('#vod-minutes').is_visible()
     page.select_option('#vod-meeting-select','2')
     assert page.locator('#vod-minutes').is_hidden()
@@ -109,6 +135,9 @@ with server() as base, sync_playwright() as p:
     assert page.locator('.vod-cue').count() == 0
     page.evaluate("window.oldCapture.onCue({start:1,end:2,text:'stale'});")
     assert 'stale' not in page.locator('#vod-captions').inner_text()
+    assert page.locator('#vod-mode-existing').is_checked()
+    assert '자막이 없습니다' in page.locator('#vod-caption-status').inner_text()
+    page.locator('#vod-mode-personal').check()
     page.evaluate('v.play()'); page.locator('#vod-generate').click()
     page.locator('#tab-archive').click()
     assert page.evaluate('v.paused') is True
