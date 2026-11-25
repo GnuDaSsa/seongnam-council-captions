@@ -11,6 +11,11 @@ const fetchHtml=html=>async(url,opts)=>{
 };
 let response=await resolveVod(request(),fetchHtml(page()));
 assert.equal(response.status,200);
+const indexedRow=await response.clone().json();
+const staticIndex=new Map([[indexedRow.id,indexedRow]]);
+const offline=()=>{throw Error('offline')};
+assert.deepEqual(await (await resolveVod(request(),offline,staticIndex)).json(),indexedRow);
+assert.equal((await resolveVod(request('999999'),offline,staticIndex)).status,502);
 assert.deepEqual(await response.json(),{
   id:'5482',title:'제1차 도시건설위원회',date:'2026-10-07',
   officialPage:'https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5482&position=0',

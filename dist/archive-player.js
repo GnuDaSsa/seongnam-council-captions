@@ -168,7 +168,7 @@
     } catch (_) { return false; }
   }
   async function resolveMeeting(event) {
-    event.preventDefault();
+    event?.preventDefault();
     const id = parseVodId(el('vod-resolve-input').value);
     const status = el('vod-resolve-status');
     const token = ++resolveGeneration;
@@ -178,7 +178,7 @@
       status.textContent = '공식 영상을 확인하고 있습니다.';
       try {
         const response = await fetch('/api/vod/resolve?id=' + encodeURIComponent(id), {cache:'no-store'});
-        if (!response.ok) throw Error('영상을 찾지 못했습니다. 공식 영상 주소를 확인해 주세요.');
+        if (!response.ok) throw Error(response.status === 404 ? '영상을 찾지 못했습니다. 공식 영상 주소를 확인해 주세요.' : '공식 영상 목록에 연결할 수 없습니다. 잠시 후 다시 열어 주세요.');
         const data = await response.json();
         if (token !== resolveGeneration || el('vod-panel').hidden) return;
         if (!validMeeting(data, id)) throw Error('공식 영상 정보를 확인할 수 없습니다.');
@@ -199,15 +199,26 @@
     if (loaded) return;
     loaded = true;
     try {
-      const response = await fetch('/data/vod-catalog.json', {cache:'no-store'});
+      const [response,index] = await Promise.all([
+        fetch('/data/vod-catalog.json', {cache:'no-store'}),
+        fetch('/data/vod-index.json').then(r=>r.ok?r.json():null).catch(()=>null)
+      ]);
       if (!response.ok) throw Error('목록을 불러올 수 없습니다.');
       const data = await response.json(); meetings = Array.isArray(data.meetings) ? data.meetings : [];
+      const existing = new Set(meetings.map(item=>String(item.id)));
+      for (const row of index?.meetings || []) {
+        if (!existing.has(row.id) && validMeeting(row,row.id)) { meetings.push(row); existing.add(row.id); }
+      }
       const select = el('vod-meeting-select'); select.replaceChildren();
       for (const item of meetings) { const option = document.createElement('option'); option.value = String(item.id); option.textContent = [item.date,item.title].filter(Boolean).join(' · '); select.append(option); }
       if (!meetings.length) throw Error('등록된 다시보기 영상이 없습니다.');
       const requested = new URL(location.href).searchParams.get('vod');
       const chosen = meetings.find(item => String(item.id) === requested) || meetings[0];
       select.value = String(chosen.id); selectMeeting(chosen.id);
+      if (requested && requested !== String(chosen.id) && parseVodId(requested) && !el('vod-panel').hidden) {
+        el('vod-resolve-input').value = requested;
+        await resolveMeeting();
+      }
     } catch (error) { loaded = false; el('vod-caption-status').textContent = error.message || '회의 목록을 불러올 수 없습니다.'; }
     finally { el('vod-resolve-form').querySelector('button').disabled = false; }
   }

@@ -56,7 +56,7 @@ async function boundedBody(response) {
   return new TextDecoder('utf-8').decode(bytes);
 }
 
-export async function resolveVod(request, fetcher=fetch) {
+export async function resolveVod(request, fetcher=fetch, index) {
   if (request.method !== 'GET') return json(405,{error:'method_not_allowed'});
   let url;
   try { url = new URL(request.url); } catch { return json(400,{error:'invalid_request'}); }
@@ -65,6 +65,8 @@ export async function resolveVod(request, fetcher=fetch) {
       [...url.searchParams.keys()].some(key=>key !== 'id') || !/^[1-9][0-9]{0,7}$/.test(values[0]))
     return json(400,{error:'invalid_id'});
   const id=values[0];
+  const indexed=index?.get(id);
+  if (indexed) return json(200,{...indexed,members:[],cues:[]});
   const officialPage=`https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=${id}&position=0`;
   const controller=new AbortController();
   let timer;

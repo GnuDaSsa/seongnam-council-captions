@@ -37,6 +37,7 @@ with server() as base, sync_playwright() as p:
     def route(r):
         url = r.request.url
         if '/data/vod-catalog.json' in url: r.fulfill(json=catalog)
+        elif '/data/vod-index.json' in url: r.fulfill(json={'meetings':[]})
         elif '/api/live/captions?' in url or '/api/live/nameplates?' in url: r.fulfill(status=404,body='')
         elif '/vendor/hls.light.min.js' in url: r.fulfill(content_type='text/javascript', body="window.Hls=class {static isSupported(){return true} static Events={ERROR:'error'};on(){}loadSource(){}attachMedia(){}destroy(){}}")
         elif '/tab-captions.js' in url: r.fulfill(content_type='text/javascript',body="window.CouncilTabCapture={async startPlayer(o){window.captureArgs=o},stop(){window.stopped=(window.stopped||0)+1;window.captureArgs?.onEnd()}}")
