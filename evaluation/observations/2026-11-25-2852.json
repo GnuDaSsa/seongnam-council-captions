@@ -9,6 +9,18 @@
       "start": 806.319,
       "spelling": "corrected_in_context",
       "sourceSha256": "4986d40baf73d2068d1b021445e4d82d026ac4a958ab8003da9c9c5d108feaf1"
+    },
+    {
+      "id": "1795587268636517265",
+      "start": 5434.791,
+      "speaker": {
+        "status": "candidate",
+        "method": "명부 이름의 명시적 자기소개 문구",
+        "evidence": [
+          "1795587268636517265"
+        ]
+      },
+      "sourceSha256": "e6775709d755f0032612cd90c163585a6ed5a1b1a5f51ad6c55ec29e67203711"
     }
   ]
 }
