@@ -254,6 +254,9 @@ def run(endpoint, end_at, meeting_id, model, decode):
     if official.scheme != 'https' or official.hostname != 'cast.sncouncil.go.kr' or official.path != '/live/flashPlayer.jsp' or parse_qs(official.query).get('live_no') != [meeting_id]:
         raise ValueError('invalid official meeting page')
     hints = '회의 안건: ' + ', '.join(meeting.get('agenda', [])) + '. 위원 명단(출석 여부 미확인): ' + ', '.join(meeting.get('members', []))
+    staff = [row['role'] + ' ' + row['name'] for row in meeting.get('staffRoster', [])]
+    if staff:
+        hints += '. 직책·이름 표기 참고: ' + ', '.join(staff)
     source = meeting['playlist']
     parsed = urlparse(source)
     if parsed.scheme != 'https' or parsed.hostname != 'cast.sncouncil.go.kr' or parsed.port != 4443 or not re.fullmatch(r'/live/ch[0-9]+\.sdp/playlist\.m3u8', parsed.path) or parsed.query or parsed.fragment or parsed.username or parsed.password:

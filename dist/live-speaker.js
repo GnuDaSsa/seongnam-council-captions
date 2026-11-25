@@ -61,6 +61,43 @@
     if (/(?:제가|그분|저분|그쪽|저쪽|우리|저희|말씀|담당자는|사람은|분은|분이|현재는|당시에는)/.test(phrase)||words.slice(0,-1).some(word=>/[은는이가을를]$/.test(word))) return null;
     return {name:'',role:phrase,confidence:'medium',method:'직책 자기소개 (원음 확인 필요)',evidence:[idOf(cue)]};
   }
+  function rosterStaffIntro(meeting, cue) {
+    if (uncertain(cue)) return null;
+    const text = textOf(cue);
+    if (QUOTED.test(text)) return null;
+    const match = text.match(/^(?:(?:안녕하십니까|안녕하세요|네|예|저는)[,.!?\s]+){1,3}([가-힣\s]{1,24})\s+([가-힣]{2,4})입니다[.!?\s]*$/);
+    if (!match) return null;
+    const spokenRole = match[1].replace(/\s/g,''), name = match[2];
+    if ((meeting.members || []).map(clean).includes(name)) return null;
+    const roster = Array.isArray(meeting.staffRoster) ? meeting.staffRoster : [];
+    const matches = roster.filter(row => {
+      const role = clean(row?.role).replace(/\s/g,'');
+      const oneSubstitution = spokenRole.endsWith('사업소장') && role.endsWith('사업소장') && role.length === spokenRole.length &&
+        [...role].filter((letter,index) => letter !== spokenRole[index]).length === 1;
+      return row && clean(row.name) === name && row.source && (role === spokenRole || oneSubstitution || (role.startsWith('성남문화재단') && role.slice('성남문화재단'.length) === spokenRole));
+    });
+    if (matches.length !== 1 || roster.filter(row => clean(row?.name) === name).length !== 1) return null;
+    return {name,role:clean(matches[0].role),confidence:'low',method:'명시적 자기소개와 공식 명부 직책·성명 대조 (원음 확인 필요)',evidence:[idOf(cue)]};
+  }
+  function rosterAppointmentAnswer(meeting, cue, previous, candidate, gaps) {
+    if (!previous || uncertain(cue) || uncertain(previous) || cue.flags?.includes('name') || QUOTED.test(textOf(cue))) return null;
+    const q = textOf(previous), text = textOf(cue);
+    const question = q.match(/^(사업소장|센터장|담당관|주무관|과장|국장|팀장|부장|소장)님\s*(?:그\s*자리에\s+오신\s*지\s+얼마나\s+되셨어요|언제\s+부임하셨습니까)[?？]$/);
+    const answer = text.match(/^(?:지난\s*)?(\d{1,2})월\s*(\d{1,2})일(?:날|\s*자로)?\s*(?:발령받았습니다|부임했습니다)[.!]?$/);
+    if (!question || !answer || !candidate || candidate.name || candidate.role !== question[1]) return null;
+    const delta = number(cue,'start') - number(previous,'end');
+    if (!Number.isFinite(delta) || delta < 0 || delta > 5 || gapTouches(previous,cue,gaps)) return null;
+    if (gaps.length && (!Number.isFinite(Date.parse(previous.observedAt)) || !Number.isFinite(Date.parse(cue.observedAt)))) return null;
+    const date = cue.observedAt && new Date(cue.observedAt);
+    if (!date || !Number.isFinite(date.getTime())) return null;
+    const meetingDay = new Date(date.getTime() + 9 * 3600000).toISOString().slice(0,10);
+    const expected = `${meetingDay.slice(0,4)}-${answer[1].padStart(2,'0')}-${answer[2].padStart(2,'0')}`;
+    if (expected > meetingDay) return null;
+    const roster = Array.isArray(meeting.staffRoster) ? meeting.staffRoster : [];
+    const matches = roster.filter(row => row?.source && clean(row.role).replace(/\s/g,'').endsWith(question[1]) && row.appointedOn === expected);
+    if (matches.length !== 1 || roster.filter(row => clean(row?.name) === clean(matches[0].name)).length !== 1) return null;
+    return {name:clean(matches[0].name),role:clean(matches[0].role),confidence:'low',method:'직전 직책 질문·발령 답변과 공식 명부 인사일 대조 (원음 확인 필요)',evidence:[idOf(previous),idOf(cue)]};
+  }
   function memberIntro(cue,meeting,previous) {
     const text=textOf(cue);
     if (!text||QUOTED.test(text)) return null;
@@ -75,6 +112,31 @@
       return {name,role:ROLE_MEDIUM,confidence:'medium',method:evidence.length>1?'직접 호명 뒤 동일 의원 자기소개 (원음 확인 필요)':'명부 의원의 명시적 자기소개 (원음 확인 필요)',evidence};
     }
     return null;
+  }
+  function addressedMemberIntro(cue, meeting) {
+    const text=textOf(cue);
+    if (uncertain(cue) || cue.flags?.includes('name') || QUOTED.test(text)) return null;
+    const match=text.match(/^(?:(?:네|예|안녕하세요|안녕하십니까)[,.!?\s]+){0,2}(?:과장|국장|소장|팀장|센터장|담당관)님[,.\s]+([가-힣]{2,4})입니다[.!?](?:\s|$)/);
+    if (!match) return null;
+    const name=match[1], members=Array.isArray(meeting.members) ? meeting.members.map(clean) : [];
+    if (members.filter(value=>value===name).length!==1 || (meeting.staffRoster || []).some(row=>clean(row?.name)===name)) return null;
+    const rest=text.slice(match[0].length);
+    if (/(?:의원|위원|과장|국장|소장|팀장|센터장|담당관)\s*[가-힣]{2,4}입니다|[가-힣]{2,4}\s*(?:의원|위원|과장|국장|소장)입니다|라고\s*(?:말|소개|했)/.test(rest)) return null;
+    return {name,role:'의원',confidence:'low',method:'직책 호칭 뒤 이름 자기소개와 회의 의원 명부 대조 (원음 확인 필요)',evidence:[idOf(cue)]};
+  }
+  function calledMemberIntro(cue, previous, meeting, gaps) {
+    if (!previous || uncertain(cue) || uncertain(previous)) return null;
+    const text=textOf(cue), call=textOf(previous);
+    if (QUOTED.test(text) || QUOTED.test(call)) return null;
+    const intro=text.match(/^(?:(?:네|예|안녕하세요|안녕하십니까|저는)[,.!?\s]+){0,3}([가-힣]{2,4})입니다[.!?\s]*$/);
+    if (!intro) return null;
+    const name=intro[1], members=Array.isArray(meeting.members) ? meeting.members.map(clean) : [];
+    if (members.filter(value=>value===name).length!==1 || (meeting.staffRoster || []).some(row=>clean(row?.name)===name)) return null;
+    const callPattern=new RegExp('^(?:(?:네|예|다음은)[,.!?\\s]+){0,2}'+escapeRegExp(name)+'\\s*(?:의원|위원)님[,\\s]*(?:말씀|질의|질문|발언)\\s*(?:해\\s*(?:주십시오|주시기\\s*바랍니다|주세요)|하시기\\s*바랍니다)[.!?\\s]*$');
+    const delta=number(cue,'start')-number(previous,'end');
+    if (!callPattern.test(call) || !Number.isFinite(delta) || delta<0 || delta>3 || gapTouches(previous,cue,gaps)) return null;
+    if (gaps.length && (!Number.isFinite(Date.parse(previous.observedAt)) || !Number.isFinite(Date.parse(cue.observedAt)))) return null;
+    return {name,role:'의원',confidence:'low',method:'명부 의원 호명 직후 같은 이름 자기소개 (원음 확인 필요)',evidence:[idOf(previous),idOf(cue)]};
   }
   function roleTurn(cue,previous,byId,gaps,meeting) {
     const text=textOf(cue);
@@ -126,7 +188,7 @@
   const QUESTION = /(?:아닙니까|맞습니까|있습니까|없습니까|아시나요|아십니까|인가요|아닌가요|했나요|되나요|되셨어요|계시죠|지요|이죠|신가요|주실래요|(?:과장|국장|소장|팀장)님이세요)[?？.\s]*$/;
   const EXPLICIT_QUESTION = /(?:습니까|입니까|딥니까|아시나요|아닌가요|했나요|되나요|있나요|없나요|건가요|거예요|되셨어요|신가요|아니에요|어떠세요)[?？]$|(?:언제|어디|어떻|어떠|어떻게|왜|뭐가|무엇|얼마|누가|몇|어느).{0,65}(?:어요|아요|해요|돼요|세요)[?？]$/;
   const AUDIT_QUESTION = /(?:질의|질문)(?:를|을)?\s*드리겠습니다[.\s]*$|^(?:네[,.]?\s*)?제가\s*(?:여쭤볼게요|질문드리겠습니다|질의하겠습니다)[.!\s]/;
-  const RESPONSE = /^(?:(?:네|예)[,.!\s]*(?:맞습니다|그렇습니다|들었습니다|알겠습니다|의원님|위원님|그 부분은)|(?:(?:최근|현재)(?:에는|는)\s*)?(?:있습니다|없습니다)[.!\s]*$|(?:지난|작년|올해|오는|내년|\d).{0,70}(?:발령받았습니다|알고 있습니다)|그(?:건|것은)\s*아닙니다|아직까지는\s*(?:안|못)|저희(?:가|는|도)\s)/;
+  const RESPONSE = /^(?:(?:네|예)[,.!\s]*(?:맞습니다|그렇습니다|들었습니다|알겠습니다|의원님|위원님|그 부분은)|(?:(?:최근|현재)(?:에는|는)\s*)?(?:있습니다|없습니다)[.!\s]*$|(?:지난|작년|올해|오는|내년|\d).{0,70}(?:발령받았습니다|부임했습니다|알고 있습니다)|그(?:건|것은)\s*아닙니다|아직까지는\s*(?:안|못)|저희(?:가|는|도)\s)/;
   const TRANSFER = /(?:다음.{0,16}(?:위원|의원)|(?:위원|의원)님.{0,12}질의해\s*주|보충\s*질의하실|질의를?\s*(?:마치|마치겠)|(?:정회|산회|감사\s*중지)를?\s*(?:선포|선언))/;
   function nearRosterName(a,b) {
     if (a.length!==3 || b.length!==3 || a[0]!==b[0] || a===b) return false;
@@ -265,6 +327,11 @@
       continued.add(next.id);
     }
     dialogueTurns(meeting,ordered,result,observations,safeGaps);
+    for (let i=0;i<ordered.length;i++) {
+      const {cue,id}=ordered[i], previous=i ? ordered[i-1].cue : null;
+      const official = rosterStaffIntro(meeting,cue) || rosterAppointmentAnswer(meeting,cue,previous,result[id],safeGaps) || addressedMemberIntro(cue,meeting) || calledMemberIntro(cue,previous,meeting,safeGaps);
+      if (official) result[id]=official;
+    }
     return result;
   }
   return Object.freeze({attribute,displayCandidate});

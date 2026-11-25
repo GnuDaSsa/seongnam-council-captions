@@ -6,6 +6,50 @@ const members=['\uC548\uAD11\uD658','\uC7A5\uC77C\uB0A8','\uAE40\uC625\uC218','\
 const meeting={id:'2853',members};
 const cue=(id,text,start,end,flags=[],observedAt)=>({id,text,start,end,flags,observedAt});
 
+{
+  const roster=[{name:'이종빈',role:'푸른도시사업소장',source:'https://example.org/1',appointedOn:'2026-07-20'}, {name:'장미라',role:'자원순환과장',source:'https://example.org/2'}, {name:'정연달',role:'공원과장',source:'https://example.org/3'}];
+  const m={...meeting,staffRoster:roster};
+  for (const [id,text,name] of [['a','안녕하십니까. 부른 도시 사업소장 이종빈입니다.','이종빈'],['b','안녕하십니까, 자원순환 과장 장미라입니다.','장미라'],['c','네, 공원과장 정연달입니다.','정연달']]) {
+    const c=cue(id,text,0,3); const value=attribute(m,[c])[id];
+    assert.equal(value?.name,name); assert.match(value.method,/공식 명부/); assert.deepEqual(Object.keys(value).sort(),['confidence','evidence','method','name','role']);
+    const flagged=attribute(m,[{...c,flags:['name']}])[id];
+    assert.equal(flagged?.name,name); assert.equal(flagged.confidence,'low'); assert.match(flagged.method,/원음 확인/);
+    assert.notEqual(attribute(meeting,[c])[id]?.method?.includes('공식 명부'),true);
+    assert.notEqual(attribute({...m,staffRoster:[...roster,{...roster.find(x=>x.name===name)}]},[c])[id]?.method?.includes('공식 명부'),true);
+  }
+  for (const text of ['온몸을 소개하겠습니다. 정연달 공원과장입니다.','정연달 공원과장입니다라고 소개했습니다.','네, 공원과장 정연달입니다. 자원순환과장 장미라입니다.','대리로 공원과장 정연달입니다.']) {
+    assert.notEqual(attribute(m,[cue('no',text,0,3)]).no?.method?.includes('공식 명부'),true,text);
+  }
+  assert.notEqual(attribute(m,[cue('wrong','안녕하십니까. 맑은물관리사업소장 이종빈입니다.',0,3)]).wrong?.method?.includes('공식 명부'),true);
+  const expanded={...m,staffRoster:[...roster,{name:'김가나',role:'재난안전관',source:'https://example.org'},{name:'박가나',role:'성남문화재단대표이사',source:'https://example.org'}]};
+  assert.equal(attribute(expanded,[cue('office','안녕하십니까. 재난안전관 김가나입니다.',0,3)]).office?.name,'김가나');
+  assert.equal(attribute(expanded,[cue('culture','네, 대표이사 박가나입니다.',0,3)]).culture?.name,'박가나');
+  const q=cue('q','소장님 그 자리에 오신 지 얼마나 되셨어요?',0,3,[],'2026-11-25T08:41:03Z');
+  const a=cue('a','지난 7월 20일날 발령받았습니다.',3,5,[],'2026-11-25T08:41:06Z');
+  assert.equal(attribute(m,[q,a]).a?.name,'이종빈');
+  assert.notEqual(attribute({...m,staffRoster:roster.map(r=>({...r,appointedOn:'2026-07-21'}))},[q,a]).a?.name,'이종빈');
+  assert.notEqual(attribute(m,[q,{...a,text:'지난 7월 20일에 회의했습니다.'}]).a?.name,'이종빈');
+  const altQ={...q,text:'소장님 언제 부임하셨습니까?'};
+  const altA={...a,text:'7월 20일 자로 부임했습니다.'};
+  assert.equal(attribute(m,[altQ,altA]).a?.name,'이종빈');
+  assert.notEqual(attribute(m,[altQ,{...altA,text:'내년 7월 20일 자로 부임했습니다.'}]).a?.name,'이종빈');
+  assert.notEqual(attribute({...m,staffRoster:[...roster,{name:'동명이',role:'다른 사업소장',source:'https://example.org',appointedOn:'2026-07-20'}]},[q,a]).a?.name,'이종빈');
+  const member=cue('member','네, 과장님 장일남입니다. 203페이지고요.',0,3);
+  assert.equal(attribute(m,[member]).member?.name,'장일남');
+  assert.notEqual(attribute({...m,staffRoster:[...roster,{name:'장일남',role:'과장',source:'https://example.org'}]},[member]).member?.name,'장일남');
+  for (const text of ['네, 과장님 장일남입니다라고 소개했습니다.','네, 과장님 장일남입니다. 소장 김철수입니다.','네, 과장님 장일남입니다. 정연화 의원입니다.']) assert.notEqual(attribute(m,[cue('no',text,0,3)]).no?.method?.includes('직책 호칭 뒤'),true,text);
+  const committee={id:'2852',members:['순선영']};
+  const call=cue('1795584783028762084','네, 순선영 위원님 말씀해 주십시오.',0,3);
+  const response=cue('1795584783028762085','네, 안녕하십니까? 순선영입니다.',3,6);
+  assert.equal(attribute(committee,[call,response])[response.id]?.name,'순선영');
+  const alternateCall={...call,text:'다음은 순선영 의원님 질의하시기 바랍니다.',flags:['name']};
+  assert.equal(attribute(committee,[alternateCall,{...response,text:'안녕하세요, 순선영입니다.'}])[response.id]?.name,'순선영');
+  assert.notEqual(attribute(committee,[{...alternateCall,text:'김철수 의원님 질의하시기 바랍니다.'},response])[response.id]?.name,'순선영');
+  assert.equal(attribute(m,[{...member,text:'안녕하세요? 과장님. 장일남입니다.'}]).member?.name,'장일남');
+  assert.notEqual(attribute(committee,[call,{...response,start:7,end:9}])[response.id]?.method?.includes('호명 직후'),true);
+  assert.notEqual(attribute(committee,[call,{...response,text:'네, 안녕하십니까? 순선영입니다. 김보석 의원입니다.'}])[response.id]?.method?.includes('호명 직후'),true);
+}
+
 const browserWindow={CouncilSpeakerReview:require('../dist/speaker-review.js'),CouncilNameplateReview:require('../dist/nameplate-review.js')};
 vm.runInNewContext(fs.readFileSync(require.resolve('../dist/live-speaker.js'),'utf8'),{window:browserWindow});
 assert.equal(typeof browserWindow.CouncilLiveSpeaker.attribute,'function','browser UMD consumes injected globals');

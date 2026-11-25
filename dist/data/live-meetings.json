@@ -31,6 +31,49 @@
         "정연화",
         "조우현"
       ],
+      "staffRoster": [
+        {
+          "name": "이원용",
+          "role": "환경보건국장",
+          "source": "https://www.sncouncil.go.kr/record/recordView.do?key=be8d43a7c866b35d2d2b0c58854208fabd8b8a30e6ea061cb3649b2c5733df37472b50f74dedbd3b"
+        },
+        {
+          "name": "유성희",
+          "role": "환경정책과장",
+          "source": "https://www.sncouncil.go.kr/record/recordView.do?key=be8d43a7c866b35d2d2b0c58854208fabd8b8a30e6ea061cb3649b2c5733df37472b50f74dedbd3b"
+        },
+        {
+          "name": "장미라",
+          "role": "자원순환과장",
+          "source": "https://www.sncouncil.go.kr/record/recordView.do?key=be8d43a7c866b35d2d2b0c58854208fabd8b8a30e6ea061cb3649b2c5733df37472b50f74dedbd3b"
+        },
+        {
+          "name": "조난순",
+          "role": "기후에너지과장",
+          "source": "https://www.sncouncil.go.kr/record/recordView.do?key=be8d43a7c866b35d2d2b0c58854208fabd8b8a30e6ea061cb3649b2c5733df37472b50f74dedbd3b"
+        },
+        {
+          "name": "이종빈",
+          "role": "푸른도시사업소장",
+          "source": "https://www.sncouncil.go.kr/record/recordView.do?key=483791be148a634445c8aa53fadd5e6ef18d2f8fee9b7163fcc2a988441a058562a87a7edbd766e4",
+          "appointedOn": "2026-07-20"
+        },
+        {
+          "name": "정연달",
+          "role": "공원과장",
+          "source": "https://www.sncouncil.go.kr/record/recordView.do?key=a46813304d41743bfdeff02347f8bf0fcca4dd972e54fe3035d5d261986dbb422f0b6975fb238591"
+        },
+        {
+          "name": "구본양",
+          "role": "녹지과장",
+          "source": "https://www.sncouncil.go.kr/record/recordView.do?key=a46813304d41743bfdeff02347f8bf0fcca4dd972e54fe3035d5d261986dbb422f0b6975fb238591"
+        },
+        {
+          "name": "오재성",
+          "role": "생태하천과장",
+          "source": "https://www.sncouncil.go.kr/record/recordView.do?key=a46813304d41743bfdeff02347f8bf0fcca4dd972e54fe3035d5d261986dbb422f0b6975fb238591"
+        }
+      ],
       "memberSource": "https://www.sncouncil.go.kr/committee/C050/main.do"
     },
     {
@@ -57,6 +100,28 @@
         "선창선",
         "순선영",
         "임원규"
+      ],
+      "staffRoster": [
+        {
+          "name": "이승연",
+          "role": "소통관",
+          "source": "https://www.sncouncil.go.kr/record/recordView.do?key=dabcc1a6b7562bfab35210d11410e73b7ce8d0da3e4817b9f82f142ab72dda67392b69b3490a7362"
+        },
+        {
+          "name": "황순남",
+          "role": "공보관",
+          "source": "https://www.sncouncil.go.kr/record/recordView.do?key=dabcc1a6b7562bfab35210d11410e73b7ce8d0da3e4817b9f82f142ab72dda67392b69b3490a7362"
+        },
+        {
+          "name": "윤창현",
+          "role": "감사관",
+          "source": "https://www.sncouncil.go.kr/record/recordView.do?key=dabcc1a6b7562bfab35210d11410e73b7ce8d0da3e4817b9f82f142ab72dda67392b69b3490a7362"
+        },
+        {
+          "name": "전상언",
+          "role": "재난안전관",
+          "source": "https://www.sncouncil.go.kr/record/recordView.do?key=dabcc1a6b7562bfab35210d11410e73b7ce8d0da3e4817b9f82f142ab72dda67392b69b3490a7362"
+        }
       ],
       "memberSource": "https://www.sncouncil.go.kr/committee/C030/main.do"
     },
@@ -88,6 +153,33 @@
         "장정현",
         "추선미"
       ],
+      "staffRoster": [
+        {
+          "name": "윤정국",
+          "role": "성남문화재단대표이사",
+          "source": "https://www.sncouncil.go.kr/record/recordView.do?key=3fa563a257a5d7157643fe7bbdd05d79f718f2beed0dd1d9c6f8f9f751b93fd4bbe12eddc953242d"
+        },
+        {
+          "name": "심보미",
+          "role": "성남문화재단감사실장직무대행",
+          "source": "https://www.sncouncil.go.kr/record/recordView.do?key=3fa563a257a5d7157643fe7bbdd05d79f718f2beed0dd1d9c6f8f9f751b93fd4bbe12eddc953242d"
+        },
+        {
+          "name": "박종진",
+          "role": "성남문화재단경영본부장",
+          "source": "https://www.sncouncil.go.kr/record/recordView.do?key=3fa563a257a5d7157643fe7bbdd05d79f718f2beed0dd1d9c6f8f9f751b93fd4bbe12eddc953242d"
+        },
+        {
+          "name": "맹수호",
+          "role": "성남문화재단예술본부장",
+          "source": "https://www.sncouncil.go.kr/record/recordView.do?key=3fa563a257a5d7157643fe7bbdd05d79f718f2beed0dd1d9c6f8f9f751b93fd4bbe12eddc953242d"
+        },
+        {
+          "name": "김재호",
+          "role": "성남문화재단문화본부장",
+          "source": "https://www.sncouncil.go.kr/record/recordView.do?key=3fa563a257a5d7157643fe7bbdd05d79f718f2beed0dd1d9c6f8f9f751b93fd4bbe12eddc953242d"
+        }
+      ],
       "memberSource": "https://www.sncouncil.go.kr/committee/C060/main.do"
     },
     {
@@ -118,6 +210,38 @@
         "이상호",
         "최옥희",
         "최종성"
+      ],
+      "staffRoster": [
+        {
+          "name": "류재복",
+          "role": "도시주택국장",
+          "source": "https://www.sncouncil.go.kr/record/recordView.do?key=19e7659ee24153e3859a041f28a78b7653ca6c0a98796487bd529d78440e60e9ca0e7044ba047285"
+        },
+        {
+          "name": "이금연",
+          "role": "도시계획과장",
+          "source": "https://www.sncouncil.go.kr/record/recordView.do?key=19e7659ee24153e3859a041f28a78b7653ca6c0a98796487bd529d78440e60e9ca0e7044ba047285"
+        },
+        {
+          "name": "강완형",
+          "role": "건축과장",
+          "source": "https://www.sncouncil.go.kr/record/recordView.do?key=19e7659ee24153e3859a041f28a78b7653ca6c0a98796487bd529d78440e60e9ca0e7044ba047285"
+        },
+        {
+          "name": "김동기",
+          "role": "주택과장",
+          "source": "https://www.sncouncil.go.kr/record/recordView.do?key=19e7659ee24153e3859a041f28a78b7653ca6c0a98796487bd529d78440e60e9ca0e7044ba047285"
+        },
+        {
+          "name": "김조래",
+          "role": "공동주택과장",
+          "source": "https://www.sncouncil.go.kr/record/recordView.do?key=19e7659ee24153e3859a041f28a78b7653ca6c0a98796487bd529d78440e60e9ca0e7044ba047285"
+        },
+        {
+          "name": "조동기",
+          "role": "건축안전관리과장",
+          "source": "https://www.sncouncil.go.kr/record/recordView.do?key=19e7659ee24153e3859a041f28a78b7653ca6c0a98796487bd529d78440e60e9ca0e7044ba047285"
+        }
       ],
       "memberSource": "https://www.sncouncil.go.kr/committee/C085/main.do"
     }

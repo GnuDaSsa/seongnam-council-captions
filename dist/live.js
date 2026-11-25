@@ -110,6 +110,19 @@
     }
     return result;
   }
+  function appendRosterSource(details, speaker) {
+    if (!speaker?.name || !meeting) return;
+    const staff = meeting.staffRoster?.find(row => row.name === speaker.name && row.role === speaker.role);
+    const member = meeting.members?.includes(speaker.name);
+    const url = staff?.source || (member && meeting.memberSource);
+    if (!url || !/^https:\/\/(?:www\.)?sncouncil\.go\.kr\//.test(url)) return;
+    const link = document.createElement('a');
+    link.href = url;
+    link.textContent = staff ? '직책과 이름을 확인한 공식 회의록' : '공식 위원회 명단';
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    details.append(link);
+  }
   function speakerEvidence(cue, byId) {
     const evidence = cue.speaker?.evidence;
     const ids = Array.isArray(evidence) ? evidence : [];
@@ -200,7 +213,9 @@
         summary.textContent = '발언자 추정 근거';
         const method = typeof cue.speaker.method === 'string' ? cue.speaker.method.slice(0, 200) : '';
         reason.textContent = [method, ...speakerEvidence(cue, byId)].filter(Boolean).join('\n');
-        details.append(summary, reason); content.append(details);
+        details.append(summary, reason);
+        appendRosterSource(details, cue.speaker);
+        content.append(details);
       }
       const text = document.createElement('span'); text.className = 'cue-content'; text.textContent = safeText(cue); content.append(text);
       const sourceText = String((cue.flags?.includes('segment_review') && cue.rawText) || cue.text || '');
@@ -294,6 +309,7 @@
           return reading ? `${reading.time} · ${reading.names.join(', ') || '읽힌 이름 없음'}` : '';
         }).filter(Boolean).join(' / ');
         details.append(summary,evidence);
+        appendRosterSource(details,cue.speaker);
         item.append(heading,excerpt);
         if (evidence.textContent.trim()) item.append(details);
         list.append(item);
