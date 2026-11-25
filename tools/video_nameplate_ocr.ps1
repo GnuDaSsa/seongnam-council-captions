@@ -130,7 +130,7 @@ try {
       try {
         $extraJson = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($ExtraImagesBase64))
         $extraPaths = @((ConvertFrom-Json -InputObject $extraJson) | ForEach-Object { $_ })
-        if ($extraPaths.Count -gt 2) { throw 'Too many extra crops.' }
+        if ($extraPaths.Count -gt 3) { throw 'Too many extra crops.' }
         foreach ($extraPath in $extraPaths) {
           $extraStream = $null; $extraBitmap = $null
           try {

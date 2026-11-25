@@ -41,11 +41,26 @@ function validate(data, meeting, now) {
 }
 
 const pageSize = 100;
+const speakerContextSize = 4 * pageSize;
 const jsonBody = async object => object ? new Response(object.body).json() : null;
 function combine(...groups) {
   const cues = new Map();
   for (const group of groups) for (const cue of group || []) cues.set(cue.id, cue);
   return [...cues.values()].sort((a,b) => a.start - b.start || a.end - b.end || a.id.localeCompare(b.id));
+}
+function retainSpeakerContext(cues) {
+  return cues.slice(-speakerContextSize).map(({id,start,end,text,flags,observedAt})=>({id,start,end,text,flags,observedAt}));
+}
+async function recentSpeakerContext(bucket,state) {
+  const existing=state?.speakerContext || [], pages=state?.pages || [];
+  if (!pages.length || state.speakerContextSize===speakerContextSize) return {cues:existing,ready:true};
+  // Old snapshots only retained eight cues. Restore the bounded immutable tail
+  // once so a meeting already in progress can use its actual introductions.
+  try {
+    const restored=await Promise.all(pages.slice(-4).map(async key=>jsonBody(await bucket.get(key))));
+    if (restored.every(Array.isArray)) return {cues:retainSpeakerContext(combine(...restored,existing)),ready:true};
+  } catch { /* Serving and ingesting captions takes precedence over optional context. */ }
+  return {cues:existing,ready:false};
 }
 function condition(previous) {
   return previous ? {etagMatches:previous.etag} : new Headers({'If-None-Match':'*'});
@@ -76,7 +91,8 @@ async function writeSnapshot(bucket, key, previous, data, decorate) {
     gaps.push({start:old.updatedAt, end:data.updatedAt, reason:'updates_missing'});
   }
   let sealedThrough = old?.sealedThrough ?? null;
-  let speakerContext = old?.speakerContext || [];
+  const context=await recentSpeakerContext(bucket,old);
+  let speakerContext = context.cues;
   tail = await decorate(tail, speakerContext, gaps);
   while (tail.length >= pageSize * 2) {
     let cut = pageSize;
@@ -84,11 +100,11 @@ async function writeSnapshot(bucket, key, previous, data, decorate) {
     if (tail[cut - 1].start === tail[cut].start) break;
     pages.push(await sealPage(bucket, data.meetingId, tail.slice(0,cut)));
     // Retain enough raw dialogue to recover the active questioner after sealing.
-    speakerContext = [...speakerContext,...tail.slice(0,cut)].slice(-100);
+    speakerContext = retainSpeakerContext([...speakerContext,...tail.slice(0,cut)]);
     tail = tail.slice(cut);
     sealedThrough = tail[0].start;
   }
-  const state = {...snapshot(data,tail),pages,sealedThrough,gaps,speakerContext};
+  const state = {...snapshot(data,tail),pages,sealedThrough,gaps,speakerContext,speakerContextSize:context.ready?speakerContextSize:0};
   return bucket.put(key, JSON.stringify(state), {onlyIf:condition(previous), customMetadata:{updatedAt:data.updatedAt}, httpMetadata:{contentType:jsonHeaders['Content-Type']}});
 }
 async function minutes(bucket, state, id) {
@@ -268,7 +284,8 @@ export function createSite({assets, meetings, publicKey, attributeSpeakers, reso
       if (!object) return error(404, 'Captions have not started');
       if (request.method === 'HEAD') return new Response(null,{headers:jsonHeaders});
       const current = await jsonBody(object);
-      const labeled = await decorate(current.cues,current.speakerContext || [],current.gaps || []);
+      const context=await recentSpeakerContext(bucket,current);
+      const labeled = await decorate(current.cues,context.cues,current.gaps || []);
       const visual=await visualEvidence(bucket,meeting);
       const live=snapshot(current,labeled.slice(-pageSize));
       if (visual.length) live.nameplateStatus={latest:visual.at(-1),lastMatch:visual.findLast(row=>row.matchedMembers.length>0)||null};

@@ -66,17 +66,21 @@ class NameplatePublisherTests(unittest.TestCase):
                 else:
                     encoded = command[command.index('-ExtraImagesBase64') + 1]
                     paths = json.loads(base64.b64decode(encoded))
-                    self.assertEqual(len(paths), 2)
-                    for path in paths:
+                    self.assertEqual(len(paths), 3)
+                    for index, path in enumerate(paths):
                         with Image.open(path) as image:
                             self.assertEqual(image.mode, 'L')
-                            self.assertEqual(image.size, (476, 200))
+                            if index < 2:
+                                self.assertEqual(image.size, (476, 200))
+                            else:
+                                self.assertLessEqual(image.width, 476)
+                                self.assertGreater(image.width, 0)
                     seen.extend(paths)
                 return Result()
             with patch.object(p, 'HOME', Path(directory)), patch.object(p.subprocess, 'run', side_effect=fake_run):
                 result = p.capture_and_ocr(self.meeting, self.end)
             self.assertEqual(result['matchedMembers'], ['김옥수'])
-            self.assertEqual(len(seen), 2)
+            self.assertEqual(len(seen), 3)
             self.assertEqual(list(Path(directory).iterdir()), [])
 
             def fail_ocr(command, **kwargs):
@@ -88,6 +92,22 @@ class NameplatePublisherTests(unittest.TestCase):
                 with self.assertRaises(p.subprocess.CalledProcessError):
                     p.capture_and_ocr(self.meeting, self.end)
             self.assertEqual(list(Path(directory).iterdir()), [])
+
+    def test_broadcast_crop_position_and_scaled_width(self):
+        try:
+            from PIL import Image
+        except ImportError:
+            self.skipTest('Pillow is optional')
+        for size, expected_width in [((1280, 720), 444), ((1920, 1080), 476)]:
+            with self.subTest(size=size), tempfile.TemporaryDirectory() as directory:
+                source = Path(directory) / 'frame.png'
+                Image.new('RGB', size, 'white').save(source)
+                with patch.object(p, 'HOME', Path(directory)):
+                    crops = p.make_nameplate_crops(source)
+                self.assertEqual(len(crops), 3)
+                with Image.open(crops[2]) as image:
+                    self.assertEqual(image.mode, 'L')
+                    self.assertEqual(image.width, expected_width)
 
     def test_signed_payload_uses_exact_bytes_and_fixed_origin(self):
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey

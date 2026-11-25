@@ -86,13 +86,18 @@ def make_nameplate_crops(filename):
             width, height = source.size
             if width < 200 or height < 100 or width * height > 16000000:
                 return []
-            # Normalized against the supplied 855 x 482 video frame. These cover
-            # fixed screen regions, not detected faces or inferred identities.
+            # The first two cover the supplied 855 x 482 split-screen view.
+            # The third covers the left plaque in the 1280 x 720 broadcast
+            # with the blue program border. No face detection is involved.
             for x, y, w, h in [(58/855, 364/482, 119/855, 50/482),
-                               (622/855, 387/482, 119/855, 50/482)]:
+                               (622/855, 387/482, 119/855, 50/482),
+                               (106/1280, 458/720, 111/1280, 58/720)]:
                 box = (round(width*x), round(height*y), round(width*(x+w)), round(height*(y+h)))
                 crop = ImageOps.grayscale(source.crop(box))
-                crop = crop.resize((crop.width * 4, crop.height * 4), Image.Resampling.LANCZOS)
+                # Keep the plaque near the proven 444–476 pixel OCR width,
+                # without excessively enlarging a high-resolution feed.
+                scale = min(4.0, 476 / crop.width)
+                crop = crop.resize((max(1, round(crop.width * scale)), max(1, round(crop.height * scale))), Image.Resampling.LANCZOS)
                 fd, path = tempfile.mkstemp(prefix='nameplate-crop-', suffix='.png', dir=HOME)
                 os.close(fd)
                 paths.append(path)

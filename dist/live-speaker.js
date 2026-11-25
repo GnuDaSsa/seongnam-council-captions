@@ -124,9 +124,9 @@
   const SELF_NAME = /^(?:(?:네|예|안녕하십니까|저는|[가-힣]{1,8}님)[,.!?\s]+){0,3}([가-힣]{2,4})\s*(?:의원|위원)입니다(?:[.!,?\s]|$)/;
   const TITLED = /(센터장|담당관|주무관|과장|국장|팀장|부장|소장)님/g;
   const QUESTION = /(?:아닙니까|맞습니까|있습니까|없습니까|아시나요|아십니까|인가요|아닌가요|했나요|되나요|되셨어요|계시죠|지요|이죠|신가요|주실래요|(?:과장|국장|소장|팀장)님이세요)[?？.\s]*$/;
-  const EXPLICIT_QUESTION = /(?:습니까|아시나요|아닌가요|했나요|되나요|거예요|되셨어요|신가요)[?？]$/;
+  const EXPLICIT_QUESTION = /(?:습니까|입니까|아시나요|아닌가요|했나요|되나요|있나요|없나요|건가요|거예요|되셨어요|신가요)[?？]$|(?:언제|어디|어떻게|왜)\s.{0,55}(?:해요|돼요|세요)[?？]$/;
   const AUDIT_QUESTION = /(?:질의|질문)(?:를|을)?\s*드리겠습니다[.\s]*$/;
-  const RESPONSE = /^(?:(?:네|예)[,.!\s]*(?:맞습니다|그렇습니다|들었습니다|알겠습니다|의원님|위원님|그 부분은)|(?:지난|작년|올해|오는|내년|\d).{0,70}(?:발령받았습니다|알고 있습니다)|그(?:건|것은)\s*아닙니다|아직까지는\s*(?:안|못)|저희(?:가|는|도)\s)/;
+  const RESPONSE = /^(?:(?:네|예)[,.!\s]*(?:맞습니다|그렇습니다|들었습니다|알겠습니다|의원님|위원님|그 부분은)|(?:(?:최근|현재)(?:에는|는)\s*)?(?:있습니다|없습니다)[.!\s]*$|(?:지난|작년|올해|오는|내년|\d).{0,70}(?:발령받았습니다|알고 있습니다)|그(?:건|것은)\s*아닙니다|아직까지는\s*(?:안|못)|저희(?:가|는|도)\s)/;
   const TRANSFER = /(?:다음.{0,16}(?:위원|의원)|(?:위원|의원)님.{0,12}질의해\s*주|보충\s*질의하실|질의를?\s*(?:마치|마치겠)|(?:정회|산회|감사\s*중지)를?\s*(?:선포|선언))/;
   function nearRosterName(a,b) {
     if (a.length!==3 || b.length!==3 || a[0]!==b[0] || a===b) return false;
@@ -144,7 +144,7 @@
       if (!Number.isFinite(at)) { floor=null; lastQuestion=null; prior=null; continue; }
       const interrupted=prior && (start-number(prior,'end')>20 || start<number(prior,'start') || gapTouches(prior,cue,gaps));
       const delta=prior?start-number(prior,'end'):Infinity;
-      if (interrupted || TRANSFER.test(t) || (floor && (at-floor.at>20*60000 || hasOtherMember(cue,meeting,floor.name)))) { floor=null; lastQuestion=null; }
+      if (interrupted || TRANSFER.test(t) || (floor && (at-floor.at>45*60000 || hasOtherMember(cue,meeting,floor.name)))) { floor=null; lastQuestion=null; }
       const previous=prior; prior=cue;
       if (uncertain(cue)||QUOTED.test(t)||mixed.test(t)||TRANSFER.test(t)) { lastQuestion=null; continue; }
       const spoken=t.match(SELF_NAME)?.[1];

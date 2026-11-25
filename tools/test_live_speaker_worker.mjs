@@ -30,7 +30,7 @@ function setup({failNameplates=false}={}) {
     const headers=body === undefined ? {} : {'X-Council-Signature':sign(null,Buffer.from(body),keys.privateKey).toString('base64url')};
     return site.fetch(new Request(url,{method:body === undefined ? 'GET' : 'PUT',headers,body}),{BUCKET});
   }
-  return {request};
+  return {request,objects};
 }
 const cue=(id,start,text,extra={})=>({id:String(id),start,end:start+1,text,rawText:text,flags:[],...extra});
 const snapshot=(id,cues,offset=0)=>({meetingId:id,updatedAt:at(offset),status:'live',cues});
@@ -99,4 +99,17 @@ test('an empty camera reading and the last recognized name have separate timesta
   const result=await get(request,'captions','2853');
   assert.deepEqual(result.nameplateStatus,{latest,lastMatch});
   assert.equal(result.cues[0].speaker,undefined);
+});
+
+test('an ongoing meeting restores the introduction sealed before a legacy eight-cue context',async()=>{
+  const {request,objects}=setup(), id='2853';
+  await put(request,'nameplates',id,{meetingId:id,updatedAt:at(0),observations:[{capturedAt:at(-102000),matchedMembers:['조우현']}]});
+  const rows=Array.from({length:200},(_,i)=>cue(i,2*i,i===12?'조우현 의원입니다.':i===150?'소장님, 언제 완공되나요?':'자료를 보겠습니다.',{observedAt:at((i*2-400)*1000)}));
+  await put(request,'captions',id,snapshot(id,rows));
+  const saved=objects.get('council-captions/'+id+'.json'), state=JSON.parse(saved.body);
+  state.speakerContext=state.speakerContext.slice(-8); delete state.speakerContextSize;
+  saved.body=JSON.stringify(state);
+  const live=await get(request,'captions',id);
+  assert.equal(live.cues.find(c=>c.id==='150').speaker.name,'조우현');
+  assert.equal(live.cues.length,100);
 });
