@@ -50,9 +50,14 @@ async function settle() { for(let i=0;i<5;i++) await flush(); }
 async function run() {
   await settle();
   assert.match(pending[0].url,/2853/,'invalid link uses economic committee');
-  pending.shift().resolve(response(feed('2853','첫 번째')));
+  const first=feed('2853','첫 번째');
+  first.nameplateStatus={latest:{capturedAt:new Date().toISOString(),matchedMembers:[]},lastMatch:{capturedAt:new Date().toISOString(),matchedMembers:['테스트 의원']}};
+  pending.shift().resolve(response(first));
   await settle();
   assert.match(el('live-captions').allText,/첫 번째/);
+  assert.match(el('live-speaker-visual').textContent,/최근 명패 판독/);
+  assert.match(el('live-speaker-visual').textContent,/읽힌 이름 없음/);
+  assert.doesNotMatch(el('live-speaker-visual').textContent,/테스트 의원/,'a recent empty reading is distinct from the previous name read');
   assert.match(el('live-captions').allText,/숫자 확인, 이름 확인/);
   const timer=[...timers.entries()].find(([,t])=>t.delay===3000);
   assert.ok(timer,'next poll scheduled'); timers.delete(timer[0]); timer[1].fn();
@@ -61,8 +66,11 @@ async function run() {
   el('live-meeting-select').handlers.change({target:{value:'2852'}});
   assert.match(pending[0].url,/2852/);
   const ended = feed('2852','새 회의','ended'); ended.updatedAt='2000-01-01T00:00:00Z';
+  ended.nameplateStatus={latest:{capturedAt:new Date(Date.now()-600000).toISOString(),matchedMembers:[]},lastMatch:{capturedAt:new Date(Date.now()-300000).toISOString(),matchedMembers:['과거 의원']}};
   pending.shift().resolve(response(ended));
   await settle();
+  assert.match(el('live-speaker-visual').textContent,/마지막 이름 판독/);
+  assert.match(el('live-speaker-visual').textContent,/과거 의원/);
   old.resolve(response(feed('2853','늦은 이전 회의')));
   await settle();
   assert.match(el('live-captions').allText,/새 회의/);
@@ -138,6 +146,7 @@ async function run() {
     stop() { localOptions.onEnd(); }
   };
   await el('player-captions').onclick();
+  assert.equal(el('live-speaker-visual').textContent,'','personal transcription hides shared screen nameplate observations');
   localOptions.onCue({text:'영상 발언',start:0,end:1,observedAt:Date.now()});
   assert.equal(attributionCalls,1);
   assert.match(el('live-captions').allText,/박정민 의원 · 자기소개 단서 · 추정/);
@@ -157,20 +166,30 @@ async function run() {
   assert.equal(context.exported.segments[0].speaker,'발언자 미확인');
   el('capture-stop').onclick();
   const history=el('live-speaker-history'); history.open=true; history.handlers.toggle();
-  assert.match(pending.at(-1).url,/minutes\?meetingId=2852/);
-  const historyCall=pending.pop();
-  historyCall.resolve(response({meetingId:'2852',gaps:[],cues:[{id:'historic',start:9,end:10,text:'조우현 의원입니다.',rawText:'조우현 의원입니다.',flags:[],speaker:{name:'조우현',role:'의원',method:'자기소개',evidence:['historic']}}]}));
+  const historyCall=pending.find(item=>item.url.includes('minutes?meetingId=2852'));
+  const nameplateCall=pending.find(item=>item.url.includes('nameplates?meetingId=2852'));
+  assert.ok(historyCall,'history fetches the archived minutes');
+  assert.ok(nameplateCall,'history optionally fetches nameplate observations');
+  let attributionArgs;
+  context.window.CouncilLiveSpeaker={attribute(...args) { attributionArgs=args; return {}; },displayCandidate(_cue,candidate){return candidate;}};
+  historyCall.resolve(response({meetingId:'2852',gaps:[{start:10,end:11}],cues:[{id:'historic',start:9,end:10,observedAt:new Date().toISOString(),text:'조우현 의원입니다.',rawText:'조우현 의원입니다.',flags:[],speaker:{name:'조우현',role:'의원',method:'자기소개',evidence:['historic']}}]}));
+  nameplateCall.resolve(response({meetingId:'2852',observations:[{capturedAt:new Date().toISOString(),matchedMembers:['조우현']}] }));
   await settle();
+  assert.equal(attributionArgs[2].length,1,'archived OCR observations are passed to the speaker core');
+  assert.equal(attributionArgs[3].length,1,'archived gaps are passed to the speaker core');
   assert.match(el('live-speaker-history-list').allText,/조우현 의원/);
+  assert.match(el('live-speaker-history-list').allText,/명패 판독\(발언자 확정 아님\)/);
   assert.match(el('live-speaker-history-status').textContent,/이 회의에서 추정한 발언 1건/);
   assert.equal(el('live-speaker-name').textContent,'발언자 미확인');
-  history.handlers.toggle(); const stale=pending.pop();
+  history.handlers.toggle(); const stale=pending.filter(item=>item.url.includes('minutes?meetingId=2852') || item.url.includes('nameplates?meetingId=2852'));
   el('live-meeting-select').handlers.change({target:{value:'2853'}});
   assert.equal(el('live-speaker-history-list').allText,'');
-  stale.resolve(response({meetingId:'2852',cues:[{id:'old',start:1,end:2,text:'old',speaker:{name:'옛이름'}}]}));
+  for (const request of stale) request.resolve(response({meetingId:'2852',cues:[{id:'old',start:1,end:2,text:'old',speaker:{name:'옛이름'}}]}));
   await settle(); assert.doesNotMatch(el('live-speaker-history-list').allText,/옛이름/);
   const nextHistory=pending.find(item=>item.url.includes('minutes?meetingId=2853'));
+  const nextNameplates=pending.find(item=>item.url.includes('nameplates?meetingId=2853'));
   nextHistory.resolve(response({meetingId:'2853',cues:[]})); await settle();
+  nextNameplates?.resolve({ok:false,status:404,json:async()=>({})}); await settle();
   assert.match(el('live-speaker-history-status').textContent,/없습니다/);
   console.log('PASS: second polling, late response isolation, default selection, status, flags and export');
 }

@@ -59,6 +59,7 @@
 .live-speaker-card h3 { margin: 0 0 .2rem; color: #334d67; font-size: .875rem; font-weight: 600; }
 #live-speaker-name { display: block; font-size: 1.2rem; color: #123b5d; overflow-wrap: anywhere; }
 #live-speaker-meta { margin: .2rem 0 0; color: #455c73; font-size: .875rem; line-height: 1.5; }
+#live-speaker-visual { border-top: 1px solid #ccdbe8; padding-top: .45rem; margin: .45rem 0 0; font-size: .875rem; line-height: 1.5; color: #35536b; }
 .speaker-filter-bar { padding: .45rem 1.5rem .85rem; display: flex; align-items: baseline; flex-wrap: wrap; gap: .25rem .85rem; border-bottom: 1px solid #dde5ed; font-size: .875rem; }
 .speaker-filter-bar label { display: inline-flex; align-items: center; gap: .4rem; cursor: pointer; font-weight: 600; }
 .speaker-filter-bar input { margin: 0; accent-color: #20588a; width: 1rem; height: 1rem; }

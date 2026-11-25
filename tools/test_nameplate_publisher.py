@@ -50,6 +50,45 @@ class NameplatePublisherTests(unittest.TestCase):
                             p.capture_and_ocr(self.meeting, self.end)
                 self.assertEqual(list(Path(directory).iterdir()), [])
 
+    def test_targeted_crops_and_cleanup_after_publisher_ocr(self):
+        try:
+            from PIL import Image
+        except ImportError:
+            self.skipTest('Pillow is optional; full-frame OCR remains available')
+        self.assertEqual(p.MIN_INTERVAL_SECONDS, 20)
+        with tempfile.TemporaryDirectory() as directory:
+            seen = []
+            class Result:
+                stdout = json.dumps({'matchedMembers':['김옥수']}, ensure_ascii=False).encode('utf8')
+            def fake_run(command, **kwargs):
+                if command[0] == 'ffmpeg':
+                    Image.new('RGB', (855, 482), 'white').save(command[-1])
+                else:
+                    encoded = command[command.index('-ExtraImagesBase64') + 1]
+                    paths = json.loads(base64.b64decode(encoded))
+                    self.assertEqual(len(paths), 2)
+                    for path in paths:
+                        with Image.open(path) as image:
+                            self.assertEqual(image.mode, 'L')
+                            self.assertEqual(image.size, (476, 200))
+                    seen.extend(paths)
+                return Result()
+            with patch.object(p, 'HOME', Path(directory)), patch.object(p.subprocess, 'run', side_effect=fake_run):
+                result = p.capture_and_ocr(self.meeting, self.end)
+            self.assertEqual(result['matchedMembers'], ['김옥수'])
+            self.assertEqual(len(seen), 2)
+            self.assertEqual(list(Path(directory).iterdir()), [])
+
+            def fail_ocr(command, **kwargs):
+                if command[0] == 'ffmpeg':
+                    Image.new('RGB', (855, 482), 'white').save(command[-1])
+                    return Result()
+                raise p.subprocess.CalledProcessError(1, command, stderr=b'ocr failed')
+            with patch.object(p, 'HOME', Path(directory)), patch.object(p.subprocess, 'run', side_effect=fail_ocr):
+                with self.assertRaises(p.subprocess.CalledProcessError):
+                    p.capture_and_ocr(self.meeting, self.end)
+            self.assertEqual(list(Path(directory).iterdir()), [])
+
     def test_signed_payload_uses_exact_bytes_and_fixed_origin(self):
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
         from cryptography.hazmat.primitives import serialization

@@ -121,7 +121,41 @@
       return `[${at}] ${String(source.rawText || source.text || '').slice(0,280)}`;
     }).filter(Boolean);
   }
+  function nameplateDisplay(value, selectedMeeting, historical = false) {
+    if (!value || !Number.isFinite(Date.parse(value.capturedAt))) return null;
+    const captured = Date.parse(value.capturedAt), now = Date.now();
+    if (captured > now + 60000 || (!historical && captured < now - 86400000)) return null;
+    const start = Date.parse(selectedMeeting?.scheduledAt), end = Date.parse(selectedMeeting?.endsAt);
+    if (Number.isFinite(start) && captured < start - 4 * 3600000) return null;
+    if (Number.isFinite(end) && captured > end + 4 * 3600000) return null;
+    const roster = new Set((selectedMeeting?.members || []).map(item => typeof item === 'string' ? item : item?.name).filter(Boolean).map(String));
+    const names = Array.isArray(value.matchedMembers) ? [...new Set(value.matchedMembers.filter(name => typeof name === 'string' && name.length <= 24 && (!roster.size || roster.has(name))))] : [];
+    return {time:new Date(captured).toLocaleTimeString('ko-KR',{timeZone:'Asia/Seoul',hour12:false}), names, captured};
+  }
+  function renderNameplateStatus() {
+    const target = el('live-speaker-visual');
+    if (!target) return;
+    target.textContent = ''; target.hidden = true;
+    if (mode || !lastShared || String(lastShared.meetingId) !== meetingId) return;
+    const state = lastShared.nameplateStatus;
+    if (!state || !state.latest) return;
+    const latest = nameplateDisplay(state.latest, meeting);
+    if (!latest) return;
+    const fresh = Date.now() - latest.captured <= 120000;
+    let label;
+    if (fresh) {
+      label = `최근 명패 판독 ${latest.time} · ${latest.names.length ? latest.names.join(', ') : '읽힌 이름 없음'}`;
+      const lastMatch = nameplateDisplay(state.lastMatch, meeting);
+      if (!latest.names.length && lastMatch?.names.length && lastMatch.captured<latest.captured)
+        label += ` / 마지막 이름 판독 ${lastMatch.time} · ${lastMatch.names.join(', ')}`;
+    } else {
+      const lastMatch = nameplateDisplay(state.lastMatch, meeting);
+      label = lastMatch?.names.length ? `마지막 이름 판독 ${lastMatch.time} · ${lastMatch.names.join(', ')}` : `마지막 판독 ${latest.time} · 읽힌 이름 없음`;
+    }
+    target.textContent = label; target.hidden = false;
+  }
   function render(cues) {
+    renderNameplateStatus();
     const follow = captions.scrollHeight-captions.scrollTop-captions.clientHeight < 80;
     const expanded = new Set(Array.from(captions.querySelectorAll('details[open]'), item => item.dataset.cue));
     captions.replaceChildren();
@@ -182,16 +216,26 @@
     if (!panel.open || mode === 'tab' || !meeting) return;
     status.textContent = '이전 발언을 불러오는 중입니다.';
     try {
-      const response = await fetch(`/api/live/minutes?meetingId=${encodeURIComponent(id)}`, {cache:'no-store'});
+      const [minutesResult, nameplatesResult] = await Promise.allSettled([
+        fetch(`/api/live/minutes?meetingId=${encodeURIComponent(id)}`, {cache:'no-store'}),
+        fetch(`/api/live/nameplates?meetingId=${encodeURIComponent(id)}`, {cache:'no-store'})
+      ]);
       if (ticket !== historyGeneration || selected !== selection || mode === 'tab' || !panel.open) return;
-      if (!response.ok) throw new Error('회의록을 불러오지 못했습니다.');
-      const archive = await response.json();
+      if (minutesResult.status !== 'fulfilled' || !minutesResult.value.ok) throw new Error('회의록을 불러오지 못했습니다.');
+      const archive = await minutesResult.value.json();
       if (ticket !== historyGeneration || selected !== selection || mode === 'tab' || !panel.open) return;
       if (String(archive.meetingId) !== id || !Array.isArray(archive.cues)) throw new Error('회의록을 확인할 수 없습니다.');
+      let observations = [];
+      if (nameplatesResult.status === 'fulfilled' && nameplatesResult.value.ok) {
+        try {
+          const nameplates = await nameplatesResult.value.json();
+          if (String(nameplates.meetingId) === id && Array.isArray(nameplates.observations)) observations = nameplates.observations;
+        } catch (_) { /* Nameplate history is optional. */ }
+      }
       let candidates = {};
-      try { candidates = window.CouncilLiveSpeaker?.attribute(meeting, archive.cues, [], archive.gaps || []) || {}; } catch (_) {}
+      try { candidates = window.CouncilLiveSpeaker?.attribute(meeting, archive.cues, observations, archive.gaps || []) || {}; } catch (_) {}
       const matches = uniqueCues(archive.cues).map(cue => {
-        const candidate = cue.speaker || candidates[String(cue.id)];
+        const candidate = candidates[String(cue.id)] || cue.speaker;
         const speaker = window.CouncilLiveSpeaker?.displayCandidate ? window.CouncilLiveSpeaker.displayCandidate(cue,candidate) : candidate;
         return {...cue,speaker};
       }).filter(hasSpeaker);
@@ -208,6 +252,12 @@
         const details = document.createElement('details'), summary = document.createElement('summary'), evidence = document.createElement('small');
         summary.textContent = '발언자 추정 근거';
         evidence.textContent = [cue.speaker.method,...speakerEvidence(cue,byId)].filter(Boolean).join('\n');
+        const observedAt = cue.observedAt && Date.parse(cue.observedAt);
+        const nearby = Number.isFinite(observedAt) ? observations.filter(item => Math.abs(Date.parse(item.capturedAt) - observedAt) <= 5000) : [];
+        if (nearby.length) evidence.textContent += '\n명패 판독(발언자 확정 아님): ' + nearby.map(item => {
+          const reading = nameplateDisplay(item, meeting, true);
+          return reading ? `${reading.time} · ${reading.names.join(', ') || '읽힌 이름 없음'}` : '';
+        }).filter(Boolean).join(' / ');
         details.append(summary,evidence);
         item.append(heading,excerpt,details);
         list.append(item);
@@ -237,10 +287,10 @@
         if (String(data.meetingId) !== meetingId || !Array.isArray(data.cues)) {
           if (!mode) report('이 회의의 공유 자막을 확인할 수 없습니다.');
         } else {
-          const changed = !lastShared || JSON.stringify(lastShared.cues) !== JSON.stringify(data.cues);
+          const changed = !lastShared || JSON.stringify(lastShared.cues) !== JSON.stringify(data.cues) || JSON.stringify(lastShared.nameplateStatus) !== JSON.stringify(data.nameplateStatus);
           data.cues = uniqueCues(data.cues);
           lastShared = data;
-          if (!mode) { if (changed) render(data.cues); report(sharedStatus(data)); }
+          if (!mode) { if (changed) render(data.cues); else renderNameplateStatus(); report(sharedStatus(data)); }
         }
       }
     } catch (_) { if (currentSelection === selection && !mode) report('공유 자막 서버에 연결할 수 없습니다. 마지막으로 받은 자막을 표시합니다.'); }

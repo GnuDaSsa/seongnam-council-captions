@@ -24,6 +24,7 @@ OCR = ROOT / 'tools' / 'video_nameplate_ocr.ps1'
 HOME = Path(os.environ['LOCALAPPDATA']) / 'SeongnamCouncilDesk'
 KEY = HOME / 'signing.pem'
 PUBLIC_HOST = 'seongnam-council-desk.gnudas0923.chatgpt.site'
+MIN_INTERVAL_SECONDS = 20
 
 
 def utc_now():
@@ -76,21 +77,53 @@ def deadline_timeout(deadline, maximum):
     return min(maximum, remaining)
 
 
+def make_nameplate_crops(filename):
+    """Create bounded grayscale crops; the full-frame OCR remains the fallback."""
+    paths = []
+    try:
+        from PIL import Image, ImageOps
+        with Image.open(filename) as source:
+            width, height = source.size
+            if width < 200 or height < 100 or width * height > 16000000:
+                return []
+            # Normalized against the supplied 855 x 482 video frame. These cover
+            # fixed screen regions, not detected faces or inferred identities.
+            for x, y, w, h in [(58/855, 364/482, 119/855, 50/482),
+                               (622/855, 387/482, 119/855, 50/482)]:
+                box = (round(width*x), round(height*y), round(width*(x+w)), round(height*(y+h)))
+                crop = ImageOps.grayscale(source.crop(box))
+                crop = crop.resize((crop.width * 4, crop.height * 4), Image.Resampling.LANCZOS)
+                fd, path = tempfile.mkstemp(prefix='nameplate-crop-', suffix='.png', dir=HOME)
+                os.close(fd)
+                paths.append(path)
+                crop.save(path, format='PNG')
+        return paths
+    except (ImportError, OSError, ValueError):
+        for path in paths:
+            Path(path).unlink(missing_ok=True)
+        return []
+
+
 def capture_and_ocr(meeting, deadline):
     HOME.mkdir(parents=True, exist_ok=True)
     descriptor, filename = tempfile.mkstemp(prefix='nameplate-', suffix='.png', dir=HOME)
     os.close(descriptor)
+    crops = []
     try:
         subprocess.run(['ffmpeg', '-nostdin', '-hide_banner', '-loglevel', 'error',
                         '-threads', '1', '-rw_timeout', '15000000', '-live_start_index', '-1',
                         '-i', meeting['playlist'], '-frames:v', '1', '-update', '1', '-y', filename],
                        check=True, timeout=deadline_timeout(deadline, 25), stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         captured_at = utc_now()
+        crops = make_nameplate_crops(filename)
         try:
-            result = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-File', str(OCR),
+            command = ['powershell.exe', '-NoProfile', '-NonInteractive', '-File', str(OCR),
                                  '-ImagePath', filename, '-MembersBase64',
                                  base64.b64encode(json.dumps(meeting['members'], ensure_ascii=False).encode('utf-8')).decode('ascii'),
-                                 '-VideoUrl', meeting['officialPage'], '-CapturedAt', captured_at],
+                                 '-VideoUrl', meeting['officialPage'], '-CapturedAt', captured_at]
+            if crops:
+                command += ['-ExtraImagesBase64', base64.b64encode(json.dumps(crops).encode('utf-8')).decode('ascii')]
+            result = subprocess.run(command,
                                     check=True, timeout=deadline_timeout(deadline, 20), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except subprocess.CalledProcessError as error:
             diagnostic = (error.stderr or b'').decode('utf-8', errors='replace')
@@ -105,6 +138,8 @@ def capture_and_ocr(meeting, deadline):
             raise ValueError('OCR returned invalid member matches')
         return {'capturedAt': captured_at, 'matchedMembers': names}
     finally:
+        for path in crops:
+            Path(path).unlink(missing_ok=True)
         Path(filename).unlink(missing_ok=True)
 
 
@@ -206,12 +241,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--meeting-id', required=True)
     parser.add_argument('--end-at', required=True, help='ISO 8601 timestamp with timezone, within meeting bounds')
-    parser.add_argument('--interval', type=int, default=60, help='minimum 60 seconds between attempts')
+    parser.add_argument('--interval', type=int, default=MIN_INTERVAL_SECONDS, help='minimum 20 seconds between attempts')
     parser.add_argument('--once', action='store_true')
     parser.add_argument('--dry-run', action='store_true', help='do not sign or publish')
     args = parser.parse_args()
-    if args.interval < 60 or args.interval > 300:
-        parser.error('interval must be between 60 and 300 seconds')
+    if args.interval < MIN_INTERVAL_SECONDS or args.interval > 300:
+        parser.error('interval must be between 20 and 300 seconds')
     end = dt.datetime.fromisoformat(args.end_at.replace('Z', '+00:00'))
     now = dt.datetime.now(dt.timezone.utc)
     meeting = validate_meeting(json.loads(MANIFEST.read_text(encoding='utf-8-sig')), args.meeting_id, end, now)

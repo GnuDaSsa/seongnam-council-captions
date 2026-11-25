@@ -89,3 +89,14 @@ test('unavailable OCR storage leaves text attribution available',async()=>{
   await put(request,'captions','2853',snapshot('2853',[cue('intro',0,'조우현 의원입니다.')]));
   assert.equal((await get(request,'captions','2853')).cues[0].speaker?.name,'조우현');
 });
+
+test('an empty camera reading and the last recognized name have separate timestamps',async()=>{
+  const {request}=setup();
+  const lastMatch={capturedAt:at(-5000),matchedMembers:['조우현']};
+  const latest={capturedAt:at(-1000),matchedMembers:[]};
+  await put(request,'nameplates','2853',{meetingId:'2853',updatedAt:at(0),observations:[lastMatch,latest]});
+  await put(request,'captions','2853',snapshot('2853',[cue('a',0,'자료를 주세요.')]));
+  const result=await get(request,'captions','2853');
+  assert.deepEqual(result.nameplateStatus,{latest,lastMatch});
+  assert.equal(result.cues[0].speaker,undefined);
+});

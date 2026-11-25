@@ -12,7 +12,8 @@
     [Nullable[double]]$VideoSeconds = $null,
     [string]$CapturedAt = $null,
     [switch]$FullOnly,
-    [switch]$IncludeLowerCrops
+    [switch]$IncludeLowerCrops,
+    [string]$ExtraImagesBase64
 )
 
 $ErrorActionPreference = 'Stop'
@@ -124,6 +125,32 @@ try {
       catch {
         [Console]::Error.WriteLine('Nameplate crop setup failed; retaining full-frame result.')
       }
+    }
+    if ($ExtraImagesBase64 -and -not $FullOnly) {
+      try {
+        $extraJson = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($ExtraImagesBase64))
+        $extraPaths = @((ConvertFrom-Json -InputObject $extraJson) | ForEach-Object { $_ })
+        if ($extraPaths.Count -gt 2) { throw 'Too many extra crops.' }
+        foreach ($extraPath in $extraPaths) {
+          $extraStream = $null; $extraBitmap = $null
+          try {
+            $extraFile = Await-Op ([Windows.Storage.StorageFile]::GetFileFromPathAsync([string]$extraPath)) ([Windows.Storage.StorageFile])
+            $extraStream = Await-Op ($extraFile.OpenAsync([Windows.Storage.FileAccessMode]::Read)) ([Windows.Storage.Streams.IRandomAccessStream])
+            $extraDecoder = Await-Op ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($extraStream)) ([Windows.Graphics.Imaging.BitmapDecoder])
+            if ([double]$extraDecoder.PixelWidth * [double]$extraDecoder.PixelHeight -gt 16000000) { throw 'Crop exceeds resource limit.' }
+            $extraBitmap = Await-Op ($extraDecoder.GetSoftwareBitmapAsync()) ([Windows.Graphics.Imaging.SoftwareBitmap])
+            $extraOcr = Await-Op ($engine.RecognizeAsync($extraBitmap)) ([Windows.Media.Ocr.OcrResult])
+            $texts += [string]$extraOcr.Text
+            $lines += @($extraOcr.Lines | ForEach-Object { $_.Text })
+          }
+          catch { [Console]::Error.WriteLine('Additional nameplate crop OCR failed; retaining other regions.') }
+          finally {
+            if ($extraStream) { $extraStream.Dispose() }
+            if ($extraBitmap) { $extraBitmap.Dispose() }
+          }
+        }
+      }
+      catch { [Console]::Error.WriteLine('Additional nameplate crops unavailable; retaining other regions.') }
     }
     $text = $texts -join "`n"
     $matches = @(

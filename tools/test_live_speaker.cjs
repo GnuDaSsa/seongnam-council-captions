@@ -124,3 +124,32 @@ assert.equal(attribute(meeting,[observedCall,observedAck],[],[{start:'2026-11-25
 assert.equal(Object.getPrototypeOf(result),Object.prototype);
 for (const value of Object.values(result)) assert.deepEqual(Object.keys(value).sort(),['confidence','evidence','method','name','role']);
 console.log('PASS live speaker attribution: actual 2853 turns, self-intros, staff/proceedings roles, gaps, flags, and OCR corroboration');
+
+// Reproduce the split-screen member / director exchange seen in the public feed.
+{
+  const clock = sec => new Date(Date.parse('2026-11-25T08:35:02Z')+1000*sec).toISOString();
+  const turn = (id,sec,length,text,flags=[])=>cue(id,text,sec,sec+length,flags,clock(sec));
+  const opening=turn('4372',0,3,'초장님 서원경 의원입니다.',['name']);
+  const acknowledge=turn('4373',3,1,'네, 의원님.');
+  const question=turn('q',18,6,'소장님, 언제 완공되나요?');
+  const reply=turn('a',24,3,'27년 11월으로 알고 있습니다.',['number']);
+  const mixed=turn('mixed',27,7,'그렇죠? 네. 저도 이 자료를 받았습니다.');
+  const later=turn('4435',34,4,'공원을 지키는 게 트론 도시 사업소의 큰 일 아닙니까?');
+  const rows=[opening,acknowledge,question,reply,mixed,later];
+  const plate=(sec,...names)=>({capturedAt:clock(sec),matchedMembers:names});
+  const out=attribute(meeting,rows,[plate(10,'서은경')],[]);
+  assert.equal(out['4372'].name,'서은경');
+  assert.equal(out['4373'].name,''); assert.equal(out['4373'].role,'답변자');
+  assert.equal(out.q.name,'서은경'); assert.equal(out.a.name,''); assert.equal(out.a.role,'소장');
+  assert.equal(out.mixed,undefined); assert.equal(out['4435'].name,'서은경');
+  const distant=attribute(meeting,[opening],[plate(53,'서은경'),plate(116,'서은경')],[]);
+  assert.equal(distant['4372'].name,'서은경');
+  for (const samples of [[],[plate(53,'서은경')],[plate(10,'서은경','김옥수')],[plate(8,'김옥수'),plate(11,'서은경')],[plate(160,'서은경')]]) {
+    assert.equal(attribute(meeting,rows,samples,[])['4372'].name,'');
+  }
+  assert.equal(attribute({...meeting,members:[...meeting.members,'서완경']},rows,[plate(10,'서은경')],[])['4372']?.name || '','');
+  assert.equal(attribute(meeting,rows,[plate(10,'서은경')],[{start:clock(6),end:clock(9)}])['4372'].name,'');
+  const handoff=turn('handoff',8,2,'다음 위원님 질의해 주십시오.');
+  assert.equal(attribute(meeting,[opening,handoff,question],[plate(10,'서은경')],[])['4372'].name,'');
+  assert.equal(attribute(meeting,[question],[plate(15,'서은경')],[]).q.name,'');
+}

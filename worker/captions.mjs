@@ -83,7 +83,8 @@ async function writeSnapshot(bucket, key, previous, data, decorate) {
     while (cut < tail.length - pageSize && tail[cut - 1].start === tail[cut].start) cut++;
     if (tail[cut - 1].start === tail[cut].start) break;
     pages.push(await sealPage(bucket, data.meetingId, tail.slice(0,cut)));
-    speakerContext = tail.slice(Math.max(0,cut - 8),cut);
+    // Retain enough raw dialogue to recover the active questioner after sealing.
+    speakerContext = [...speakerContext,...tail.slice(0,cut)].slice(-100);
     tail = tail.slice(cut);
     sealedThrough = tail[0].start;
   }
@@ -108,7 +109,7 @@ async function minutes(bucket, state, id) {
 
 const nameplateMaxBytes = 128 * 1024;
 const nameplateMaxBatch = 100;
-const nameplateMaxObservations = 1440;
+const nameplateMaxObservations = 24 * 60 * 3; // one sample per 20 seconds for a full day
 const nameplateMaxAgeMs = 10 * 60 * 1000;
 function nameplateKey(id) { return 'council-nameplates/' + id + '.json'; }
 function exactKeys(value, keys) {
@@ -235,7 +236,7 @@ export function createSite({assets, meetings, publicKey, attributeSpeakers, reso
     let rows = [];
     try {
       const data = await jsonBody(await bucket.get(nameplateKey(meeting.id)));
-      if (data && validStoredNameplates(data, meeting)) rows = data.observations.filter(o => o.matchedMembers.length);
+      if (data && validStoredNameplates(data, meeting)) rows = data.observations;
     } catch { /* Text-based attribution still works when camera evidence is unavailable. */ }
     visualCache.set(meeting.id, {expires:clock() + 3000, rows});
     return rows;
@@ -268,7 +269,10 @@ export function createSite({assets, meetings, publicKey, attributeSpeakers, reso
       if (request.method === 'HEAD') return new Response(null,{headers:jsonHeaders});
       const current = await jsonBody(object);
       const labeled = await decorate(current.cues,current.speakerContext || [],current.gaps || []);
-      return Response.json(snapshot(current,labeled.slice(-pageSize)),{headers:jsonHeaders});
+      const visual=await visualEvidence(bucket,meeting);
+      const live=snapshot(current,labeled.slice(-pageSize));
+      if (visual.length) live.nameplateStatus={latest:visual.at(-1),lastMatch:visual.findLast(row=>row.matchedMembers.length>0)||null};
+      return Response.json(live,{headers:jsonHeaders});
     }
     if (request.method !== 'PUT') return new Response(null, {status:405, headers:{...headers, Allow:'GET, HEAD, PUT'}});
     const signature = request.headers.get('X-Council-Signature') || '';

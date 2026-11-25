@@ -81,10 +81,10 @@ test('CAS retry merges concurrent writes and day cap never trims old evidence',a
   assert.equal((await app.fetch(put('2853',sample(at(-30000),['\uC815\uC5F0\uD654'])),{BUCKET})).status,204);
   const saved=await (await app.fetch(get('2853'),{BUCKET})).json();
   assert.deepEqual(saved.observations[0].matchedMembers,[rosterName,'\uC815\uC5F0\uD654'].sort());
-  const observations=Array.from({length:1440},(_,i)=>({capturedAt:new Date(Date.parse('2026-11-25T04:30:00.000Z')+i*2000).toISOString(),matchedMembers:[]}));
+  const observations=Array.from({length:4320},(_,i)=>({capturedAt:new Date(Date.parse('2026-11-25T04:30:00.000Z')+i*500).toISOString(),matchedMembers:[]}));
   BUCKET.objects.set('council-nameplates/2853.json',{body:JSON.stringify({meetingId:'2853',updatedAt:new Date(now).toISOString(),observations}),etag:'9'});
   assert.equal((await app.fetch(put('2853',sample()),{BUCKET})).status,413);
-  assert.equal((await (await app.fetch(get('2853'),{BUCKET})).json()).observations.length,1440);
+  assert.equal((await (await app.fetch(get('2853'),{BUCKET})).json()).observations.length,4320);
 });
 
 test('nameplate evidence stays separate from caption snapshots; roster fallback is bounded',async()=>{
