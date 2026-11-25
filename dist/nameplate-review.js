@@ -4,18 +4,23 @@
   else root.CouncilNameplateReview = factory();
 })(typeof window === 'undefined' ? globalThis : window, function () {
   'use strict';
+  // The tab player uses epoch milliseconds; published cues use ISO timestamps.
+  function captureTime(value) {
+    if (typeof value === 'number') return Number.isFinite(value) && Math.abs(value) <= 8.64e15 ? value : NaN;
+    return typeof value === 'string' && value.trim() ? Date.parse(value) : NaN;
+  }
   function observations(meeting, archive, payload) {
     if (String(meeting.id) !== String(payload?.meetingId) || !Array.isArray(payload?.observations)) throw Error('Invalid meeting observations');
     const members = new Set(meeting.members || []);
     const intervals = archive.cues.map(cue => {
-      const start = Date.parse(cue.observedAt), duration = (cue.end - cue.start) * 1000;
+      const start = captureTime(cue.observedAt), duration = (cue.end - cue.start) * 1000;
       return {id:String(cue.id), start, end:start + duration};
     }).filter(row => Number.isFinite(row.start) && Number.isFinite(row.end) && row.end > row.start)
       .sort((a, b) => a.start - b.start);
-    const gaps = (archive.gaps || []).map(gap => ({start:Date.parse(gap.start), end:gap.end == null ? Infinity : Date.parse(gap.end)}));
+    const gaps = (archive.gaps || []).map(gap => ({start:captureTime(gap.start), end:gap.end == null ? Infinity : captureTime(gap.end)}));
     const seen = new Set(), samples = [];
     for (const row of payload.observations) {
-      const time = Date.parse(row?.capturedAt);
+      const time = captureTime(row?.capturedAt);
       if (!Number.isFinite(time) || seen.has(time) || !Array.isArray(row.matchedMembers) || row.matchedMembers.some(name => !members.has(name))) continue;
       seen.add(time);
       samples.push({time, names:[...new Set(row.matchedMembers)], cueId:null, nearbyIds:[]});
@@ -37,5 +42,5 @@
     }
     return samples;
   }
-  return {observations};
+  return {observations,captureTime};
 });

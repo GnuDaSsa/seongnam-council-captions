@@ -1,5 +1,6 @@
 {
   "date": "2026-11-25",
+  "defaultMeetingId": "2853",
   "schedule": "https://cast.sncouncil.go.kr/schedule/live_schedule.jsp?sch_year=2026&sch_month=11&sch_day=25",
   "meetings": [
     {

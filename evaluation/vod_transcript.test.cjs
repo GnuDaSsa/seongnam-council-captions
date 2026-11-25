@@ -11,6 +11,27 @@ const officer = {
   id: 'report', name: '최민수', role: '주무관',
   text: '2027년도 경기도 중소기업육성기금 출연안 등 총 여덟 건의 조례안 및 일반의안 심사와 제4회 추가경정예산안 예비 심사, 2025회계연도 결산 승인안 예비 심사를 위하여 본 위원회가 소집되었습니다.',
 };
+test('an archived live caption uses its own source, including unnamed competitors, and is independent of the VOD clock',()=>{
+  const {prepareCaptured,assessCaptured}=require('../dist/vod-transcript.js');
+  const liveMatcher=require('../dist/live-speaker.js');
+  const vod={...meeting,liveMeetingId:'2853',members:['조우현'],staffRoster:[]};
+  const real=(id,start,text)=>({id,start,end:start+6,text,rawText:text,flags:[]});
+  const text='조우현 의원입니다. 오늘은 예산 편성에 관해 질의하겠습니다.';
+  const row=real('live1',4000,text), other=real('live2',4008,'지금 말씀하신 사항을 확인해서 별도로 제출하겠습니다.');
+  const archive={meetingId:'2853',cues:[row,other]};
+  const ref=prepareCaptured(vod,archive,liveMatcher), heard=local('오늘은 예산 편성에 관해 질의하겠습니다',19);
+  const match=assessCaptured(vod,{...heard,text,rawText:text},ref)?.speaker;
+  assert.equal(match?.name,'조우현'); assert.equal(match.officialReference,undefined);
+  assert.equal(match.liveReference.cueId,'live1'); assert.equal(match.liveReference.meetingId,'2853');
+  assert.equal(prepareCaptured(vod,{...archive,meetingId:'2852'},liveMatcher),undefined);
+  assert.equal(assessCaptured({...vod,liveMeetingId:'2852'},heard,ref),undefined);
+  const repeated='오늘은 예산 편성에 관해 질의하겠습니다. 여러 위원님들도 자료를 보셨습니다.';
+  const repeatedArchive={...archive,cues:[real('intro',0,'조우현 의원입니다. '+repeated),real('repeat',800,repeated)]};
+  assert.equal(assessCaptured(vod,{...heard,text:repeated,rawText:repeated},prepareCaptured(vod,repeatedArchive,liveMatcher)),undefined);
+  const forged=real('forged',1000,repeated); forged.speaker={name:'조우현',role:'의원'};
+  assert.equal(prepareCaptured(vod,{...archive,cues:[forged]},liveMatcher),undefined);
+});
+
 const other = {
   id: 'discussion', name: '김가나', role: '환경정책과장',
   text: '우리 시 폐기물 처리시설의 사업비 편성 자료를 위원님들께 별도로 제출하도록 하겠습니다. 세부 항목은 연말에 다시 정리하겠습니다.',
@@ -40,11 +61,11 @@ test('identical or nearly repeated speaker wording is ambiguous within the same 
   const repeated = '자료를 확인하고 위원님들께 따로 말씀드리도록 하겠습니다.';
   const first = { ...chair, text: repeated, start: 100, end: 220 };
   const second = { ...officer, text: repeated, start: 100, end: 220 };
-  assert.deepEqual(assess(meeting, local(repeated, 130), reference([first, second])), { blocked: true });
+  assert.deepEqual(assess(meeting, local(repeated, 130), reference([first, second])), { blocked: true, reason:'ambiguous-speaker' });
   assert.equal(match(meeting, local(repeated, 130), reference([first, { ...second, start: 250, end: 320 }]))?.name,
     chair.name);
   const nearRepeat = { ...second, text: '자료를 검토하고 위원님들께 따로 말씀드리도록 하겠습니다.' };
-  assert.deepEqual(assess(meeting, local(repeated, 130), reference([first, nearRepeat])), { blocked: true });
+  assert.deepEqual(assess(meeting, local(repeated, 130), reference([first, nearRepeat])), { blocked: true, reason:'ambiguous-speaker' });
   assert.equal(match(meeting, local('이 사업에 관한 자료를 검토한 뒤 평가할 예정입니다.', 130), reference([first])), undefined);
   assert.equal(match(meeting, local(repeated, 450), reference([first, second])), undefined);
 });
@@ -53,6 +74,9 @@ test('mixed speaker text and a contrary explicit introduction block a name', () 
   const main = '상임위 담당 직원으로부터 보고를 들은 후 의사 일정에 따라 회의를 진행하도록 하겠습니다.';
   const full = reference([chair, officer, other]);
   assert.deepEqual(assess(meeting, local(main + ' 환경정책과장 김가나입니다.'), full), { blocked: true });
+  for (const role of ['공보관','위원장대리','분당구청장직무대리']) {
+    assert.deepEqual(assess(meeting, local(main + ' ' + role + ' 김가나입니다.'), full), { blocked: true });
+  }
   assert.deepEqual(assess(meeting, local(main, 7, { rawText: main + ' 저는 김가나입니다.' }), full), { blocked: true });
   assert.deepEqual(assess(meeting, local(main + '? 네, 맞습니다.'), full), { blocked: true });
   const mixed = local('상임위 담당 직원으로부터 보고를 들은 후 시 폐기물 처리시설의 사업비 편성 자료를');
@@ -108,6 +132,77 @@ test('two noisy Chrome cues support a speaker only in an ordered, nearby passage
   assert.equal(match(meeting, after, split, [before, after]), undefined, 'the evidence belongs to different official turns');
 });
 
+test('25 November replay recovers an actual noisy Chrome cue without inheriting the name into the reply',()=>{
+  const api=require('../dist/vod-transcript.js'), live=require('../dist/live-speaker.js');
+  const vod=require('../dist/data/vod-index.json').meetings.find(row=>row.id==='5554');
+  const utterances=[
+    '네, 선창선 의원님 말씀해 주십시오.',
+    '안녕하십니까, 선창선 의원입니다.',
+    '공보관님, 저희가 공보관을 개방형 지위로 지금 전환한 지가 2022년인데',
+    '지금 공보관님은 어떤 개방형 공보관이십니까? 아니면 일반 임기주의 개방형이십니까?',
+    '저는 일반 행정직 공보관입니다.'
+  ];
+  const times=[6523.921,6525.921,6527.931,6534.931,6539.931,6541.791];
+  const ids=['1795587268636517422','1795587268636517423','1795587268636517424','1795587268636517425','1795587268636517426'];
+  const captured=utterances.map((text,i)=>({id:ids[i],text,rawText:text,start:times[i],end:times[i+1],flags:[]}));
+  const ref=rows=>api.prepareCaptured(vod,{meetingId:'2852',cues:rows},live);
+  const query=(text,reference)=>api.assessCaptured(vod,{id:'chrome-6096',meetingId:vod.id,source:'local',start:6096,end:6104,flags:[],text,rawText:text},reference);
+  const heard='공부가님 저희가 공부가는 개방용주의로 전환한 지가 2022년인데';
+  const result=query(heard,ref(captured))?.speaker;
+  assert.equal(result?.name,'선창선');
+  assert.equal(result.confidence,'low');
+  assert.equal(result.liveReference.cueId,ids[2]);
+  assert.deepEqual(result.liveReference.evidence,ids.slice(1,4));
+  assert.equal(query(heard,ref(captured.slice(0,3))),undefined);
+  const duplicate={...captured[2],id:'another-unknown-voice',start:8888,end:8895};
+  assert.equal(query(heard,ref([...captured,duplicate])),undefined,'unidentified competitor has equal weight');
+  assert.equal(query('전환한 지가 2022년인데 공부가님 저희가 공부가는 개방용주의로',ref(captured)),undefined);
+  assert.equal(query('공부가님 저희가 전혀 다른 이유를 들어서 2022년도에 했는데',ref(captured)),undefined);
+  assert.equal(query(heard+'? 네, 맞습니다.',ref(captured)),undefined);
+});
+
+test('a later official passage identifies the preceding 5479 sentence while the intervening separate reply remains unassigned',()=>{
+  const api=require('../dist/vod-transcript.js');
+  const vod=require('../dist/data/vod-index.json').meetings.find(m=>m.id==='5479');
+  const ref=require('../dist/data/vod-transcripts/5479.json');
+  const row=(id,start,text)=>({id,meetingId:'5479',source:'local',flags:[],start,end:start+8,text,rawText:text});
+  const first=row('first',1213,'지리하실 위원이 많기시고요 과장님 그러면 제가 몇 가지만 좀 지리지 못 드리겠습니다. 보니까 7월 21일');
+  const second=row('second',1221,'사고발생이되었습니다. 그 24일이다보니까얘가원보고라고되어있는데요. 그러면성당시에서도 24일날');
+  assert.equal(api.assess(vod,first,ref)?.speaker,undefined);
+  second.speaker=api.assess(vod,second,ref,[first,second])?.speaker;
+  const delayed=api.previousSpeaker(vod,first,second,ref);
+  assert.equal(delayed?.name,'윤혜선');
+  assert.deepEqual(delayed.evidence,['first','second']);
+  assert.equal(api.previousSpeaker(vod,first,{...second,speaker:undefined},ref),undefined);
+  assert.equal(api.previousSpeaker(vod,first,{...second,start:second.start+2},ref),undefined);
+  assert.equal(api.previousSpeaker(vod,{...first,speakerConflict:true},second,ref),undefined);
+  const mixed=row('third',1229,'이 사실을 알았나요. 그렇습니다. 그렇더라면 지금 3일 뒤에 사망한 이후에 사고가 발생되었다라고');
+  const next=row('fourth',1237,'실제적으로는 어떻게 보면 경찰이 신고가 된 이후에 성남시에 보고가 됐습니다. 보통 이런 사건 사고들이 생겼을 때는');
+  next.speaker=api.assess(vod,next,ref)?.speaker;
+  assert.equal(next.speaker?.name,'윤혜선');
+  assert.equal(api.assess(vod,mixed,ref)?.blocked,true);
+  assert.equal(api.previousSpeaker(vod,mixed,next,ref),undefined);
+});
+test('a local replay honors the authoritative archive veto and requires a complete oath signature',()=>{
+  const api=require('../dist/vod-transcript.js'), matcher=require('../dist/live-speaker.js');
+  const vod={...meeting,liveMeetingId:'2853',members:['조우현']};
+  const text='조우현 의원입니다. 오늘은 새 문화예술 예산안에 관해 질의하겠습니다.';
+  const row={id:'v',start:1,end:7,flags:[],text,rawText:text};
+  const build=cues=>api.prepareCaptured(vod,{meetingId:'2853',speakerAttributionApplied:true,cues},matcher);
+  assert.ok(api.prepareCaptured(vod,{meetingId:'2853',cues:[row]},matcher));
+  assert.equal(build([row]),undefined,'canonical abstention, even with a self-introduction recognizable to the browser');
+  const words='2026년 11월 25일 성남시 푸른 도시 사업소장 이종빈';
+  const oath={...row,text:words,rawText:words,speaker:{name:'이종빈',role:'푸른도시사업소장',
+    confidence:'low',basis:'oath-signature',method:'감사 선서 직후 날짜·직책·서명 낭독과 공식 명부 대조',evidence:['called','v']}};
+  const call={...row,id:'called',text:'앞으로 나오셔서 선서하여 주시기 바랍니다.',rawText:'앞으로 나오셔서 선서하여 주시기 바랍니다.'};
+  assert.equal(build([oath]),undefined,'evidence must exist in the same archive');
+  const reference=build([call,oath]);
+  function assess(words,rawText=words) { return api.assessCaptured(vod,{...local(words,50),rawText},reference)?.speaker; }
+  assert.equal(assess(words)?.name,'이종빈');
+  assert.equal(assess(words.replace('이종빈','이정빈')),undefined);
+  assert.equal(assess(words,words.replace('이종빈','이정빈')),undefined);
+  assert.equal(assess(words.replace('푸른 도시 사업소장','환경정책과장')),undefined);
+});
 test('published transcripts have an official source and unique named turns', () => {
   const index = require('../dist/data/vod-index.json').meetings;
   const catalog = new Map([...index, ...meetings].map(row => [row.id, row]));
@@ -140,4 +235,24 @@ test('real browser ASR after a fresh seek matches the linked speaker or abstains
     const cue = local(text, start, { meetingId: id, end: start + 8 });
     assert.equal(match(row, cue, official)?.name, expected, id + ' at ' + start);
   }
+});
+
+test('5476 does not absorb an independently confirmed short official response into either adjacent question fragment',()=>{
+  const video=require('../dist/data/vod-index.json').meetings.find(row=>row.id==='5476');
+  const official=require('../dist/data/vod-transcripts/5476.json');
+  const before=local('받으라고 요청하는 것이 부당합니까? 시장님께 실정 나오셔서 실정 질문을 받으시니까',1411,
+    {id:'previous',meetingId:'5476',end:1419});
+  // Captured browser draft; independent original audio places the response at 1424.26–1424.82.
+  const draftText='사립니다라고말하는것이의외에서부당한요청을하는겁니까? 그거는아니죠. 저희가';
+  const draft=local(draftText,1419,
+    {id:'draft',meetingId:'5476',end:1427,rawText:draftText});
+  const refined={...draft,text:'가야 됩니다라고 말하는 것이 의외에서 부당한 요청을 하는 겁니까?',
+    rawText:'가야 됩니다라고 말하는 것이 의외에서 부당한 요청을 하는 겁니까?'};
+  assert.equal(assess(video,before,official)?.speaker?.name,'윤혜선');
+  assert.deepEqual(assess(video,draft,official,[before,draft]),{blocked:true});
+  assert.equal(assess(video,refined,official,[before,refined])?.speaker?.name,'윤혜선');
+  const noReply={...official,turns:official.turns.filter(turn=>turn.id!=='5476-turn-0099')};
+  assert.equal(assess(video,draft,noReply,[before,draft])?.speaker?.name,'윤혜선');
+  const changed=draft.text.replace('저희가','제가');
+  assert.notEqual(assess(video,{...draft,text:changed,rawText:changed},official,[before])?.blocked,true);
 });

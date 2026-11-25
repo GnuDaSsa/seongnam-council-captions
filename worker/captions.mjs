@@ -22,11 +22,18 @@ async function readBytes(request) {
   return body;
 }
 
-function validate(data, meeting, now) {
+function validate(data, meeting, now, validateAcousticProof, validatePodiumProof) {
   const time = Date.parse(data?.updatedAt);
   if (data?.meetingId !== meeting.id || !Number.isFinite(time) || Math.abs(now - time) > 120000) return false;
   if (time < Date.parse(meeting.scheduledAt) || time > Date.parse(meeting.endsAt) + 120000) return false;
   if (!['live', 'listening', 'ended', 'interrupted'].includes(data.status) || !Array.isArray(data.cues) || data.cues.length > 700) return false;
+  for (const field of ['captureGapStart','captureGapEnd']) {
+    if (!Object.hasOwn(data, field)) continue;
+    const boundary = data[field], instant = typeof boundary === 'string' ? Date.parse(boundary) : NaN;
+    if (!Number.isFinite(instant) || new Date(instant).toISOString() !== boundary ||
+        instant < Date.parse(meeting.scheduledAt) || instant > time || data.purpose ||
+        (field === 'captureGapStart' ? data.status !== 'interrupted' : !['live','listening'].includes(data.status))) return false;
+  }
   const ids = new Set();
   const validText = s => typeof s === 'string' && s.trim().length > 0 && s.length <= 2000;
   let lastStart = -1;
@@ -34,6 +41,12 @@ function validate(data, meeting, now) {
     if (!cue || typeof cue.id !== 'string' || !cue.id || cue.id.length > 100 || ids.has(cue.id)) return false;
     if (!Number.isFinite(cue.start) || !Number.isFinite(cue.end) || cue.start < 0 || cue.end <= cue.start || cue.start < lastStart || cue.end > 86400) return false;
     if (!validText(cue.rawText) || !validText(cue.text) || !Array.isArray(cue.flags) || cue.flags.length > 12 || cue.flags.some(f => !validText(f) || f.length > 80)) return false;
+    const anchor=Object.hasOwn(cue,'audioAnchor'), continuation=Object.hasOwn(cue,'audioContinuation');
+    if (anchor || continuation) {
+      if ((anchor && continuation) || !validateAcousticProof ||
+          !validateAcousticProof(anchor ? cue.audioAnchor : cue.audioContinuation, continuation)) return false;
+    }
+    if (Object.hasOwn(cue,'audioPodium') && !validatePodiumProof?.(cue.audioPodium)) return false;
     ids.add(cue.id);
     lastStart = cue.start;
   }
@@ -41,7 +54,9 @@ function validate(data, meeting, now) {
 }
 
 const pageSize = 100;
-const speakerContextSize = 4 * pageSize;
+const speakerContextPages = 4;
+const speakerContextSize = speakerContextPages * pageSize;
+const speakerContextVersion = 1;
 const jsonBody = async object => object ? new Response(object.body).json() : null;
 function combine(...groups) {
   const cues = new Map();
@@ -49,18 +64,22 @@ function combine(...groups) {
   return [...cues.values()].sort((a,b) => a.start - b.start || a.end - b.end || a.id.localeCompare(b.id));
 }
 function retainSpeakerContext(cues) {
-  return cues.slice(-speakerContextSize).map(({id,start,end,text,flags,observedAt})=>({id,start,end,text,flags,observedAt}));
+  return cues.slice(-speakerContextSize).map(cue=>{
+    const {id,start,end,text,flags,observedAt,rejected,rawText,audioAnchor,audioContinuation,audioPodium}=cue;
+    return {id,start,end,text,flags,observedAt,rejected,rawText,audioAnchor,audioContinuation,audioPodium};
+  });
 }
 async function recentSpeakerContext(bucket,state) {
-  const existing=state?.speakerContext || [], pages=state?.pages || [];
-  if (!pages.length || state.speakerContextSize===speakerContextSize) return {cues:existing,ready:true};
-  // Old snapshots only retained eight cues. Restore the bounded immutable tail
-  // once so a meeting already in progress can use its actual introductions.
-  try {
-    const restored=await Promise.all(pages.slice(-4).map(async key=>jsonBody(await bucket.get(key))));
-    if (restored.every(Array.isArray)) return {cues:retainSpeakerContext(combine(...restored,existing)),ready:true};
-  } catch { /* Serving and ingesting captions takes precedence over optional context. */ }
-  return {cues:existing,ready:false};
+  const existing=Array.isArray(state?.speakerContext) ? state.speakerContext.slice(-speakerContextSize) : [];
+  const pages=state?.pages || [];
+  if (!pages.length || (state.speakerContextSize===speakerContextSize &&
+      state.speakerContextVersion===speakerContextVersion)) return {cues:existing,ready:true};
+  // Earlier caches may be short or lack the original words. The immutable
+  // pages take precedence, and a later request can retry unavailable pages.
+  const reads=await Promise.allSettled(pages.slice(-speakerContextPages).map(async key=>jsonBody(await bucket.get(key))));
+  const restored=reads.filter(result=>result.status==='fulfilled' && Array.isArray(result.value) &&
+    result.value.length && result.value.every(cue=>typeof cue?.id==='string')).map(result=>result.value);
+  return {cues:retainSpeakerContext(combine(existing,...restored)),ready:restored.length===reads.length};
 }
 function condition(previous) {
   return previous ? {etagMatches:previous.etag} : new Headers({'If-None-Match':'*'});
@@ -75,21 +94,42 @@ async function sealPage(bucket, id, cues) {
   await bucket.put(key, body, {onlyIf:new Headers({'If-None-Match':'*'})});
   return key;
 }
-async function writeSnapshot(bucket, key, previous, data, decorate) {
+const invalidCaptureGap = Symbol('invalid capture gap');
+function recordCaptureGap(gaps, old, data) {
+  const last = gaps.at(-1);
+  if (data.captureGapStart) {
+    // Previously acknowledged audio can end before its HTTP publication time.
+    // The cue clock is rounded to milliseconds in the publisher.
+    const boundary = Date.parse(data.captureGapStart);
+    const overlaps = (old?.cues || []).some(cue =>
+      Date.parse(cue.observedAt) + Math.round((cue.end - cue.start) * 1000) > boundary + 2);
+    if (overlaps || (last?.end && Date.parse(last.end) > boundary)) return false;
+    if (last && !last.end) return last.start === data.captureGapStart;
+  }
+  if (data.captureGapEnd) {
+    if (old?.status !== 'interrupted') return last?.end === data.captureGapEnd;
+    if (Date.parse(data.captureGapEnd) < Date.parse(last?.start || old.updatedAt)) return false;
+  }
+  if (data.status === 'interrupted' && old?.status !== 'interrupted') {
+    const start = data.captureGapStart || old?.updatedAt;
+    if (start) gaps.push({start, end:null, reason:'interrupted'});
+  } else if (old?.status === 'interrupted' && ['listening','live'].includes(data.status)) {
+    const end = data.captureGapEnd || data.updatedAt;
+    if (last && !last.end) last.end = end;
+    else gaps.push({start:old.updatedAt, end, reason:'interrupted'});
+  } else if (old && old.status !== 'interrupted' && Date.parse(data.updatedAt) - Date.parse(old.updatedAt) > 120000) {
+    gaps.push({start:old.updatedAt, end:data.updatedAt, reason:'updates_missing'});
+  }
+  return true;
+}
+async function writeSnapshot(bucket, key, previous, data, decorate, meeting) {
   const old = await jsonBody(previous);
   const pages = [...(old?.pages || [])], gaps = [...(old?.gaps || [])];
   // The producer repeats the tail on every heartbeat. Sealed pages always end
   // before the oldest of the most recent 100 cues, including on restart.
   let tail = combine(old?.cues, data.cues);
   if (old?.sealedThrough != null) tail = tail.filter(c => c.start >= old.sealedThrough);
-  if (old && old.status !== 'interrupted' && data.status === 'interrupted') {
-    gaps.push({start:old.updatedAt, end:null, reason:'interrupted'});
-  } else if (old && old.status === 'interrupted' && data.status !== 'interrupted') {
-    if (gaps.length && !gaps.at(-1).end) gaps.at(-1).end = data.updatedAt;
-    else gaps.push({start:old.updatedAt, end:data.updatedAt, reason:'interrupted'});
-  } else if (old && old.status !== 'interrupted' && Date.parse(data.updatedAt) - Date.parse(old.updatedAt) > 120000) {
-    gaps.push({start:old.updatedAt, end:data.updatedAt, reason:'updates_missing'});
-  }
+  if (!recordCaptureGap(gaps, old, data)) return invalidCaptureGap;
   let sealedThrough = old?.sealedThrough ?? null;
   const context=await recentSpeakerContext(bucket,old);
   let speakerContext = context.cues;
@@ -104,8 +144,71 @@ async function writeSnapshot(bucket, key, previous, data, decorate) {
     tail = tail.slice(cut);
     sealedThrough = tail[0].start;
   }
-  const state = {...snapshot(data,tail),pages,sealedThrough,gaps,speakerContext,speakerContextSize:context.ready?speakerContextSize:0};
-  return bucket.put(key, JSON.stringify(state), {onlyIf:condition(previous), customMetadata:{updatedAt:data.updatedAt}, httpMetadata:{contentType:jsonHeaders['Content-Type']}});
+  const state = {...snapshot(data,tail),pages,sealedThrough,gaps,speakerContext,speakerContextSize:context.ready?speakerContextSize:0,
+    speakerContextVersion:context.ready?speakerContextVersion:0,
+    archiveMeeting:old?.archiveMeeting || archiveMetadata(meeting)};
+  if (state.archiveMeeting && Array.isArray(meeting.members)) {
+    // Retain the roster supplied by this site's schedule when the next meeting replaces it.
+    const {members,staffRoster,registeredVodStaffRoster,date,vodId,liveMeetingId}=meeting;
+    state.archiveSpeakerRoster={members,staffRoster,registeredVodStaffRoster,date,vodId,liveMeetingId};
+  } else if (old?.archiveSpeakerRoster) state.archiveSpeakerRoster=old.archiveSpeakerRoster;
+  const customMetadata = {updatedAt:data.updatedAt};
+  if (state.archiveMeeting && state.cues.length) {
+    const last = latestCaptureTime(state.cues);
+    if (Number.isFinite(last)) {
+      const summary = {meetingId:state.meetingId, updatedAt:state.updatedAt, status:state.status,
+        archiveMeeting:state.archiveMeeting, lastCapturedAt:new Date(last).toISOString()};
+      const encoded = JSON.stringify(summary);
+      if (new TextEncoder().encode(encoded).length < 1500) customMetadata.archiveV1 = encoded;
+    }
+  }
+  return bucket.put(key, JSON.stringify(state), {onlyIf:condition(previous), customMetadata, httpMetadata:{contentType:jsonHeaders['Content-Type']}});
+}
+const archiveLifetime = 14 * 24 * 60 * 60 * 1000;
+function archiveMetadata(meeting) {
+  if (!meeting || !/^[1-9]\d{0,11}$/.test(meeting.id || '') || typeof meeting.title !== 'string' ||
+      !meeting.title.trim() || meeting.title.length>240 || !Number.isFinite(Date.parse(meeting.scheduledAt))) return null;
+  try {
+    const url=new URL(meeting.officialPage);
+    if (url.origin!=='https://cast.sncouncil.go.kr' || url.pathname!=='/live/flashPlayer.jsp' ||
+        url.username || url.password || url.searchParams.getAll('live_no').length!==1 || url.searchParams.get('live_no')!==meeting.id) return null;
+    return {id:meeting.id,title:meeting.title.trim(),label:typeof meeting.label==='string'?meeting.label.slice(0,240):'',
+      scheduledAt:meeting.scheduledAt,endsAt:Number.isFinite(Date.parse(meeting.endsAt))?meeting.endsAt:null,
+      officialPage:'https://cast.sncouncil.go.kr/live/flashPlayer.jsp?live_no='+meeting.id};
+  } catch { return null; }
+}
+function latestCaptureTime(cues) {
+  let last = -Infinity;
+  for (const cue of cues) {
+    const time = Date.parse(cue.observedAt);
+    if (time > last) last = time;
+  }
+  return last;
+}
+function archiveListingState(object) {
+  if (typeof object.customMetadata?.archiveV1 !== 'string') return null;
+  try {
+    const record = JSON.parse(object.customMetadata.archiveV1);
+    if (!record || object.key !== 'council-captions/' + record.meetingId + '.json' ||
+        archiveMetadata(record.archiveMeeting)?.id !== record.meetingId ||
+        !['ended','interrupted','live','listening'].includes(record.status) ||
+        !Number.isFinite(Date.parse(record.updatedAt)) || !Number.isFinite(Date.parse(record.lastCapturedAt))) return null;
+    return {...record, cues:[{observedAt:record.lastCapturedAt}]};
+  } catch { return null; }
+}
+function archiveRecord(state, meeting, now) {
+  if (!state || !['ended','interrupted','live','listening'].includes(state.status) || !Array.isArray(state.cues) || !state.cues.length) return null;
+  const metadata=archiveMetadata(state.archiveMeeting) || archiveMetadata(meeting);
+  if (!metadata || metadata.id!==state.meetingId) return null;
+  const stale=['live','listening'].includes(state.status);
+  if (stale && (!Number.isFinite(Date.parse(metadata.endsAt)) || now<=Date.parse(metadata.endsAt)+120000)) return null;
+  const last = latestCaptureTime(state.cues);
+  const updated=Date.parse(state.updatedAt);
+  if (!Number.isFinite(last) || !Number.isFinite(updated) || last>updated+120000) return null;
+  const anchor=state.status==='ended' ? updated : last;
+  if (anchor>now+120000 || now>=anchor+archiveLifetime) return null;
+  return {...metadata,status:stale?'unknown':state.status,lastCapturedAt:new Date(last).toISOString(),
+    completionAt:state.status==='ended'?new Date(updated).toISOString():null,expiresAt:new Date(anchor+archiveLifetime).toISOString()};
 }
 async function minutes(bucket, state, id, attribute) {
   const pages = [];
@@ -246,9 +349,69 @@ async function nameplates(request, bucket, url, meetings, publicKey, clock, veri
   return error(409, 'Concurrent nameplate update');
 }
 
-export function createSite({assets, meetings, publicKey, attributeSpeakers, resolveArchiveVideo, resolveArchiveTranscript}, clock = Date.now) {
+export function createSite({assets, meetings, archiveMeetings = [], publicKey, attributeSpeakers, validateAcousticProof, validatePodiumProof, resolveArchiveVideo, resolveArchiveTranscript}, clock = Date.now) {
   let verifier;
   const visualCache = new Map();
+  const archiveMetadataById = new Map([...archiveMeetings,...meetings].map(archiveMetadata).filter(Boolean).map(m=>[m.id,m]));
+  function historicalDecorator(bucket, id, state) {
+    if (!attributeSpeakers) return null;
+    const active=meetings.find(item=>item.id===id);
+    if (active) return createDecorator(bucket, active);
+    const metadata=archiveMetadata(state?.archiveMeeting), roster=state?.archiveSpeakerRoster;
+    return metadata?.id===id && Array.isArray(roster?.members) ? createDecorator(bucket, {...roster,...metadata}) : null;
+  }
+  async function archive(request, bucket, url) {
+    if (!bucket || typeof bucket.list !== 'function') return error(503,'Archive storage unavailable');
+    if (!['GET','HEAD'].includes(request.method)) return error(405,'Read only');
+    if (url.search) return error(400,'Invalid archive request');
+    if (url.pathname==='/api/archive/catalog') {
+      let cursor, count=0, objects=[], pages=0;
+      try {
+        do {
+          if (++pages>100) return error(503,'Archive listing limit reached');
+          const page=await bucket.list({prefix:'council-captions/',limit:1000,include:['customMetadata'],...(cursor?{cursor}:{})});
+          if (!Array.isArray(page.objects)) throw Error('invalid listing');
+          count+=page.objects.length;
+          if (count>10000) return error(503,'Archive listing limit reached');
+          objects.push(...page.objects.filter(o=>/^council-captions\/[1-9]\d{0,11}\.json$/.test(o.key) &&
+            (!Number.isFinite(Date.parse(o.customMetadata?.updatedAt)) || Date.parse(o.customMetadata.updatedAt)+archiveLifetime>clock())));
+          cursor=page.truncated?page.cursor:null;
+          if (page.truncated && !cursor) throw Error('missing cursor');
+        } while (cursor);
+        if (objects.length>2000) return error(503,'Archive request limit reached');
+        const rows=[];
+        for (let i=0;i<objects.length;i+=20) {
+          const states=await Promise.all(objects.slice(i,i+20).map(async object=>
+            archiveListingState(object) || jsonBody(await bucket.get(object.key))));
+          for (const state of states) {
+            if (!state) continue;
+            const row=archiveRecord(state,archiveMetadataById.get(state.meetingId),clock());
+            if (row) rows.push(row);
+          }
+        }
+        rows.sort((a,b)=>Date.parse(b.lastCapturedAt)-Date.parse(a.lastCapturedAt)||a.id.localeCompare(b.id));
+        return request.method==='HEAD' ? new Response(null,{headers:jsonHeaders}) : Response.json({meetings:rows},{headers:jsonHeaders});
+      } catch { return error(503,'Archive listing unavailable'); }
+    }
+    const match=url.pathname.match(/^\/api\/archive\/meetings\/([1-9]\d{0,11})$/);
+    if (!match) return error(404,'Archive not found');
+    try {
+      const id = match[1], key = 'council-captions/' + id + '.json';
+      const original = await bucket.get(key), state = await jsonBody(original);
+      const row=archiveRecord(state,archiveMetadataById.get(id),clock());
+      if (!row) return error(404,'Archive unavailable or expired');
+      if (request.method==='HEAD') return new Response(null,{headers:jsonHeaders});
+      const response=await minutes(bucket,state,id,historicalDecorator(bucket,id,state));
+      if (!response.ok) return response;
+      const data=await response.json();
+      const latest = await bucket.get(key);
+      const current = await jsonBody(latest);
+      if (!archiveRecord(current,archiveMetadataById.get(id),clock())) return error(404,'Archive unavailable or expired');
+      if (current.updatedAt !== state.updatedAt || current.status !== state.status ||
+          (original.etag && latest.etag !== original.etag)) return error(409,'Archive changed during read');
+      return Response.json({meeting:row,minutes:data},{headers:jsonHeaders});
+    } catch { return error(503,'Archive unavailable'); }
+  }
   async function visualEvidence(bucket, meeting) {
     const cached = visualCache.get(meeting.id);
     if (cached && clock() < cached.expires) return cached.rows;
@@ -259,6 +422,16 @@ export function createSite({assets, meetings, publicKey, attributeSpeakers, reso
     } catch { /* Text-based attribution still works when camera evidence is unavailable. */ }
     visualCache.set(meeting.id, {expires:clock() + 3000, rows});
     return rows;
+  }
+  function createDecorator(bucket, meeting) {
+    return async function decorate(cues, context, gaps, visual) {
+      const raw = cues.map(({speaker, ...cue}) => cue);
+      if (!attributeSpeakers || !raw.length) return raw;
+      try {
+        const speakers = attributeSpeakers(meeting, [...context, ...raw], visual ?? await visualEvidence(bucket, meeting), gaps);
+        return raw.map(cue => Object.hasOwn(speakers, cue.id) && speakers[cue.id] ? {...cue, speaker:speakers[cue.id]} : cue);
+      } catch { return raw; }
+    };
   }
   async function verifySignature(key, signature, bytes) {
     verifier ??= crypto.subtle.importKey('raw', fromBase64url(key), 'Ed25519', false, ['verify']);
@@ -272,18 +445,12 @@ export function createSite({assets, meetings, publicKey, attributeSpeakers, reso
     if (!meeting && !(isMinutes && request.method === 'GET' && /^\d{1,12}$/.test(id))) return error(404, 'Unknown meeting');
     if (!bucket) return error(503, 'Captions storage unavailable');
     const storageKey = 'council-captions/' + id + '.json';
-    async function decorate(cues, context, gaps, visual) {
-      const raw = cues.map(({speaker, ...cue}) => cue);
-      if (!attributeSpeakers || !raw.length) return raw;
-      try {
-        const speakers = attributeSpeakers(meeting, [...context,...raw], visual ?? await visualEvidence(bucket,meeting), gaps);
-        return raw.map(cue => Object.hasOwn(speakers,cue.id) && speakers[cue.id] ? {...cue,speaker:speakers[cue.id]} : cue);
-      } catch { return raw; }
-    }
     if (isMinutes) {
       if (request.method !== 'GET') return error(405,'Read only');
-      return minutes(bucket, await jsonBody(await bucket.get(storageKey)), id, meeting && attributeSpeakers ? decorate : null);
+      const state=await jsonBody(await bucket.get(storageKey));
+      return minutes(bucket,state,id,historicalDecorator(bucket,id,state));
     }
+    const decorate = createDecorator(bucket, meeting);
     if (!isRecovery && (request.method === 'GET' || request.method === 'HEAD')) {
       const object = await bucket.get(storageKey);
       if (!object) return error(404, 'Captions have not started');
@@ -305,7 +472,7 @@ export function createSite({assets, meetings, publicKey, attributeSpeakers, reso
     try { data = JSON.parse(new TextDecoder('utf-8', {fatal:true}).decode(bytes)); }
     catch { return error(400, 'Invalid JSON'); }
     if (isRecovery) {
-      if (data?.purpose !== 'restore-captured-cues' || !validate(data,meeting,clock())) return error(400,'Invalid recovery');
+      if (data?.purpose !== 'restore-captured-cues' || !validate(data,meeting,clock(),validateAcousticProof,validatePodiumProof)) return error(400,'Invalid recovery');
       if (!Array.isArray(data.gaps) || data.gaps.some(g => !g || !['interrupted','updates_missing'].includes(g.reason) || !Number.isFinite(Date.parse(g.start)) || !Number.isFinite(Date.parse(g.end)) || Date.parse(g.start)>Date.parse(g.end) || Date.parse(g.start)<Date.parse(meeting.scheduledAt) || Date.parse(g.end)>Date.parse(meeting.endsAt))) return error(400,'Invalid gaps');
       const key = 'council-recovered/' + id;
       const previous = await bucket.get(key);
@@ -316,14 +483,16 @@ export function createSite({assets, meetings, publicKey, attributeSpeakers, reso
       const saved = await bucket.put(key,JSON.stringify(value),{onlyIf:condition(previous), httpMetadata:{contentType:jsonHeaders['Content-Type']}});
       return saved ? new Response(null,{status:204,headers}) : error(409,'Concurrent recovery');
     }
-    if (data?.purpose || !validate(data, meeting, clock())) return error(400, 'Invalid captions');
+    if (data?.purpose || !validate(data, meeting, clock(),validateAcousticProof,validatePodiumProof)) return error(400, 'Invalid captions');
     const previous = await bucket.get(storageKey);
     if (previous && Date.parse(previous.customMetadata.updatedAt) >= Date.parse(data.updatedAt)) return error(409, 'A newer snapshot is available');
-    const saved = await writeSnapshot(bucket, storageKey, previous, data, decorate);
+    const saved = await writeSnapshot(bucket, storageKey, previous, data, decorate, meeting);
+    if (saved === invalidCaptureGap) return error(400, 'Invalid capture gap');
     return saved ? new Response(null, {status:204, headers}) : error(409, 'Concurrent update');
   }
   return {async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname.startsWith('/api/archive/')) return archive(request,env.BUCKET,url);
     if (url.pathname === '/api/vod/resolve') return resolveArchiveVideo ? resolveArchiveVideo(request) : error(503,'VOD lookup unavailable');
     if (url.pathname === '/api/vod/transcript') return resolveArchiveTranscript ? resolveArchiveTranscript(request) : error(503,'VOD transcript unavailable');
     if (url.pathname === '/api/live/nameplates') {

@@ -1,0 +1,28 @@
+{
+  "meetings": [
+    {
+      "id": "2853",
+      "title": "경제환경위원회",
+      "label": "행정사무감사 제1일차",
+      "scheduledAt": "2026-11-25T13:30:00+09:00",
+      "endsAt": "2026-11-25T23:59:59+09:00",
+      "officialPage": "https://cast.sncouncil.go.kr/live/flashPlayer.jsp?live_no=2853"
+    },
+    {
+      "id": "2852",
+      "title": "행정교육위원회",
+      "label": "행정사무감사 제1일차",
+      "scheduledAt": "2026-11-25T13:30:00+09:00",
+      "endsAt": "2026-11-25T23:59:59+09:00",
+      "officialPage": "https://cast.sncouncil.go.kr/live/flashPlayer.jsp?live_no=2852"
+    },
+    {
+      "id": "2855",
+      "title": "도시건설위원회",
+      "label": "행정사무감사 제1일차",
+      "scheduledAt": "2026-11-25T13:30:00+09:00",
+      "endsAt": "2026-11-25T23:59:59+09:00",
+      "officialPage": "https://cast.sncouncil.go.kr/live/flashPlayer.jsp?live_no=2855"
+    }
+  ]
+}

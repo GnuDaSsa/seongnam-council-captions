@@ -11,6 +11,16 @@ def segment(text, start, end):
 
 
 class LiveDecodeTests(unittest.TestCase):
+    def test_adaptive_backlog_changes_only_the_first_pass(self):
+        self.assertEqual(stt.select_first_beam('standard', 53), 2)
+        self.assertEqual(stt.select_first_beam('adaptive', 29.999), 2)
+        self.assertEqual(stt.select_first_beam('adaptive', 30), 1)
+        suspect = [segment('그러니까요 ' * 20, 0, 6)]
+        good = [segment('자료를 제출하겠습니다.', 0, 6)]
+        with patch.object(stt, 'transcribe_audio', side_effect=[suspect, good]) as decode:
+            self.assertIs(stt.transcribe_live('model', 'audio', first_beam_size=1), good)
+            self.assertEqual([call.kwargs['beam_size'] for call in decode.call_args_list], [1, 5])
+
     def test_clean_audio_uses_one_pass(self):
         good = [segment('자료를 제출했습니다.', 0, 3)]
         with patch.object(stt, 'transcribe_audio', return_value=good) as decode:

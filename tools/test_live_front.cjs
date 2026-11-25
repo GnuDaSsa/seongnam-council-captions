@@ -22,7 +22,7 @@ const ids = new Map();
 const el = id => { if (!ids.has(id)) ids.set(id,new Element()); return ids.get(id); };
 const timers = new Map(); let timerId=0;
 const calls=[]; const pending=[];
-const meeting = id => ({id,title:'위원회'+id,label:'감사',scheduledAt:'2020-01-01T00:00:00Z',endsAt:'2099-01-01T00:00:00Z',provider:'hls',source:'https://example.com',playlist:'https://example.com/a.m3u8',agenda:[]});
+const meeting = (id,title='위원회'+id) => ({id,title,label:'감사',scheduledAt:'2020-01-01T00:00:00Z',endsAt:'2099-01-01T00:00:00Z',provider:'hls',source:'https://example.com',playlist:'https://example.com/a.m3u8',agenda:[]});
 const response = data => ({ok:true,status:200,json:async()=>data});
 const feed = (id,text,status='live') => ({meetingId:id,updatedAt:new Date().toISOString(),status,cues:[{id:'x',start:1,end:2,text,rawText:'원문',flags:['number','name']}]});
 const location = {href:'https://example.test/?live=invalid'};
@@ -32,7 +32,7 @@ const context = {
   history:{replaceState(_a,_b,url){location.href=String(new URL(url,location.href))}},
   fetch(url) {
     calls.push(url);
-    if (url.includes('live-meetings')) return Promise.resolve(response({meetings:[meeting('2852'),meeting('2853')]}));
+    if (url.includes('live-meetings')) return Promise.resolve(response({meetings:[meeting('2852'),meeting('2853','경제환경위원회')]}));
     return new Promise((resolve,reject)=>pending.push({url,resolve,reject}));
   },
   setTimeout(fn, delay) { const id=++timerId; timers.set(id,{fn,delay}); return id; },
@@ -42,6 +42,21 @@ const context = {
 vm.runInNewContext(fs.readFileSync('dist/asr/quality.js','utf8'),context);
 context.window.CouncilQuality = context.CouncilQuality;
 context.window.CouncilKoreanCorrections = require('../dist/korean-corrections.js');
+context.window.CouncilLiveSpeaker = require('../dist/live-speaker.js');
+const officialVod='https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5403';
+const priorSpeech={vodId:'5403',sourceUrl:officialVod,registeredOn:'2026-07-07',position:7229};
+const {registeredVodHref}=context.window.CouncilLiveSpeaker;
+assert.equal(registeredVodHref(priorSpeech),officialVod+'&position=7229');
+assert.equal(registeredVodHref({...priorSpeech,sourceUrl:officialVod+'&position=0',position:71.44}),officialVod+'&position=71');
+for (const sourceUrl of ['https://evil.example/vod/vod_view.jsp?pk_vod_no=5403',
+  'https://cast.sncouncil.go.kr.evil.example/vod/vod_view.jsp?pk_vod_no=5403',
+  officialVod+'&redirect=https://evil.example',officialVod+'&pk_vod_no=5403',officialVod+'#',officialVod+'&']) {
+  assert.equal(registeredVodHref({...priorSpeech,sourceUrl}),'');
+}
+for (const update of [{vodId:'5418'},{position:-1},{position:Infinity},{position:86401},{position:'12'},
+  {registeredOn:'2026-02-30'},{registeredOn:undefined}]) {
+  assert.equal(registeredVodHref({...priorSpeech,...update}),'');
+}
 assert.equal(context.CouncilQuality.repeated('-그러니까요.'.repeat(41)),true);
 assert.equal(context.CouncilQuality.repeated('이 제품은 '.repeat(80)),true);
 assert.equal(context.CouncilQuality.repeated('네 네, 그렇습니다. 네 네, 알겠습니다.'),false);
@@ -49,9 +64,45 @@ assert.equal(context.CouncilQuality.repeated('사업은 중요합니다. 사업�
 vm.runInNewContext(fs.readFileSync('dist/live.js','utf8'),context);
 const flush = () => new Promise(resolve=>setImmediate(resolve));
 async function settle() { for(let i=0;i<5;i++) await flush(); }
+async function checkMeetingSelection(manifest, url, expected, past) {
+  const elements = new Map();
+  const find = id => {
+    if (!elements.has(id)) elements.set(id,new Element());
+    return elements.get(id);
+  };
+  const testLocation = {href:url};
+  const opened = [];
+  const fetches = [];
+  vm.runInNewContext(fs.readFileSync('dist/live.js','utf8'),{
+    ...context,
+    document:{getElementById:find,createElement:()=>new Element()},
+    window:{CouncilLiveMinutes:{select(row){opened.push(row.id);}}},
+    location:testLocation,
+    history:{replaceState(_a,_b,next){testLocation.href=String(next);}},
+    fetch(path){
+      if (path.includes('live-meetings')) return Promise.resolve(response(manifest));
+      fetches.push(path);
+      return new Promise(()=>{});
+    },
+  });
+  await settle();
+  assert.deepEqual(opened,[expected]);
+  assert.equal(find('live-meeting-select').value,expected);
+  assert.equal(find('live-today').hidden,!past);
+  assert.equal(find('live-source').href,'https://example.com');
+  assert.ok(fetches[0].includes('meetingId='+expected));
+}
 async function run() {
   await settle();
   assert.match(pending[0].url,/2853/,'invalid link uses economic committee');
+  assert.equal(el('live-today').hidden,false);
+  const future = {date:'2098-01-15',defaultMeetingId:'4361',
+    meetings:[meeting('4360','경제환경위원회'),meeting('4361','행정교육위원회')]};
+  await checkMeetingSelection(future,'https://example.test/','4361',false);
+  await checkMeetingSelection(future,'https://example.test/?live=4360','4360',false);
+  await checkMeetingSelection({date:'2020-01-01',defaultMeetingId:'4361',
+    meetings:[meeting('bad'),meeting('4362'),meeting('4363')]},
+  'https://example.test/?live=9999','4362',true);
   const first=feed('2853','첫 번째');
   first.nameplateStatus={latest:{capturedAt:new Date().toISOString(),matchedMembers:[]},lastMatch:{capturedAt:new Date().toISOString(),matchedMembers:['테스트 의원']}};
   pending.shift().resolve(response(first));
@@ -101,7 +152,8 @@ async function run() {
   assert.match(context.exported.segments[0].text,/인식 원문:.*가름하겠습니다/);
   for (const [id,timer] of [...timers.entries()].filter(([,t])=>t.delay===3000)) { timers.delete(id); timer.fn(); }
   const speakerFeed=feed('2852','발언 내용');
-  speakerFeed.cues[0].speaker={name:'정연화',role:'위원',confidence:'low',method:'호명 단서',evidence:['x']};
+  speakerFeed.cues[0].speaker={name:'정연화',role:'위원',confidence:'low',method:'호명 단서',evidence:['x'],
+    registeredVodReference:priorSpeech};
   speakerFeed.cues.push({...speakerFeed.cues[0]});
   pending.shift().resolve(response(speakerFeed)); await settle();
   assert.match(el('live-captions').allText,/정연화 위원 · 추정/);
@@ -112,6 +164,15 @@ async function run() {
   el('live-speaker-recent').handlers.click({button:0,preventDefault(){prevented=true;}});
   assert.equal(prevented,true,'ordinary click opens history without navigation');
   assert.equal(new URL(location.href).searchParams.get('cue'),'x');
+  el('live-speaker-history').handlers.toggle();
+  for (let i=pending.length-1;i>=0;i--) {
+    if (pending[i].url.includes('/api/live/minutes?'))
+      pending.splice(i,1)[0].resolve(response({meetingId:'2852',speakerAttributionApplied:true,cues:speakerFeed.cues}));
+    else if (pending[i].url.includes('/api/live/nameplates?'))
+      pending.splice(i,1)[0].resolve(response({meetingId:'2852',observations:[]}));
+  }
+  await settle();
+  assert.equal((el('live-speaker-history-list').allText.match(/발언자 근거 영상/g)||[]).length,1);
   el('live-speaker-history').open=false;
   el('live-speaker-history').handlers.toggle();
   for (let i=pending.length-1;i>=0;i--) if (/\/api\/live\/(minutes|nameplates)/.test(pending[i].url)) pending.splice(i,1);
@@ -122,15 +183,24 @@ async function run() {
   assert.match(el('live-captions').allText,/발언자 추정 근거/);
   assert.match(el('live-captions').allText,/호명 단서/);
   assert.equal((el('live-captions').allText.match(/정연화 위원 · 추정/g)||[]).length,1);
+  const [,content]=el('live-captions').children[0].children;
+  const [proofLink]=content.children.find(child=>child.className==='cue-speaker-evidence').children.filter(child=>child.href);
+  assert.equal(proofLink.href,officialVod+'&position=7229');
+  assert.equal(proofLink.textContent,'발언자 근거 영상');
+  assert.equal(proofLink.target,'_blank');
+  assert.equal(proofLink.rel,'noopener noreferrer');
+  assert.equal((el('live-captions').allText.match(/발언자 근거 영상/g)||[]).length,1);
   el('live-save').onclick();
   assert.equal(context.exported.segments.length,1);
   assert.equal(context.exported.segments[0].speaker,'정연화 위원 · 추정');
   for (const [id,timer] of [...timers.entries()].filter(([,t])=>t.delay===3000)) { timers.delete(id); timer.fn(); }
   const changedSpeaker=feed('2852','발언 내용');
-  changedSpeaker.cues[0].speaker={name:'김정아',role:'과장',confidence:'medium',method:'self_intro',evidence:['x']};
+  changedSpeaker.cues[0].speaker={name:'김정아',role:'과장',confidence:'medium',method:'self_intro',evidence:['x'],
+    registeredVodReference:{...priorSpeech,sourceUrl:officialVod+'&redirect=https://evil.example'}};
   pending.shift().resolve(response(changedSpeaker)); await settle();
   assert.match(el('live-captions').allText,/김정아 과장 · 자기소개 단서 · 추정/);
   assert.doesNotMatch(el('live-captions').allText,/정연화/);
+  assert.doesNotMatch(el('live-captions').allText,/발언자 근거 영상/);
   for (const [id,timer] of [...timers.entries()].filter(([,t])=>t.delay===3000)) { timers.delete(id); timer.fn(); }
   const roleOnly=feed('2852','환경정책 과장입니다.');
   roleOnly.cues[0].speaker={name:'',role:'환경정책 과장',method:'직책 자기소개',evidence:['x']};

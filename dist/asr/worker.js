@@ -25,7 +25,7 @@ self.onmessage = async ({data}) => {
   } else if (data.type === 'audio' && transcriber) {
     try {
       const result = await transcriber(data.samples, {language:'korean', task:'transcribe', max_new_tokens:128});
-      const text = result.text || '';
+      const text = self.CouncilQuality.spokenText(result.text);
       self.postMessage({type:'result', text, rejected:self.CouncilQuality.repeated(text), start:data.start, end:data.end});
     } catch (error) { self.postMessage({type:'error', message:String(error?.message || error)}); }
   }

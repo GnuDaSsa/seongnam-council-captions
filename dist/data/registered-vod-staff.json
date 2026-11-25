@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "snapshots": [
+    {
+      "basis": "public-registered-vod",
+      "vodId": "5418",
+      "body": "도시건설위원회",
+      "term": 10,
+      "recordedOn": "2026-08-28",
+      "registeredOn": "2026-08-28",
+      "registryUrl": "https://cast.sncouncil.go.kr/vod/simple_vod_list.jsp?sch_sub_bunru_no=A0006&pageNo=2",
+      "registryEntrySha256": "16e05dc633c570cb4e139c94162b2faab55b9861cb3bb175b6999fb2a79dd9ff",
+      "sourceUrl": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5418&position=71",
+      "sourcePcmSha256": "2812aa8ce2602f9b7b66c8229ccca9bf2911eb800c62ec79e8d8143bc21a37cf",
+      "position": 71.44,
+      "end": 75.04,
+      "name": "김숙경",
+      "selfIntroduction": "도시건설위원회 담당 김숙경입니다.",
+      "officialRole": "주무관",
+      "officeEvidence": {
+        "start": 61.44,
+        "end": 65.52,
+        "text": "김숙경 주무관 나오셔서 보고해 주시기 바랍니다."
+      }
+    }
+  ]
+}
