@@ -21,7 +21,7 @@ catalog = {'meetings':[
     {'id':'5483','title':'Test council','date':'2026-10-07','officialPage':'https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5483',
      'playlist':'https://cast.sncouncil.go.kr/vod/test.m3u8','minutesUrl':'https://www.sncouncil.go.kr/record/recordView.do?key=abc123','cues':[{'id':'a','start':2,'end':5,'text':'first cache','speaker':'Chair','source':'minutes_aligned'},{'id':'b','start':8,'end':11,'text':'second cache','source':'asr'}]},
     {'id':'2','title':'Other council','date':'2026-10-08','officialPage':'https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=2',
-     'playlist':'https://cast.sncouncil.go.kr/vod/test2.m3u8','cues':[]}]}
+     'playlist':'https://cast.sncouncil.go.kr/vod/test2.m3u8','staffRoster':[{'name':'김정아','role':'자원행정팀장'}],'cues':[]}]}
 
 with server() as base, sync_playwright() as p:
     browser = p.chromium.launch(channel='chrome', headless=True)
@@ -139,6 +139,13 @@ with server() as base, sync_playwright() as p:
     assert '자막이 없습니다' in page.locator('#vod-caption-status').inner_text()
     page.locator('#vod-mode-personal').check()
     page.evaluate('v.play()'); page.locator('#vod-generate').click()
+    page.evaluate('''() => {
+      window.CouncilLiveSpeaker = {attribute: (_meeting,cues) =>
+        ({[cues[0].id]:{name:'김정아',role:'자원행정팀장',confidence:'medium',method:'명부 자기소개'}})};
+      window.captureArgs.onCue({start:12,end:15,text:'name from the roster'});
+      v._time=13; v.dispatchEvent(new Event('timeupdate'));
+    }''')
+    assert '김정아 자원행정팀장 · 추정' in page.locator('#vod-caption-now').inner_text()
     page.locator('#tab-archive').click()
     assert page.evaluate('v.paused') is True
     assert page.evaluate('window.stopped') >= 2

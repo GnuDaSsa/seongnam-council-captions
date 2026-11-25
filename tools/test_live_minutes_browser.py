@@ -23,9 +23,12 @@ from playwright.sync_api import sync_playwright
 with serve_dist() as base_url, sync_playwright() as p:
  b=p.chromium.launch(channel='chrome',headless=True); page=b.new_page(accept_downloads=True)
  cue={'id':'1','start':0,'end':8,'observedAt':'2026-11-25T04:00:00Z','text':'original statement','rawText':'original statement','flags':['low_confidence','number','name']}
+ candidate_cue={**cue,'speaker':{'name':'Candidate','role':'Chair','evidence':['1']}}
  def route(r):
   u=r.request.url
-  if '/api/live/minutes?' in u: r.fulfill(json={'meetingId':u.split('meetingId=')[1].split('&')[0],'cues':[cue,{'id':'2','start':8,'end':16,'text':'bad segment secret','rawText':'bad segment secret','flags':['segment_review']},{'id':'3','start':17,'end':20,'text':'placeholder','rawText':'user retained source','flags':['segment_review']}],'status':'live','updatedAt':'2026-11-25T04:00:00Z','gaps':[{'start':'2026-11-25T04:00:08Z','end':None,'reason':'interrupted'}]})
+  if '/api/live/minutes?' in u:
+   meeting_id=u.split('meetingId=')[1].split('&')[0]
+   r.fulfill(json={'meetingId':meeting_id,'speakerAttributionApplied':meeting_id=='2853','cues':[candidate_cue,{'id':'2','start':8,'end':16,'text':'bad segment secret','rawText':'bad segment secret','flags':['segment_review']},{'id':'3','start':17,'end':20,'text':'placeholder','rawText':'user retained source','flags':['segment_review']}],'status':'live','updatedAt':'2026-11-25T04:00:00Z','gaps':[{'start':'2026-11-25T04:00:08Z','end':None,'reason':'interrupted'}]})
   elif '/api/live/nameplates?' in u:
    if 'meetingId=2853' in u: r.fulfill(json={'meetingId':'2853','observations':[
     {'capturedAt':'2026-11-25T04:00:02Z','matchedMembers':['김옥수']},
@@ -38,7 +41,7 @@ with serve_dist() as base_url, sync_playwright() as p:
  page.add_init_script("localStorage.setItem('council-live-minutes:2853:2', '[음성 인식 오류 · 원음 재확인 필요]'); localStorage.setItem('council-live-minutes:2853:3', '[음성 인식 오류 · 원음 재확인 필요]'); localStorage.setItem('council-live-minutes:2853:3:explicit', '1');")
  page.route('**/*',route); page.goto(base_url,wait_until='domcontentloaded')
  page.wait_for_selector('#live-meeting-select option',state='attached')
- page.evaluate("() => { window.CouncilCommitteeTerms = {suggestions: () => [{heard:'original',official:'corrected',source:'https://example.test/'}]}; window.CouncilSpeakerReview = {guesses: m => String(m.id) === '2853' ? ({'1':{name:'Candidate',role:'Chair',evidence:['1']}}) : ({})}; }")
+ page.evaluate("() => { window.CouncilCommitteeTerms = {suggestions: () => [{heard:'original',official:'corrected',source:'https://example.test/'}]}; window.CouncilSpeakerReview = {guesses: () => { throw Error('Use the canonical policy'); }}; }")
  page.locator('#minutes-open').click(); page.locator('#minutes-edit > summary').click(); page.wait_for_selector('.minutes-cue', state='visible')
  assert not page.locator('#minutes-speaker-filter').is_checked()
  assert '1' in page.locator('#minutes-speaker-filter-label').inner_text()
@@ -100,7 +103,7 @@ with serve_dist() as base_url, sync_playwright() as p:
  assert 'original statement' in first_card.locator('details[open]').inner_text()
  first_card.get_by_text('수집 원문·정리 결과·편집 이력',exact=True).click()
  assert 'original statement' in first_card.locator('details').last.inner_text()
- page.reload(wait_until='domcontentloaded'); page.evaluate("() => { window.CouncilSpeakerReview = {guesses: m => String(m.id) === '2853' ? ({'1':{name:'Candidate',role:'Chair',evidence:['1']}}) : ({})}; }"); page.locator('#minutes-open').click(); page.locator('#minutes-edit > summary').click()
+ page.reload(wait_until='domcontentloaded'); page.locator('#minutes-open').click(); page.locator('#minutes-edit > summary').click()
  assert page.locator('.minutes-cue').first.locator('input[aria-label]').input_value() == 'Test Person'
  assert page.locator('.minutes-cue').first.locator('input[type=checkbox]').is_checked()
  page.locator('#minutes-speaker-filter').check()
@@ -112,6 +115,7 @@ with serve_dist() as base_url, sync_playwright() as p:
  page.wait_for_function("!document.querySelector('#minutes-content').hidden && document.querySelector('#minutes-speaker-filter-label').textContent.includes('(0')")
  assert not page.locator('#minutes-speaker-filter').is_checked()
  assert page.locator('#minutes-speaker-empty').is_visible()
+ assert 'Candidate' not in page.locator('#minutes-cues').inner_text()
  page.wait_for_function("document.querySelector('#nameplate-status').textContent.includes('불러오지 못했습니다')")
  assert page.locator('#nameplate-list li').count() == 0
  assert page.locator('.minutes-cue:visible').count() == 3
@@ -124,7 +128,7 @@ with serve_dist() as base_url, sync_playwright() as p:
  assert page.locator('.minutes-cue').first.locator('input[aria-label]').input_value() == 'Test Person'
  # When two ASR turns fall near one frame, staff choose a turn before applying a name.
  near_cue = {**cue, 'id':'4', 'start':8,'end':16,'observedAt':'2026-11-25T04:00:08Z','text':'second voice','rawText':'second voice'}
- page.route('**/api/live/minutes?meetingId=2853',lambda r:r.fulfill(json={'meetingId':'2853','cues':[cue,near_cue],'status':'live','gaps':[]}))
+ page.route('**/api/live/minutes?meetingId=2853',lambda r:r.fulfill(json={'meetingId':'2853','speakerAttributionApplied':True,'cues':[candidate_cue,near_cue],'status':'live','gaps':[]}))
  page.locator('#minutes-refresh').click()
  choices=page.locator('#nameplate-list li').filter(has_text='앞뒤 발언 2개 대조').filter(has_not_text='정연화')
  if not page.locator('#minutes-nameplates').evaluate('node => node.open'):

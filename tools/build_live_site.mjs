@@ -37,7 +37,7 @@ const vodResolver = await readFile(join(root,'worker/vod.mjs'),'utf8');
 const vodIndex = JSON.parse(await readFile(join(dist,'data/vod-index.json'),'utf8')).meetings;
 // The portable Sites artifact is a single Worker ES module. Register the same
 // plain scripts the live player uses in a private namespace at build time.
-const speakerSources = await Promise.all(['speaker-review.js','nameplate-review.js','live-speaker.js']
+const speakerSources = await Promise.all(['speaker-policy.js','speaker-review.js','nameplate-review.js','live-speaker.js']
   .map(file => readFile(join(dist,file),'utf8')));
 const speakerRegistry = 'const speakerModel = (() => { const window = {}, module = undefined;\n' +
   speakerSources.join('\n') + '\nreturn window.CouncilLiveSpeaker; })();\n';

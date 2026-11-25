@@ -49,11 +49,13 @@
     return {minutesLines:window.CouncilMinutesFormat.lines({meeting,archive,read,meta,coverage:coverage(),bad,initial})};
   }
   function preview() { el('minutes-preview').textContent = CouncilExports.minutesText(model()); }
-  function render() {
+  function render(legacyCandidates) {
     const container = el('minutes-cues'); container.replaceChildren();
     const cueFields = new Map();
-    const guesses = window.CouncilSpeakerReview?.guesses(meeting, archive.cues) || {};
-    const candidateCount = archive.cues.filter(cue => !!guesses[String(cue.id)]).length;
+    const candidateFor = cue => legacyCandidates
+      ? (Object.hasOwn(legacyCandidates,cue.id) ? legacyCandidates[cue.id] : undefined)
+      : cue.speaker;
+    const candidateCount = archive.cues.filter(candidateFor).length;
     el('minutes-speaker-filter').checked = false;
     el('minutes-speaker-filter-label').textContent = `발언자 후보만 보기 (${candidateCount}건)`;
     el('minutes-speaker-empty').hidden = candidateCount > 0;
@@ -77,7 +79,7 @@
       confirmed.type = 'checkbox'; confirmed.checked = !!meta(cue).confirmed; confirmLabel.append(confirmed, document.createTextNode(' 자료 제출 요청 또는 의결 확인'));
       function updateMeta() { saveMeta(cue,{speaker:speaker.value,kind:kind.value,confirmed:confirmed.checked}); showSpeaker(speaker.value); preview(); }
       speaker.addEventListener('input',updateMeta); kind.addEventListener('change',updateMeta); confirmed.addEventListener('change',updateMeta); metaBox.append(speaker,kind,confirmLabel);
-      const guess = guesses[String(cue.id)];
+      const guess = candidateFor(cue);
       cueFields.set(String(cue.id), {speaker, metaBox, guess, cue});
       card.dataset.speakerCandidate = guess ? 'yes' : 'no';
       if (guess) {
@@ -131,16 +133,24 @@
     return cueFields;
   }
   const sampleTime = new Intl.DateTimeFormat('ko-KR', {timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
-  async function loadNameplates(token, cueFields) {
+  async function fetchNameplates(chosen) {
+    if (chosen.provider !== 'hls') return null;
+    try {
+      const res = await fetch('/api/live/nameplates?meetingId=' + encodeURIComponent(chosen.id), {cache:'no-store',signal:AbortSignal.timeout(10000)});
+      if (!res.ok) return null;
+      const data = await res.json();
+      return String(data.meetingId) === String(chosen.id) && Array.isArray(data.observations) ? data : null;
+    } catch (_) { return null; }
+  }
+  async function loadNameplates(token, cueFields, pendingNameplates) {
     const status = el('nameplate-status'), list = el('nameplate-list');
     list.replaceChildren();
     if (meeting.provider !== 'hls') { status.textContent = '이 중계에는 명패 수집이 연결되어 있지 않습니다.'; return; }
     status.textContent = '명패 기록을 불러오는 중입니다.';
     try {
-      const res = await fetch('/api/live/nameplates?meetingId=' + encodeURIComponent(meeting.id), {cache:'no-store',signal:AbortSignal.timeout(10000)});
-      if (!res.ok) throw Error('Nameplate fetch failed');
-      const data = await res.json();
+      const data = await pendingNameplates;
       if (token !== version) return;
+      if (!data) throw Error('Nameplate fetch failed');
       const samples = window.CouncilNameplateReview.observations(meeting, archive, data);
       if (!samples.length) { status.textContent = '이 회의에서 수집된 명패 기록이 없습니다.'; return; }
       const found = samples.filter(item => item.names.length);
@@ -167,7 +177,7 @@
           const label = document.createElement('p');
           label.textContent = '발언 근처 화면에서 읽은 이름 · ' + time + ' 수집　' + names;
           if (fields.guess?.name && sample.names.length === 1) {
-            label.textContent += fields.guess.name === names ? ' · 발언 내용에서 찾은 후보와 일치' : ' · 발언 내용에서 찾은 후보와 다름';
+            label.textContent += fields.guess.name === names ? ' · 자동 추정과 일치' : ' · 자동 추정과 다름';
           }
           note.append(label);
           if (sample.names.length === 1) {
@@ -220,10 +230,18 @@
       const data = await response.json();
       if (token !== version) return;
       if (String(data.meetingId) !== id || !Array.isArray(data.cues)) throw new Error();
+      if (!data.cues.length) { archive = data; el('minutes-status').textContent = '이 회의에 수집된 공유 기록이 없습니다. 유튜브 중계는 공유 기록이 제공되지 않을 수 있습니다.'; return; }
+      const pendingNameplates = fetchNameplates(meeting);
+      let legacyCandidates = null;
+      if (data.speakerAttributionApplied !== true) {
+        const evidence = await pendingNameplates;
+        if (token !== version) return;
+        try { legacyCandidates = window.CouncilLiveSpeaker?.attribute(meeting, data.cues, evidence?.observations || [], data.gaps || []) || {}; }
+        catch (_) { legacyCandidates = {}; }
+      }
       archive = data;
-      if (!archive.cues.length) { el('minutes-status').textContent = '이 회의에 수집된 공유 기록이 없습니다. 유튜브 중계는 공유 기록이 제공되지 않을 수 있습니다.'; return; }
-      const fields = render();
-      void loadNameplates(token, fields);
+      const fields = render(legacyCandidates);
+      void loadNameplates(token, fields, pendingNameplates);
     } catch (_) { if (token === version) el('minutes-status').textContent = '공유 기록을 불러오지 못했습니다. 잠시 후 새로고침해 주세요.'; }
   }
   function save(hwpx) {

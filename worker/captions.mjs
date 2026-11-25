@@ -107,7 +107,7 @@ async function writeSnapshot(bucket, key, previous, data, decorate) {
   const state = {...snapshot(data,tail),pages,sealedThrough,gaps,speakerContext,speakerContextSize:context.ready?speakerContextSize:0};
   return bucket.put(key, JSON.stringify(state), {onlyIf:condition(previous), customMetadata:{updatedAt:data.updatedAt}, httpMetadata:{contentType:jsonHeaders['Content-Type']}});
 }
-async function minutes(bucket, state, id) {
+async function minutes(bucket, state, id, attribute) {
   const pages = [];
   for (const key of state?.pages || []) {
     const part = await jsonBody(await bucket.get(key));
@@ -119,8 +119,11 @@ async function minutes(bucket, state, id) {
   if (!state && !initial) return error(404,'Minutes have not started');
   const gapMap = new Map();
   for (const gap of [...(initial?.gaps || []),...(state?.gaps || [])]) gapMap.set(gap.start, gap);
-  const data = snapshot(state || {meetingId:id,updatedAt:initial.updatedAt,status:'interrupted'},cues);
-  return Response.json({...data,coverageStart:cues[0]?.observedAt || null,gaps:[...gapMap.values()].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start))},{headers:jsonHeaders});
+  const gaps = [...gapMap.values()].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start));
+  const labeled = attribute ? await attribute(cues, [], gaps) : cues;
+  const data = snapshot(state || {meetingId:id,updatedAt:initial.updatedAt,status:'interrupted'},labeled);
+  if (attribute) data.speakerAttributionApplied = true;
+  return Response.json({...data,coverageStart:cues[0]?.observedAt || null,gaps},{headers:jsonHeaders});
 }
 
 const nameplateMaxBytes = 128 * 1024;
@@ -269,24 +272,25 @@ export function createSite({assets, meetings, publicKey, attributeSpeakers, reso
     if (!meeting && !(isMinutes && request.method === 'GET' && /^\d{1,12}$/.test(id))) return error(404, 'Unknown meeting');
     if (!bucket) return error(503, 'Captions storage unavailable');
     const storageKey = 'council-captions/' + id + '.json';
-    async function decorate(cues, context, gaps) {
+    async function decorate(cues, context, gaps, visual) {
       const raw = cues.map(({speaker, ...cue}) => cue);
       if (!attributeSpeakers || !raw.length) return raw;
-      const speakers = attributeSpeakers(meeting, [...context,...raw], await visualEvidence(bucket,meeting), gaps);
-      return raw.map(cue => Object.hasOwn(speakers,cue.id) ? {...cue,speaker:speakers[cue.id]} : cue);
+      try {
+        const speakers = attributeSpeakers(meeting, [...context,...raw], visual ?? await visualEvidence(bucket,meeting), gaps);
+        return raw.map(cue => Object.hasOwn(speakers,cue.id) && speakers[cue.id] ? {...cue,speaker:speakers[cue.id]} : cue);
+      } catch { return raw; }
     }
     if (isMinutes) {
       if (request.method !== 'GET') return error(405,'Read only');
-      return minutes(bucket, await jsonBody(await bucket.get(storageKey)), id);
+      return minutes(bucket, await jsonBody(await bucket.get(storageKey)), id, meeting && attributeSpeakers ? decorate : null);
     }
     if (!isRecovery && (request.method === 'GET' || request.method === 'HEAD')) {
       const object = await bucket.get(storageKey);
       if (!object) return error(404, 'Captions have not started');
       if (request.method === 'HEAD') return new Response(null,{headers:jsonHeaders});
       const current = await jsonBody(object);
-      const context=await recentSpeakerContext(bucket,current);
-      const labeled = await decorate(current.cues,context.cues,current.gaps || []);
-      const visual=await visualEvidence(bucket,meeting);
+      const [context, visual] = await Promise.all([recentSpeakerContext(bucket,current), visualEvidence(bucket,meeting)]);
+      const labeled = await decorate(current.cues,context.cues,current.gaps || [],visual);
       const live=snapshot(current,labeled.slice(-pageSize));
       if (visual.length) live.nameplateStatus={latest:visual.at(-1),lastMatch:visual.findLast(row=>row.matchedMembers.length>0)||null};
       return Response.json(live,{headers:jsonHeaders});

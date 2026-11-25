@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const format = require('../dist/minutes-format.js');
 const terms = require('../dist/committee-terms.js');
-const speakers = require('../dist/speaker-review.js');
+const speakers = require('../dist/live-speaker.js');
 const meeting = require('../dist/data/live-meetings.json').meetings.find(row => row.id === '2853');
 const directory = process.argv[2];
 if (!directory) throw Error('Usage: node evaluation/stages_eval.cjs ARCHIVED_EVAL_DIR');
@@ -46,7 +46,7 @@ for (const [label, prefix, start, end, annotations] of samples) {
     id:String(index), start:chunk.start, end:chunks[index + 1]?.start ?? chunk.start + 5,
     text:chunk.text, rawText:chunk.text,
   }));
-  const guesses = speakers.guesses(meeting, cues);
+  const guesses = speakers.attribute(meeting, cues);
   const selectedIds = new Set(cues.filter(cue => start <= cue.start && cue.start < end).map(cue => cue.id));
   const selectedGuesses = [...selectedIds].map(id => guesses[id]).filter(Boolean);
   const score = {

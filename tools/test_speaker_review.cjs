@@ -26,15 +26,15 @@ function run() {
   assert.equal(result['10'].name, '김옥수');
   assert.equal(result['10'].confidence, 'medium');
   result = guesses(meeting, [cue('11', '저는 환경보건국장 홍길동입니다.')]);
-  assert.equal(result['11'].name, '홍길동');
-  assert.equal(result['11'].role, '집행부(직위 확인 필요)');
+  assert.equal(result['11'].name, '');
+  assert.equal(result['11'].role, '환경보건국장');
   assert.equal(result['11'].confidence, 'low');
   // Selected 2026-10-07 follow-up case: the transcript contains the official name,
   // but ASR corrupts the department title. This is a regression fixture, not an
   // independent accuracy measurement; the name is checked against the public record.
   result = guesses(meeting, [cue('historical-intro', '안녕하십니까. 자원수란과장 장미라입니다.', 74.5)]);
-  assert.equal(result['historical-intro'].name, '장미라');
-  assert.equal(result['historical-intro'].role, '집행부(직위 확인 필요)');
+  assert.equal(result['historical-intro'].name, '');
+  assert.equal(result['historical-intro'].role, '자원수란과장');
   assert.equal(result['historical-intro'].confidence, 'low');
   result = guesses(meeting, [cue('12', '장일남 위원장님 발언해 주시기 바랍니다.'), cue('13', '안건에 관해 말씀드리겠습니다.')]);
   assert.equal(result['13'].role, '위원장');
@@ -84,10 +84,7 @@ function run() {
     liveCue('75a', '정봉규 의원님, 지리하시러.', 0, 10),
     liveCue('75b', '아까 앞서 장일남 의원님 말씀하셨던 예산 편성 내역 관련해서 질문드립니다.', 10, 18),
   ]);
-  assert.equal(result['75b'].name, '정봉규');
-  assert.equal(result['75b'].confidence, 'low');
-  assert.match(result['75b'].method, /오인식 가능성/);
-  assert.deepEqual(Array.from(result['75b'].evidence), ['75a', '75b']);
+  assert.equal(result['75b'], undefined, 'a distorted handoff and third-party citation cannot establish identity');
   result = guesses(meeting, [{ ...cue('62', '장일남 의원님 질의해 주시기 바랍니다.'), flags: ['name'] }, cue('63', '예산 편성 내역을 확인하겠습니다.')]);
   assert.equal(result['63'].name, '장일남', 'a name review flag can still surface a direct-call candidate for human verification');
 
@@ -108,10 +105,8 @@ function run() {
     liveCue('1795584783050047938', '과장님 고생 많으십니다.', 1554.821, 1557.331),
   ];
   const actualSample = guesses(meeting, live2853);
-  assert.equal(actualSample['1795584783050047743'].name, '정연화');
-  assert.equal(actualSample['1795584783050047743'].confidence, 'low');
-  assert.deepEqual(Array.from(actualSample['1795584783050047743'].evidence), ['1795584783050047742', '1795584783050047743']);
-  assert.equal(actualSample['1795584783050047820'].name, '정봉규', 'the explicit paired citation resolves this narrowly observed misheard call');
+  assert.equal(actualSample['1795584783050047743'], undefined);
+  assert.equal(actualSample['1795584783050047820'], undefined);
   assert.equal(actualSample['1795584783050047938'], undefined, 'a corrupted name call must not be repaired into an identity');
   assert.equal(live2853.length, 7);
   const snapshot = process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'SeongnamCouncilDesk', 'evaluation-20261125', 'economic-live-1513.json');
@@ -119,13 +114,13 @@ function run() {
     const archive = JSON.parse(fs.readFileSync(snapshot, 'utf8'));
     assert.equal(String(archive.meetingId), '2853');
     const wholeCapture = guesses(meeting, archive.cues);
-    assert.equal(wholeCapture['1795584783050047743']?.name, '정연화');
-    assert.equal(wholeCapture['1795584783050047820']?.name, '정봉규');
+    assert.equal(wholeCapture['1795584783050047743'], undefined);
+    assert.equal(wholeCapture['1795584783050047820'], undefined);
     assert.equal(wholeCapture['1795584783050047938'], undefined);
     const proposals = Object.values(wholeCapture);
     const named = proposals.filter(candidate => candidate.name).length;
     const roleOnly = proposals.filter(candidate => !candidate.name).length;
-    console.log(`PASS public 2853 selected cases: two low-confidence names; corrupted-name call withheld. Current ${archive.cues.length}-cue capture: ${named} named, ${roleOnly} role-only proposals (informational).`);
+    console.log(`PASS public 2853 ambiguous handoffs withheld. Current ${archive.cues.length}-cue capture: ${named} named, ${roleOnly} role-only proposals (informational).`);
   }
   console.log('PASS speaker-review conservative roster/turn tests');
 }

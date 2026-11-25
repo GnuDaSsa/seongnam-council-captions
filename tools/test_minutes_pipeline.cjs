@@ -10,7 +10,7 @@ test('replay preserves the captured bytes and separates proposed and approved ch
   const pipeline = path.join(__dirname, 'minutes_pipeline.cjs');
   const raw = {meetingId:'2853', status:'ended', updatedAt:'2026-11-25T06:05:00Z', gaps:[], cues:[
     {id:'a1',start:0,end:3,observedAt:'2026-11-25T06:00:00Z',text:'이른 차 소음 단속',rawText:'이른 차 소음 단속',flags:[]},
-    {id:'a2',start:0,end:3,observedAt:'2026-11-25T06:00:00Z',text:'이른 차 소음 단속',rawText:'이른 차 소음 단속',flags:['segment_review']},
+    {id:'a2',start:0,end:3,observedAt:'2026-11-25T06:00:00Z',text:'이른 차 소음 단속',rawText:'이른 차 소음 단속',flags:['segment_review'],speaker:{name:'이전 자동 추정',role:'의원'}},
   ]};
   const input = path.join(dir, 'capture.json'), edits = path.join(dir, 'changes.json'), out = path.join(dir, 'result');
   fs.writeFileSync(input, JSON.stringify(raw) + '\n');
@@ -25,11 +25,13 @@ test('replay preserves the captured bytes and separates proposed and approved ch
     assert.ok(pending[0].suggestions.some(candidate => candidate.official === '이륜차'));
     assert.equal(pending[0].minutesText, raw.cues[0].text);
     assert.equal(JSON.parse(fs.readFileSync(path.join(unreviewed,'aligned.json')))[1].duplicateForDraft, true);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(unreviewed,'speakers.json')))[1].candidate, null);
     const reviewed = run(input, out, '--edits', edits, '--manifest', path.join(unreviewed,'meeting.json'));
     assert.equal(reviewed.status, 0, reviewed.stderr);
     assert.deepEqual(fs.readFileSync(input), fs.readFileSync(path.join(out, 'raw.json')));
     assert.match(fs.readFileSync(path.join(out,'minutes.txt'),'utf8'), /담당 과장.*이륜차 소음 단속/);
     assert.equal(JSON.parse(fs.readFileSync(path.join(out,'run.json'))).confirmedSpeakers, 2);
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(out,'speakers.json')))[1],{id:'a2',candidate:null,confirmedSpeaker:'담당자 확인'});
     assert.equal(JSON.parse(fs.readFileSync(path.join(out,'aligned.json')))[1].duplicateForDraft, false);
     assert.notEqual(run(input, out).status, 0);
   } finally {

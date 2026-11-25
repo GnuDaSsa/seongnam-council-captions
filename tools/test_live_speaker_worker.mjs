@@ -62,6 +62,29 @@ test('same cue correction removes sender supplied speaker and stale attribution 
   }
 });
 
+test('known minutes re-evaluate sealed and recovered labels while unknown archives keep legacy labels',async()=>{
+  const {request,objects}=setup(), id='2853', unknownId='1414';
+  const oldSpeaker={name:'조우현',role:'의원',method:'이전 자동 추정'};
+  const stale=cue('stale',0,'자료를 제출해 주세요.',{speaker:oldSpeaker});
+  const recovered=cue('recovered',1,'답변을 확인하겠습니다.',{speaker:oldSpeaker});
+  const page='council-pages/'+id+'/legacy';
+  objects.set(page,{body:JSON.stringify([stale])});
+  objects.set('council-captions/'+id+'.json',{body:JSON.stringify({
+    ...snapshot(id,[cue('intro',2,'조우현 의원입니다.')]), pages:[page], gaps:[],
+  })});
+  for (const meetingId of [id,unknownId]) {
+    objects.set('council-recovered/'+meetingId,{body:JSON.stringify({updatedAt:at(0),cues:[recovered],gaps:[]})});
+  }
+  const current=await get(request,'minutes',id);
+  assert.equal(current.speakerAttributionApplied,true);
+  assert.deepEqual(current.cues.map(cue=>[cue.id,cue.speaker?.name]),[
+    ['stale',undefined],['recovered',undefined],['intro','조우현'],
+  ]);
+  const legacy=await get(request,'minutes',unknownId);
+  assert.equal(legacy.speakerAttributionApplied,undefined);
+  assert.deepEqual(legacy.cues[0].speaker,oldSpeaker);
+});
+
 test('meeting context and roster do not leak across channels',async()=>{
   const {request}=setup();
   await put(request,'captions','2853',snapshot('2853',[cue('a',0,'조우현 의원님 질의해 주시기 바랍니다.')]));

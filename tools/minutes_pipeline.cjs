@@ -5,7 +5,7 @@ const path = require('node:path');
 const { createHash } = require('node:crypto');
 const { parseArgs } = require('node:util');
 const format = require('../dist/minutes-format.js');
-const speakers = require('../dist/speaker-review.js');
+const speakers = require('../dist/live-speaker.js');
 const terms = require('../dist/committee-terms.js');
 const departments = require('../dist/department-review.js');
 const defaultManifest = path.join(__dirname, '../dist/data/live-meetings.json');
@@ -55,8 +55,10 @@ function run() {
     return {id:cue.id, sourceText, rawText:cue.rawText || cue.text || '', correctionApplied:!Object.hasOwn(changeFor(cue), 'text') && !format.bad(cue) && sourceText !== format.initial(cue), reviewedText:text, minutesText:format.tidy(text),
       edited:Object.hasOwn(changeFor(cue), 'text'), suggestions:[...glossary, ...department]};
   });
-  const candidates = speakers.guesses(meeting, cues);
-  const attribution = cues.map(cue => ({id:cue.id, candidate:candidates[cue.id] || null,
+  const serverAttributed = archive.speakerAttributionApplied === true;
+  const candidates = new Map(serverAttributed ? cues.map(cue => [cue.id,cue.speaker])
+    : Object.entries(speakers.attribute(meeting, cues, archive.observations, archive.gaps)));
+  const attribution = cues.map(cue => ({id:cue.id, candidate:candidates.get(cue.id) || null,
     confirmedSpeaker:changeFor(cue).speaker || null}));
   const coverage = `${archive.coverageStart || '미확인'} ~ ${archive.updatedAt || '미확인'} · 수집 상태 ${archive.status || '미확인'}`;
   const lines = format.lines({meeting, archive:{...archive, cues}, read, meta:changeFor, coverage,
@@ -75,7 +77,7 @@ function run() {
   save('corrected.json', json(corrected));
   save('speakers.json', json(attribution));
   save('minutes.txt', lines.join('\n') + '\n');
-  const report = {meetingId:meeting.id, cues:cues.length, guesses:Object.keys(candidates).length,
+  const report = {meetingId:meeting.id, cues:cues.length, guesses:attribution.filter(row => row.candidate).length,
     confirmedSpeakers:attribution.filter(row => row.confirmedSpeaker).length, hashes};
   fs.writeFileSync(path.join(directory, 'run.json'), json(report), {flag:'wx'});
   console.log(`${meeting.title} · ${report.cues}개 구간 · 발언자 후보 ${report.guesses} · ${directory}`);

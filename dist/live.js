@@ -263,13 +263,12 @@
         } catch (_) { /* Nameplate history is optional. */ }
       }
       if (ticket !== historyGeneration || selected !== selection || mode === 'tab' || !panel.open) return;
-      let candidates = {};
-      try { candidates = window.CouncilLiveSpeaker?.attribute(meeting, archive.cues, observations, archive.gaps || []) || {}; } catch (_) {}
-      const all = uniqueCues(archive.cues).map(cue => {
-        const candidate = candidates[String(cue.id)] || cue.speaker;
-        const speaker = window.CouncilLiveSpeaker?.displayCandidate ? window.CouncilLiveSpeaker.displayCandidate(cue,candidate) : candidate;
-        return {...cue,speaker};
-      });
+      let all = uniqueCues(archive.cues);
+      if (archive.speakerAttributionApplied !== true) {
+        let candidates = {};
+        try { candidates = window.CouncilLiveSpeaker?.attribute(meeting, all, observations, archive.gaps || []) || {}; } catch (_) {}
+        all = all.map(cue => ({...cue, speaker:Object.hasOwn(candidates,cue.id) ? candidates[cue.id] : undefined}));
+      }
       const matches = all.filter(hasSpeaker);
       const url = new URL(location.href);
       let requestedId = url.searchParams.get('cue');

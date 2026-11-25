@@ -1,16 +1,16 @@
 /* Conservative live speaker suggestions. Every result is a review lead, never a verified identity. */
 (function (root, factory) {
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = factory(require('./speaker-review.js'), require('./nameplate-review.js'));
-  } else root.CouncilLiveSpeaker = factory(root.CouncilSpeakerReview, root.CouncilNameplateReview);
-})(typeof window === 'undefined' ? globalThis : window, function (speakerReview, nameplateReview) {
+    module.exports = factory(require('./speaker-review.js'), require('./nameplate-review.js'), require('./speaker-policy.js'));
+  } else root.CouncilLiveSpeaker = factory(root.CouncilSpeakerReview, root.CouncilNameplateReview, root.CouncilSpeakerPolicy);
+})(typeof window === 'undefined' ? globalThis : window, function (speakerReview, nameplateReview, policy) {
   'use strict';
   const UNCERTAIN = new Set(['low_confidence','severe_uncertainty','repetition','segment_review']);
   const ANSWER_TO_OTHER = /(?:의원님?\s*질의(?:에\s*대해|에\s*대한|하신\s*내용)|(?:질의|질문)\s*답변|답변(?:을|은|드리)|답해\s*드리)/;
-  const OBSERVED_MISHEARD_CALL = /지리하시러/;
+  const MIXED_TURN = /[?？]\s*(?:(?:네|예)(?:[.,!\s]|$)|그렇습니다|맞습니다)|(?:있습니다|없습니다|했습니다|하겠습니다)[.]\s*(?:그런데\s*왜|저는요)/;
   const ROLE_SUFFIXES = ['과장','국장','팀장','부장','소장','센터장','담당관','주무관'];
   const INTRO_TITLES = /(?:센터장|담당관|주무관|과장|국장|팀장|부장|소장|위원장|의원|위원)(?:\s+[가-힣]{2,4})?\s*입니다/g;
-  const QUOTED = /(?:라고\s*(?:소개|말씀|하|했)|라며\s*(?:소개|말씀|하|했)|라고\s*전했)/;
+  const QUOTED = /(?:라고|라며|다고)\s*(?:소개|말씀|하셨|했|전했|답했|말했)|[“「『][^”」』]*(?:입니다|의원|위원)[^”」』]*[”」』]/;
   const CONTINUATION = /^(?:그리고\s*(?:저는|제가)|또\s*(?:저는|제가)|추가로\s*(?:말씀드리면|제가)|이어서\s*(?:제가|말씀드리면))/;
   const TERMINAL = /[.!?。！？]$/;
   const ROLE_MEDIUM = '의원';
@@ -21,7 +21,11 @@
   function idOf(cue) { return cue && cue.id != null ? String(cue.id) : ''; }
   function safeId(id) { return !!id && !['__proto__','constructor','prototype'].includes(id); }
   function textOf(cue) { return clean(cue?.text); }
-  function uncertain(cue) { return !!cue?.rejected || (Array.isArray(cue?.flags) && cue.flags.some(flag=>UNCERTAIN.has(flag))) || (textOf(cue).match(INTRO_TITLES) || []).length>1; }
+  function uncertain(cue) {
+    const text = textOf(cue);
+    return !!cue?.rejected || (Array.isArray(cue?.flags) && cue.flags.some(flag => UNCERTAIN.has(flag))) ||
+      MIXED_TURN.test(text) || (text.match(INTRO_TITLES) || []).length > 1;
+  }
   function displayCandidate(cue,candidate) {
     if (!candidate || uncertain(cue)) return undefined;
     if (!candidate.name && /직책 자기소개/.test(candidate.method || '')) {
@@ -30,7 +34,10 @@
     }
     return candidate;
   }
-  function number(cue,key) { const n=Number(cue?.[key]); return Number.isFinite(n)?n:NaN; }
+  function number(cue,key) {
+    const value = cue?.[key];
+    return value == null || value === '' || !Number.isFinite(Number(value)) ? NaN : Number(value);
+  }
   function escapeRegExp(value) { return value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
   function orderedCues(cues) {
     return cues.map((cue,index)=>({cue,index,id:idOf(cue),start:number(cue,'start')})).filter(row=>safeId(row.id))
@@ -42,6 +49,18 @@
     const ae=as+Math.max(0,number(a,'end')-number(a,'start'))*1000;
     const be=bs+Math.max(0,number(b,'end')-number(b,'start'))*1000;
     return gaps.some(g=>{const s=Date.parse(g?.start),e=g?.end==null?Infinity:Date.parse(g.end);return Number.isFinite(s)&&(e===Infinity||Number.isFinite(e))&&s<Math.max(ae,be)&&e>Math.min(as,bs);});
+  }
+  function adjacent(previous, cue, gaps, limit) {
+    if (!previous || uncertain(previous) || uncertain(cue)) return false;
+    const before = number(previous, 'start'), end = number(previous, 'end');
+    const start = number(cue, 'start'), after = number(cue, 'end');
+    const delta = start - end;
+    if (!(end > before && after > start && delta >= 0 && delta <= limit)) return false;
+    const a = Date.parse(previous.observedAt), b = Date.parse(cue.observedAt);
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return !gaps.length;
+    // The wall clock can jump when the publisher reconnects even if media time is contiguous.
+    const elapsed = (b - a) / 1000;
+    return elapsed >= 0 && elapsed <= end - before + limit && !gapTouches(previous, cue, gaps);
   }
   function hasOtherMember(cue,meeting,name) {
     const text=textOf(cue);
@@ -65,7 +84,7 @@
     if (uncertain(cue)) return null;
     const text = textOf(cue);
     if (QUOTED.test(text)) return null;
-    const match = text.match(/^(?:(?:안녕하십니까|안녕하세요|네|예|저는)[,.!?\s]+){1,3}([가-힣\s]{1,24})\s+([가-힣]{2,4})입니다[.!?\s]*$/);
+    const match = text.match(/^(?:(?:안녕하십니까|안녕하세요|네|예|저는)[,.!?\s]+){0,3}([가-힣\s]{1,24})\s+([가-힣]{2,4})입니다[.!?\s]*$/);
     if (!match) return null;
     const spokenRole = match[1].replace(/\s/g,''), name = match[2];
     if ((meeting.members || []).map(clean).includes(name)) return null;
@@ -79,15 +98,22 @@
     if (matches.length !== 1 || roster.filter(row => clean(row?.name) === name).length !== 1) return null;
     return {name,role:clean(matches[0].role),confidence:'low',method:'명시적 자기소개와 공식 명부 직책·성명 대조 (원음 확인 필요)',evidence:[idOf(cue)]};
   }
+  function splitStaffIntro(meeting, cue, previous, gaps) {
+    if (!/^[가-힣]{2,4}입니다[.!]?$/.test(textOf(cue)) ||
+        !adjacent(previous, cue, gaps, policy.splitIntroSeconds)) return null;
+    const prefix = textOf(previous);
+    if (!/^(?:(?:안녕하십니까|안녕하세요|저는)[,.!?\s]+)[가-힣\s]{1,24}$/.test(prefix)) return null;
+    const joined = rosterStaffIntro(meeting, {...cue, text: prefix + ' ' + textOf(cue)});
+    return joined && {...joined, evidence: [idOf(previous), idOf(cue)],
+      method: '연속된 두 자막의 자기소개와 공식 명부 직책·성명 대조 (원음 확인 필요)'};
+  }
   function rosterAppointmentAnswer(meeting, cue, previous, candidate, gaps) {
     if (!previous || uncertain(cue) || uncertain(previous) || cue.flags?.includes('name') || QUOTED.test(textOf(cue))) return null;
     const q = textOf(previous), text = textOf(cue);
     const question = q.match(/^(사업소장|센터장|담당관|주무관|과장|국장|팀장|부장|소장)님\s*(?:그\s*자리에\s+오신\s*지\s+얼마나\s+되셨어요|언제\s+부임하셨습니까)[?？]$/);
     const answer = text.match(/^(?:지난\s*)?(\d{1,2})월\s*(\d{1,2})일(?:날|\s*자로)?\s*(?:발령받았습니다|부임했습니다)[.!]?$/);
     if (!question || !answer || !candidate || candidate.name || candidate.role !== question[1]) return null;
-    const delta = number(cue,'start') - number(previous,'end');
-    if (!Number.isFinite(delta) || delta < 0 || delta > 5 || gapTouches(previous,cue,gaps)) return null;
-    if (gaps.length && (!Number.isFinite(Date.parse(previous.observedAt)) || !Number.isFinite(Date.parse(cue.observedAt)))) return null;
+    if (!adjacent(previous, cue, gaps, policy.handoffSeconds)) return null;
     const date = cue.observedAt && new Date(cue.observedAt);
     if (!date || !Number.isFinite(date.getTime())) return null;
     const meetingDay = new Date(date.getTime() + 9 * 3600000).toISOString().slice(0,10);
@@ -101,17 +127,19 @@
   function memberIntro(cue,meeting,previous) {
     const text=textOf(cue);
     if (!text||QUOTED.test(text)) return null;
-    for (const raw of Array.isArray(meeting.members)?meeting.members:[]) {
-      const name=clean(raw);
-      if (!name) continue;
-      const re=new RegExp('(?:^|[.!?,\\s])(?:저는\\s*)?'+escapeRegExp(name)+'\\s*의원입니다(?=[.!?,\\s]|$)');
-      if (!re.test(text)) continue;
+    const spoken = spokenMember(text);
+    if (spoken && uniqueMember(meeting, spoken)) {
+      const name = spoken;
       const evidence=[idOf(cue)];
-      const call=new RegExp(escapeRegExp(name)+'\\s*의원님?\\s*(?:질의|질문|발언|말씀)');
+      const call=new RegExp(escapeRegExp(name)+'\\s*(?:의원|위원)님?\\s*(?:질의|질문|발언|말씀)');
       if (previous && call.test(textOf(previous))) evidence.unshift(idOf(previous));
-      return {name,role:ROLE_MEDIUM,confidence:'medium',method:evidence.length>1?'직접 호명 뒤 동일 의원 자기소개 (원음 확인 필요)':'명부 의원의 명시적 자기소개 (원음 확인 필요)',evidence};
+      return {name,role:ROLE_MEDIUM,confidence:cue.flags?.includes('name')?'low':'medium',method:evidence.length>1?'직접 호명 뒤 동일 의원 자기소개 (원음 확인 필요)':'명부 의원의 명시적 자기소개 (원음 확인 필요)',evidence};
     }
     return null;
+  }
+  function uniqueMember(meeting, name) {
+    return (meeting.members || []).filter(member => clean(member) === name).length === 1 &&
+      !(meeting.staffRoster || []).some(row => clean(row?.name) === name);
   }
   function addressedMemberIntro(cue, meeting) {
     const text=textOf(cue);
@@ -133,9 +161,7 @@
     const name=intro[1], members=Array.isArray(meeting.members) ? meeting.members.map(clean) : [];
     if (members.filter(value=>value===name).length!==1 || (meeting.staffRoster || []).some(row=>clean(row?.name)===name)) return null;
     const callPattern=new RegExp('^(?:(?:네|예|다음은)[,.!?\\s]+){0,2}'+escapeRegExp(name)+'\\s*(?:의원|위원)님[,\\s]*(?:말씀|질의|질문|발언)\\s*(?:해\\s*(?:주십시오|주시기\\s*바랍니다|주세요)|하시기\\s*바랍니다)[.!?\\s]*$');
-    const delta=number(cue,'start')-number(previous,'end');
-    if (!callPattern.test(call) || !Number.isFinite(delta) || delta<0 || delta>3 || gapTouches(previous,cue,gaps)) return null;
-    if (gaps.length && (!Number.isFinite(Date.parse(previous.observedAt)) || !Number.isFinite(Date.parse(cue.observedAt)))) return null;
+    if (!callPattern.test(call) || !adjacent(previous, cue, gaps, policy.calledIntroSeconds)) return null;
     return {name,role:'의원',confidence:'low',method:'명부 의원 호명 직후 같은 이름 자기소개 (원음 확인 필요)',evidence:[idOf(previous),idOf(cue)]};
   }
   function roleTurn(cue,previous,byId,gaps,meeting) {
@@ -146,30 +172,26 @@
     }
     if (!ANSWER_SELF.test(text)) return null;
     if (previous&&ADDRESSED_TITLE.test(textOf(previous))&&CLEAR_QUESTION.test(textOf(previous))) {
-      const delta=number(cue,'start')-number(previous,'end');
-      if (!uncertain(previous)&&Number.isFinite(delta)&&delta>=0&&delta<=5&&!gapTouches(previous,cue,gaps)&&
-          (!gaps.length||Number.isFinite(Date.parse(previous.observedAt))&&Number.isFinite(Date.parse(cue.observedAt)))) {
+      if (adjacent(previous, cue, gaps, policy.handoffSeconds)) {
         const role=(textOf(previous).match(ADDRESSED_TITLE)||[])[0]?.replace(/님$/,'');
         if (role) return {name:'',role,confidence:'low',method:'직책을 호칭한 질문 뒤 바로 이어진 답변 cue (실명 미확인)',evidence:[idOf(previous),idOf(cue)]};
       }
     }
     return {name:'',role:'답변자',confidence:'low',method:'의원님의 말씀을 지칭하고 제가 답변하는 cue (실명 미확인)',evidence:[idOf(cue)]};
   }
-  function validate(candidate,id,byId,ordered,gaps,meeting) {
+  function validate(candidate,id,byId,previous,gaps,meeting) {
     const cue=byId.get(id);
-    if (!candidate||!cue||uncertain(cue)||!textOf(cue)) return null;
+    if (!candidate||!cue||uncertain(cue)||!textOf(cue)||QUOTED.test(textOf(cue))) return null;
     const evidence=[...new Set((candidate.evidence||[]).map(String))].filter(key=>byId.has(key));
     if (!evidence.includes(id)) evidence.push(id);
     if (evidence.some(key=>uncertain(byId.get(key)))) return null;
     const name=clean(candidate.name);
+    if (name && !uniqueMember(meeting, name)) return null;
     if (evidence.length>1) {
       const source=byId.get(evidence[0]);
-      const delta=number(cue,'start')-number(source,'end');
-      const ix=ordered.findIndex(row=>row.id===id);
-      if (!source||ix<1||ordered[ix-1].id!==evidence[0]||!Number.isFinite(delta)||delta<0||delta>5||gapTouches(source,cue,gaps)) return null;
-      if (gaps.length && (!Number.isFinite(Date.parse(source.observedAt))||!Number.isFinite(Date.parse(cue.observedAt)))) return null;
+      if (source!==previous || !adjacent(source,cue,gaps,policy.handoffSeconds)) return null;
       if (ANSWER_TO_OTHER.test(textOf(source))) return null;
-      if (name && hasOtherMember(cue,meeting,name) && !OBSERVED_MISHEARD_CALL.test(textOf(source))) return null;
+      if (name && hasOtherMember(cue,meeting,name)) return null;
     }
     else if (name && hasOtherMember(cue,meeting,name)) return null;
     return {name,role:clean(candidate.role),confidence:['high','medium'].includes(candidate.confidence)?candidate.confidence:'low',method:clean(candidate.method),evidence};
@@ -183,7 +205,10 @@
   }
   // A roster name and an audible question/answer are separate evidence. A seat in
   // a split screen can corroborate the questioner, but never identifies a reply.
-  const SELF_NAME = /^(?:(?:네|예|안녕하십니까|저는|[가-힣]{1,8}님)[,.!?\s]+){0,3}([가-힣]{2,4})\s*(?:의원|위원)입니다(?:[.!,?\s]|$)/;
+  const SELF_NAME = /^(?:(?:네|예|안녕하십니까|안녕하세요|저는|[가-힣]{1,8}님)[,.!?\s]+){0,3}([가-힣]{2,4})\s*(?:의원|위원)입니다(?:[.!,?\s]|$)/;
+  // A courtesy or first-person opening can be a sentence of its own before the introduction.
+  const INTRO_LEAD = /^(?:(?:네|예)[,\s]+)?(?:(?:[가-힣]{1,8}님\s+)?(?:수고하십니다|고생\s*많으십니다)|제가\s+(?:간단히\s+)?(?:준비했습니다|말씀드리겠습니다))\s*[.!。]\s*/;
+  function spokenMember(text) { return text.replace(INTRO_LEAD, '').match(SELF_NAME)?.[1]; }
   const TITLED = /(센터장|담당관|주무관|과장|국장|팀장|부장|소장)님/g;
   const QUESTION = /(?:아닙니까|맞습니까|있습니까|없습니까|아시나요|아십니까|인가요|아닌가요|했나요|되나요|되셨어요|계시죠|지요|이죠|신가요|주실래요|(?:과장|국장|소장|팀장)님이세요)[?？.\s]*$/;
   const EXPLICIT_QUESTION = /(?:습니까|입니까|딥니까|아시나요|아닌가요|했나요|되나요|있나요|없나요|건가요|거예요|되셨어요|신가요|아니에요|어떠세요)[?？]$|(?:언제|어디|어떻|어떠|어떻게|왜|뭐가|무엇|얼마|누가|몇|어느).{0,65}(?:어요|아요|해요|돼요|세요)[?？]$/;
@@ -198,18 +223,18 @@
   function dialogueTurns(meeting,ordered,result,observations,gaps) {
     const roster=Array.isArray(meeting.members)?meeting.members:[];
     const plates=(Array.isArray(observations)?observations:[]).map(row=>({time:Date.parse(row.capturedAt),names:row.matchedMembers}))
-      .filter(p=>Number.isFinite(p.time)&&Array.isArray(p.names)&&p.names.length).sort((a,b)=>a.time-b.time);
-    const mixed = /[?？]\s*(?:네|예)[.,!\s]|[?？]\s*(?:그렇습니다|맞습니다)|(?:라고|라며)\s*(?:했|답|말|물)|위원장님|(?:있습니다|없습니다|했습니다|하겠습니다)[.]\s*(?:그런데\s*왜|저는요)/;
+      .filter(p=>Number.isFinite(p.time)&&Array.isArray(p.names)).sort((a,b)=>a.time-b.time);
+    const interjection = /위원장님|잠깐만요|제가\s*(?:한\s*말씀|끼어)/;
     let floor=null, lastQuestion=null, prior=null;
     for (const [idx,{cue,id}] of ordered.entries()) {
       const t=textOf(cue),at=Date.parse(cue.observedAt), start=number(cue,'start');
-      if (!Number.isFinite(at)) { floor=null; lastQuestion=null; prior=null; continue; }
-      const interrupted=prior && (start-number(prior,'end')>20 || start<number(prior,'start') || gapTouches(prior,cue,gaps));
+      if (!Number.isFinite(at)) floor=null;
+      const interrupted=prior && !adjacent(prior,cue,gaps,policy.dialogueBreakSeconds);
       const delta=prior?start-number(prior,'end'):Infinity;
-      if (interrupted || TRANSFER.test(t) || (floor && (at-floor.at>45*60000 || hasOtherMember(cue,meeting,floor.name)))) { floor=null; lastQuestion=null; }
+      if (interrupted || TRANSFER.test(t) || (floor && (at < floor.at || at-floor.at>policy.floorLifetimeMs || hasOtherMember(cue,meeting,floor.name)))) { floor=null; lastQuestion=null; }
       const previous=prior; prior=cue;
-      if (uncertain(cue)||QUOTED.test(t)||mixed.test(t)||TRANSFER.test(t)) { lastQuestion=null; continue; }
-      const spoken=t.match(SELF_NAME)?.[1];
+      if (uncertain(cue)||QUOTED.test(t)||interjection.test(t)||TRANSFER.test(t)) { floor=null; lastQuestion=null; continue; }
+      const spoken=spokenMember(t);
       const beforeLast=lastQuestion; lastQuestion=null;
       // If ASR itself flags a staff name, use the spoken office title until the
       // official's name can be checked independently.
@@ -222,23 +247,24 @@
         floor=null;
         const exact=roster.includes(spoken);
         const matches=exact?[spoken]:roster.filter(name=>nearRosterName(spoken,name));
-        if (matches.length!==1) continue;
+        if (matches.length!==1 || !uniqueMember(meeting,matches[0])) continue;
         const name=matches[0];
         let nextTurn=Infinity;
         for (let j=idx+1;j<ordered.length;j++) {
           const future=ordered[j].cue, when=Date.parse(future.observedAt);
-          if (!Number.isFinite(when)||when-at>125000) break;
-          if (TRANSFER.test(textOf(future))||SELF_NAME.test(textOf(future))) { nextTurn=when; break; }
+          if (!Number.isFinite(when)||when-at>policy.plateSearchMs) break;
+          if (TRANSFER.test(textOf(future))||spokenMember(textOf(future))||
+              !adjacent(ordered[j-1].cue,future,gaps,policy.dialogueBreakSeconds)) { nextTurn=when; break; }
         }
         // A seat alone cannot identify a voice. For a close phonetic match in an
         // explicit introduction, accept one close reading or two independent ones.
-        const near=plates.filter(p=>Math.abs(p.time-at)<=125000 && p.time<nextTurn &&
+        const near=plates.filter(p=>p.time >= at-policy.plateNearIntroMs && p.time-at<=policy.plateSearchMs && p.time<nextTurn &&
           !gaps.some(g=>Date.parse(g.start)<Math.max(at,p.time) && (g.end==null || Date.parse(g.end)>Math.min(at,p.time))));
         const unique=near.every(p=>p.names.length===1&&p.names[0]===name);
-        const repeated=unique&&near.length>1&&near.at(-1).time-near[0].time>=10000;
-        const close=unique && near.some(p=>Math.abs(p.time-at)<=15000);
+        const repeated=unique&&near.length>1&&near.at(-1).time-near[0].time>=policy.independentPlateMs;
+        const close=unique && near.some(p=>Math.abs(p.time-at)<=policy.plateNearIntroMs);
         if (exact || repeated || close) {
-          floor={name,id,at};
+          if (Number.isFinite(at)) floor={name,id,at};
           if (!result[id]) result[id]={name,role:'의원',confidence:exact?'medium':'low',method:exact?'명부 이름과 자기소개 일치':'자기소개에서 ‘'+spoken+'’로 인식. 위원회 명부와 '+(repeated?'인접 시간대 반복 판독':'자기소개 전후 15초 내 판독')+' 명패 ‘'+name+'’를 대조한 추정',evidence:[id]};
         } else if (!result[id]) result[id]={name:'',role:'의원',confidence:'low',method:'의원 자기소개. 인식한 이름과 명부가 달라 실명 보류',evidence:[id]};
         lastQuestion={id,role:'',intro:true};
@@ -249,9 +275,8 @@
       const explicit=EXPLICIT_QUESTION.test(t);
       const question=explicit||QUESTION.test(t)||AUDIT_QUESTION.test(t);
       if (question && (explicit||address||floor) && !/(?:의원|위원)님/.test(t) && !/(?:라고|라며|냐고).{0,12}(?:묻|말|물)/.test(t)) {
-        const seen=floor ? plates.filter(p=>p.time<=at && at-p.time<=150000 && p.time>=floor.at-15000) : [];
-        const matches=seen.length && seen.every(p=>p.names.length===1&&p.names[0]===floor.name) &&
-          (at-floor.at<=8*60000 || (seen.length>=2 && at-seen.at(-1).time<=45000));
+        const seen=floor ? plates.filter(p=>p.time<=at && at-p.time<=policy.plateBeforeQuestionMs && p.time>=floor.at-policy.plateNearIntroMs) : [];
+        const matches=seen.length && seen.every(p=>p.names.length===1&&p.names[0]===floor.name);
         if (!result[id]||result[id].role==='질의자') {
           const named=Boolean(floor && matches && !hasOtherMember(cue,meeting,floor.name));
           result[id]={name:named?floor.name:'',role:named?'의원':'질의자',confidence:'low',
@@ -261,7 +286,7 @@
         lastQuestion={id,role:address,intro:false};
         continue;
       }
-      if (!result[id] && previous && !interrupted && beforeLast && delta>=-0.05 && delta<=3 && RESPONSE.test(t) &&
+      if (!result[id] && previous && !interrupted && beforeLast && delta>=0 && delta<=policy.responseSeconds && RESPONSE.test(t) &&
           !t.includes('?') && (!beforeLast.intro || /(?:위원|의원)님/.test(t))) {
         result[id]={name:'',role:beforeLast.role||'답변자',confidence:'low',
           method:'직전 질의 또는 자기소개에 바로 이어진 응답 표현. 실명 미확인',evidence:[beforeLast.id,id]};
@@ -283,8 +308,7 @@
       if (intro) {
         if (uncertain(cue)) continue;
         if (intro.evidence.length>1) {
-          const delta=number(cue,'start')-number(previous,'end');
-          if (uncertain(previous)||!Number.isFinite(delta)||delta<0||delta>5||gapTouches(previous,cue,safeGaps)) {
+          if (!adjacent(previous,cue,safeGaps,policy.handoffSeconds)) {
             intro.evidence=[id];
             intro.method='의원 명시적 자기소개 (원음 확인 필요)';
           }
@@ -297,18 +321,8 @@
       const roleSuggestion=roleTurn(cue,previous,byId,safeGaps,meeting);
       if (roleSuggestion) { result[id]=roleSuggestion; continue; }
       if (!candidate) continue;
-      const evidence=(candidate.evidence||[]).map(String);
-      const single=evidence.length===1&&evidence[0]===id;
-      const procedure=single&&!candidate.name;
-      const self=single&&!!candidate.name;
-      const target=validate({...candidate,nameCueId:id},id,byId,ordered,safeGaps,meeting);
+      const target=validate(candidate,id,byId,previous,safeGaps,meeting);
       if (!target) continue;
-      if (!procedure&&!self&&evidence.length<2) continue;
-      if (!procedure&&!self) {
-        const index=ordered.findIndex(row=>row.id===id),caller=byId.get(evidence[0]);
-        if (index<1||ordered[index-1].id!==evidence[0]) continue;
-        if (ANSWER_TO_OTHER.test(textOf(caller))) continue;
-      }
       const seen=visible.get(id);
       if (target.name&&seen===target.name) {
         if (target.confidence==='low') target.confidence='medium';
@@ -319,20 +333,27 @@
     const continued=new Set();
     for (let i=0;i<ordered.length-1;i++) {
       const prior=ordered[i],next=ordered[i+1],base=result[prior.id];
-      if (!base?.name||continued.has(prior.id)||ocrConflicts.has(prior.id)||uncertain(prior.cue)||uncertain(next.cue)||result[next.id]||!CONTINUATION.test(textOf(next.cue))||TERMINAL.test(textOf(prior.cue))) continue;
-      const delta=number(next.cue,'start')-number(prior.cue,'end');
-      if (!Number.isFinite(delta)||delta<0||delta>1.5||gapTouches(prior.cue,next.cue,safeGaps)||hasOtherMember(next.cue,meeting,base.name)||ANSWER_TO_OTHER.test(textOf(next.cue))) continue;
-      if (visible.has(next.id)&&visible.get(next.id)!==base.name) continue;
-      result[next.id]={name:base.name,role:base.role,confidence:'low',method:'앞 발언과 연속형 연결 표현이 있는 인접 발언 (수동 확인 필요)',evidence:[...new Set([...base.evidence,next.id])]};
+      if (!base?.name || continued.has(prior.id) || ocrConflicts.has(prior.id) ||
+          (result[next.id] && result[next.id].role !== '질의자')) continue;
+      const text = textOf(next.cue), before = textOf(prior.cue);
+      const joined = CONTINUATION.test(text) && !TERMINAL.test(before);
+      const question = base.role === '의원' && spokenMember(before) === base.name &&
+        /^(?:저는|저도|제가)\s/.test(text) && /(?:여쭤(?:보|봅)|질의(?:드리|하)|질문(?:드리|하))/.test(text);
+      if ((!joined && !question) || /(?:위원|의원)님|답변|대신|위원장|잠깐/.test(text) ||
+          !adjacent(prior.cue,next.cue,safeGaps,policy.continuationSeconds) || hasOtherMember(next.cue,meeting,base.name) ||
+          ANSWER_TO_OTHER.test(text) || QUOTED.test(text) || (visible.has(next.id) && visible.get(next.id)!==base.name)) continue;
+      const method = question ? '직전 실명 자기소개에 이어진 본인의 질의 표현 (원음 확인 필요)' : '앞 발언과 연속형 연결 표현이 있는 인접 발언 (수동 확인 필요)';
+      result[next.id]={name:base.name,role:base.role,confidence:'low',method,evidence:[...new Set([...base.evidence,next.id])]};
       continued.add(next.id);
     }
     dialogueTurns(meeting,ordered,result,observations,safeGaps);
     for (let i=0;i<ordered.length;i++) {
       const {cue,id}=ordered[i], previous=i ? ordered[i-1].cue : null;
-      const official = rosterStaffIntro(meeting,cue) || rosterAppointmentAnswer(meeting,cue,previous,result[id],safeGaps) || addressedMemberIntro(cue,meeting) || calledMemberIntro(cue,previous,meeting,safeGaps);
+      const official = rosterStaffIntro(meeting,cue) || splitStaffIntro(meeting,cue,previous,safeGaps) ||
+        rosterAppointmentAnswer(meeting,cue,previous,result[id],safeGaps) || addressedMemberIntro(cue,meeting) || calledMemberIntro(cue,previous,meeting,safeGaps);
       if (official) result[id]=official;
     }
     return result;
   }
-  return Object.freeze({attribute,displayCandidate});
+  return Object.freeze({attribute,displayCandidate,policyVersion:policy.version});
 });

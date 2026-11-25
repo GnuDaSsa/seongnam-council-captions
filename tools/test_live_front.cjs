@@ -185,13 +185,18 @@ async function run() {
   assert.ok(historyCall,'history fetches the archived minutes');
   assert.ok(nameplateCall,'history optionally fetches nameplate observations');
   let attributionArgs;
-  context.window.CouncilLiveSpeaker={attribute(...args) { attributionArgs=args; return {}; },displayCandidate(_cue,candidate){return candidate;}};
-  historyCall.resolve(response({meetingId:'2852',gaps:[{start:10,end:11}],cues:[{id:'historic',start:9,end:10,observedAt:new Date().toISOString(),text:'조우현 의원입니다.',rawText:'조우현 의원입니다.',flags:[],speaker:{name:'조우현',role:'의원',method:'자기소개',evidence:['historic']}}]}));
+  const historicSpeaker={name:'조우현',role:'의원',method:'자기소개',evidence:['historic']};
+  context.window.CouncilLiveSpeaker={attribute(...args) { attributionArgs=args; return {historic:historicSpeaker}; }};
+  historyCall.resolve(response({meetingId:'2852',gaps:[{start:10,end:11}],cues:[
+    {id:'historic',start:9,end:10,observedAt:new Date().toISOString(),text:'조우현 의원입니다.',rawText:'조우현 의원입니다.',flags:[]},
+    {id:'retired',start:12,end:13,text:'원문 발언',speaker:{name:'옛이름',role:'의원'}},
+  ]}));
   nameplateCall.resolve(response({meetingId:'2852',observations:[{capturedAt:new Date().toISOString(),matchedMembers:['조우현']}] }));
   await settle();
   assert.equal(attributionArgs[2].length,1,'archived OCR observations are passed to the speaker core');
   assert.equal(attributionArgs[3].length,1,'archived gaps are passed to the speaker core');
   assert.match(el('live-speaker-history-list').allText,/조우현 의원/);
+  assert.doesNotMatch(el('live-speaker-history-list').allText,/옛이름/);
   assert.match(el('live-speaker-history-list').allText,/명패 판독\(발언자 확정 아님\)/);
   assert.match(el('live-speaker-history-status').textContent,/이 회의에서 추정한 발언 1건/);
   assert.equal(el('live-speaker-name').textContent,'발언자 미확인');
@@ -232,13 +237,15 @@ async function run() {
   el('live-meeting-select').handlers.change({target:{value:'2852'}});
   const recentMinutes=pending.filter(item=>item.url.includes('minutes?meetingId=2852')).at(-1);
   const recentNames=pending.filter(item=>item.url.includes('nameplates?meetingId=2852')).at(-1);
-  recentMinutes.resolve(response({meetingId:'2852',cues:[{id:'real-last',start:13,end:14,text:'자기소개',rawText:'원문 자기소개',flags:[],speaker:{name:'조우현',role:'의원'}}]}));
+  attributionArgs=undefined;
+  recentMinutes.resolve(response({meetingId:'2852',speakerAttributionApplied:true,cues:[{id:'real-last',start:13,end:14,text:'자기소개',rawText:'원문 자기소개',flags:[],speaker:{name:'조우현',role:'의원'}}]}));
   recentNames.resolve({ok:false,status:404,json:async()=>({})}); await settle();
   assert.equal(new URL(location.href).searchParams.get('cue'),'real-last');
   assert.equal(new URL(location.href).searchParams.has('speaker'),false);
   assert.equal(el('live-speaker-history-list').children[0]['aria-current'],'true');
   assert.equal(el('live-speaker-history-list').children[0].scrolled,1);
   assert.match(el('live-speaker-history-list').allText,/원문 자기소개/);
+  assert.equal(attributionArgs,undefined,'archive attribution from the server is used once');
   location.href='https://example.test/?live=2852&speaker=recent';
   el('live-meeting-select').handlers.change({target:{value:'2852'}});
   pending.filter(item=>item.url.includes('minutes?meetingId=2852')).at(-1).resolve(response({meetingId:'2852',cues:[]}));

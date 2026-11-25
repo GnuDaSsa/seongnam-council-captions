@@ -50,7 +50,7 @@ const cue=(id,text,start,end,flags=[],observedAt)=>({id,text,start,end,flags,obs
   assert.notEqual(attribute(committee,[call,{...response,text:'네, 안녕하십니까? 순선영입니다. 김보석 의원입니다.'}])[response.id]?.method?.includes('호명 직후'),true);
 }
 
-const browserWindow={CouncilSpeakerReview:require('../dist/speaker-review.js'),CouncilNameplateReview:require('../dist/nameplate-review.js')};
+const browserWindow={CouncilSpeakerReview:require('../dist/speaker-review.js'),CouncilNameplateReview:require('../dist/nameplate-review.js'),CouncilSpeakerPolicy:require('../dist/speaker-policy.js')};
 vm.runInNewContext(fs.readFileSync(require.resolve('../dist/live-speaker.js'),'utf8'),{window:browserWindow});
 assert.equal(typeof browserWindow.CouncilLiveSpeaker.attribute,'function','browser UMD consumes injected globals');
 
@@ -63,12 +63,11 @@ assert.equal(result[intro.id].name,'\uC870\uC6B0\uD604');
 assert.deepEqual(result[intro.id].evidence,[called.id,intro.id]);
 assert.equal(result[intro.id].confidence,'medium');
 
-// Actual 2853 short response after a direct call; a narrow immediate response can be reviewed.
+// Actual 2853 short response after a direct call; the addressee alone cannot identify this voice.
 const call=cue('1795584783050047742','\uC870 \uC758\uC6D0\uB2D8 \uC218\uACE0\uD558\uC168\uC2B5\uB2C8\uB2E4. \uB610 \uC9C8\uC758\uD558\uC2E4 \uC758\uC6D0\uB2D8. \uC815\uC5F0\uD654 \uC758\uC6D0\uB2D8 \uC9C8\uC758\uD574 \uC8FC\uC2DC\uACE0.',617.131,622.231);
 const ack=cue('1795584783050047743','\uB124, \uACFC\uC7A5\uB2D8.',622.231,624.231);
 result=attribute(meeting,[call,ack]);
-assert.equal(result[ack.id]?.name,'\uC815\uC5F0\uD654');
-assert.deepEqual(result[ack.id]?.evidence,[call.id,ack.id]);
+assert.equal(result[ack.id],undefined,'a brief acknowledgement cannot establish the next speaker');
 
 // Do not transfer a named questioner's identity to a staff answer.
 const answerCall=cue('answer-call','\uC7A5\uC77C\uB0A8 \uC758\uC6D0\uB2D8 \uC9C8\uC758\uC5D0 \uB300\uD574 \uACFC\uC7A5\uB2D8 \uB2F5\uBCC0\uD574 \uC8FC\uC2ED\uC2DC\uC624.',10,14);
@@ -90,8 +89,8 @@ assert.equal(result.staff.name,''); assert.ok(result.staff.role); assert.equal(r
 assert.equal(result.question,undefined,'do not carry a role-only self-introduction into the next question');
 const namedStaff=cue('named-staff','\uC800\uB294 \uD658\uACBD\uBCF4\uAC74\uAD6D\uC7A5 \uD64D\uAE38\uB3D9\uC785\uB2C8\uB2E4.',6,10);
 result=attribute(meeting,[namedStaff]);
-assert.equal(result[namedStaff.id]?.name,'\uD64D\uAE38\uB3D9');
-assert.equal(result[namedStaff.id]?.role,'\uC9D1\uD589\uBD80(\uC9C1\uC704 \uD655\uC778 \uD544\uC694)');
+assert.equal(result[namedStaff.id]?.name,'');
+assert.equal(result[namedStaff.id]?.role,'환경보건국장');
 
 // Proceedings role can be suggested without borrowing a member name.
 const chair=cue('chair','\uC131\uC6D0\uC774 \uB418\uC5C8\uC73C\uBBC0\uB85C \uD68C\uC758\uB97C \uAC1C\uD68C\uD558\uACA0\uC2B5\uB2C8\uB2E4.',20,27);
@@ -155,7 +154,7 @@ assert.equal(result[chainedExtension.id],undefined,'speaker is not carried throu
 // Names cited from someone else's earlier remarks, an answer, or a corrupted call remain withheld.
 const citeCall=cue('cite-call','\uC815\uBD09\uADDC \uC758\uC6D0\uB2D8, \uC9C0\uB9AC\uD558\uC2DC\uB7EC.',1067.771,1069.771);
 const cite=cue('cite','\uC544\uAE4C \uC55E\uC11C \uC7A5\uC77C\uB0A8 \uC758\uC6D0\uB2D8 \uB9D0\uC500\uD558\uC168\uB358 \uC0AC\uC548\uC740 ...',1069.771,1074.771);
-assert.equal(attribute(meeting,[citeCall,cite])[cite.id]?.name,'\uC815\uBD09\uADDC');
+assert.equal(attribute(meeting,[citeCall,cite])[cite.id],undefined);
 const badCall=cue('bad-call','\uC815\uC5F0\uD654 \uC758\uC6D0\uB2D8 \uC9C8\uC758\uD558\uC2DC\uB7EC.',1548.231,1553.561,['name']);
 const badAck=cue('bad-ack','\uACFC\uC7A5\uB2D8 \uACE0\uC0DD \uB9CE\uC73C\uC2ED\uB2C8\uB2E4.',1554.821,1557.331);
 assert.equal(attribute(meeting,[badCall,badAck])[badAck.id],undefined);
@@ -185,7 +184,7 @@ console.log('PASS live speaker attribution: actual 2853 turns, self-intros, staf
   assert.equal(out['4372'].name,'서은경');
   assert.equal(out['4373'].name,''); assert.equal(out['4373'].role,'답변자');
   assert.equal(out.q.name,'서은경'); assert.equal(out.a.name,''); assert.equal(out.a.role,'소장');
-  assert.equal(out.mixed,undefined); assert.equal(out['4435'].name,'서은경');
+  assert.equal(out.mixed,undefined); assert.ok(!out['4435']?.name,'a mixed turn ends the named floor');
   const distant=attribute(meeting,[opening],[plate(53,'서은경'),plate(116,'서은경')],[]);
   assert.equal(distant['4372'].name,'서은경');
   for (const samples of [[],[plate(53,'서은경')],[plate(10,'서은경','김옥수')],[plate(8,'김옥수'),plate(11,'서은경')],[plate(160,'서은경')]]) {

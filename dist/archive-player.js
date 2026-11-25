@@ -33,20 +33,27 @@
   }
   function inferPersonalSpeaker(cue) {
     speechContext = [...speechContext.slice(-7),cue];
-    if (!window.CouncilLiveSpeaker?.attribute || !meeting) return;
+    if (!meeting || cue.rejected) return;
+    const official = window.CouncilVodSpeaker?.assess(meeting,cue);
+    if (official?.blocked) {
+      speechContext = [];
+      return;
+    }
+    if (official?.speaker) return official.speaker;
+    if (!window.CouncilLiveSpeaker?.attribute) return;
     try {
       const candidate = window.CouncilLiveSpeaker.attribute(meeting,speechContext,[],[])[cue.id];
-      if (!candidate || cue.rejected) return;
-      const members = new Set(Array.isArray(meeting.members) ? meeting.members : []);
-      const name = members.has(candidate.name) ? candidate.name : '';
-      // Keep only the role suffix when the candidate label itself contains a name.
+      if (!candidate) return;
+      if (meeting.members?.length || meeting.staffRoster?.length) return candidate;
+      // Unknown archives can still show a role without implying a roster match.
       const role = String(candidate.role || '').trim().match(/(센터장|위원장|질의자|답변자|담당관|주무관|과장|국장|팀장|부장|소장|의원|위원)$/)?.[1] || '';
-      if (name || role) return {...candidate,name,role};
+      if (role) return {...candidate,name:'',role};
     } catch (_) { return undefined; }
   }
   function sourceLabel(cue) {
     if (cue.source === 'minutes_aligned') return '공식 회의록 대조';
     if (cue.source === 'asr') return '사전 자동 전사 · 미검토';
+    if (cue.source === 'local' && cue.speaker?.officialReference) return '개인 자막 · 공식 회의록 대조 추정';
     if (cue.source === 'local') return '지금 음성 인식 · 미검토';
     return '제공 자막';
   }
@@ -173,7 +180,7 @@
           if (!capture || token !== generation) return;
           const start = Number(cue.start), end = Number(cue.end);
           if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end <= start || end - start > 30 || !String(cue.text || '').trim()) return;
-          const item = {id:`local-${token}-${cue.start}`, start, end, text:cue.text, rawText:cue.rawText || cue.text, rejected:cue.rejected, flags:cue.flags, source:'local'};
+          const item = {id:`local-${token}-${cue.start}`, meetingId:String(meeting.id), start, end, text:cue.text, rawText:cue.rawText || cue.text, rejected:cue.rejected, flags:cue.flags, source:'local'};
           generated = generated.filter(old => Math.abs(old.start - item.start) > 0.5 || Math.abs(old.end - item.end) > 0.5);
           item.speaker = inferPersonalSpeaker(item);
           generated.push(item); generated.sort((a,b) => a.start - b.start); recentCue = {cue:item, receivedAt:Date.now()}; render();

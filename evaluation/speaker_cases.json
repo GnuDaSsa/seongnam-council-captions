@@ -1,0 +1,1430 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "observed-self-intro",
+      "origin": "observed",
+      "provenance": {
+        "file": "tools/test_live_speaker.cjs:58",
+        "note": "Source test labels this an actual live sample, but the second caption is truncated with a literal ellipsis in that test; no independent audio verification.",
+        "url": "https://cast.sncouncil.go.kr/live/flashPlayer.jsp?live_no=2853"
+      },
+      "meeting": {
+        "id": "2853",
+        "members": [
+          "안광환",
+          "장일남",
+          "김옥수",
+          "서은경",
+          "정봉규",
+          "정연화",
+          "조우현"
+        ]
+      },
+      "cues": [
+        {
+          "id": "1795587268650154061",
+          "text": "조우현 의원님 질의해 주십시오.",
+          "start": 995.617,
+          "end": 999.257
+        },
+        {
+          "id": "1795587268650154062",
+          "text": "조우현 의원입니다. 과장님 ...",
+          "start": 999.257,
+          "end": 1004.1
+        }
+      ],
+      "expected": [
+        {
+          "cue_id": "1795587268650154061",
+          "expected_name": null,
+          "forbidden_names": [
+            "조우현"
+          ],
+          "rationale": "The caller is not the person called."
+        },
+        {
+          "cue_id": "1795587268650154062",
+          "expected_name": "조우현",
+          "forbidden_names": [],
+          "rationale": "Explicit self-introduction in the observed caption."
+        }
+      ]
+    },
+    {
+      "id": "observed-corrupt-call",
+      "origin": "observed",
+      "provenance": {
+        "file": "tools/test_speaker_review.cjs:107",
+        "note": "Exact caption text and times as in source test; public archive cue evidence, not audio-verified ground truth.",
+        "url": "https://cast.sncouncil.go.kr/live/flashPlayer.jsp?live_no=2853"
+      },
+      "meeting": {
+        "id": "2853",
+        "members": [
+          "안광환",
+          "장일남",
+          "김옥수",
+          "서은경",
+          "정봉규",
+          "정연화",
+          "조우현"
+        ]
+      },
+      "cues": [
+        {
+          "id": "1795584783050047937",
+          "text": "네. 수고하셨습니다. 또 지리하시라요. 서은경이 형님.",
+          "start": 1548.231,
+          "end": 1553.561
+        },
+        {
+          "id": "1795584783050047938",
+          "text": "과장님 고생 많으십니다.",
+          "start": 1554.821,
+          "end": 1557.331
+        }
+      ],
+      "expected": [
+        {
+          "cue_id": "1795584783050047938",
+          "expected_name": null,
+          "forbidden_names": [
+            "서은경"
+          ],
+          "rationale": "A corrupted call does not establish a name."
+        }
+      ]
+    },
+    {
+      "id": "self-intro-no-observed-time",
+      "origin": "constructed",
+      "provenance": {
+        "note": "Synthetic challenge: cue timestamps only, no observedAt."
+      },
+      "meeting": {
+        "id": "2853",
+        "members": [
+          "안광환",
+          "장일남",
+          "김옥수",
+          "서은경",
+          "정봉규",
+          "정연화",
+          "조우현"
+        ]
+      },
+      "cues": [
+        {
+          "id": "intro",
+          "text": "조우현 위원입니다.",
+          "start": 0,
+          "end": 3
+        }
+      ],
+      "expected": [
+        {
+          "cue_id": "intro",
+          "expected_name": "조우현",
+          "forbidden_names": [],
+          "rationale": "An explicit roster-member self-introduction does not require wall-clock observation."
+        }
+      ]
+    },
+    {
+      "id": "call-different-intro",
+      "origin": "constructed",
+      "provenance": {
+        "note": "Synthetic handoff; deliberately different self-introduction."
+      },
+      "meeting": {
+        "id": "2853",
+        "members": [
+          "안광환",
+          "장일남",
+          "김옥수",
+          "서은경",
+          "정봉규",
+          "정연화",
+          "조우현"
+        ]
+      },
+      "cues": [
+        {
+          "id": "call",
+          "text": "장일남 위원님 질의해 주십시오.",
+          "start": 0,
+          "end": 3
+        },
+        {
+          "id": "reply",
+          "text": "네, 조우현 위원입니다.",
+          "start": 3,
+          "end": 6
+        }
+      ],
+      "expected": [
+        {
+          "cue_id": "call",
+          "expected_name": null,
+          "forbidden_names": [
+            "장일남"
+          ],
+          "rationale": "Named addressee is not the caller."
+        },
+        {
+          "cue_id": "reply",
+          "expected_name": "조우현",
+          "forbidden_names": [
+            "장일남"
+          ],
+          "rationale": "Explicit self-introduction supersedes an earlier call."
+        }
+      ]
+    },
+    {
+      "id": "reported-introduction",
+      "origin": "constructed",
+      "provenance": {
+        "note": "Synthetic reported speech; mentions a name without introducing the current speaker."
+      },
+      "meeting": {
+        "id": "2853",
+        "members": [
+          "안광환",
+          "장일남",
+          "김옥수",
+          "서은경",
+          "정봉규",
+          "정연화",
+          "조우현"
+        ]
+      },
+      "cues": [
+        {
+          "id": "reported",
+          "text": "장일남 의원입니다라고 소개하셨습니다.",
+          "start": 0,
+          "end": 4
+        }
+      ],
+      "expected": [
+        {
+          "cue_id": "reported",
+          "expected_name": null,
+          "forbidden_names": [
+            "장일남"
+          ],
+          "rationale": "Reported introduction does not identify the speaker."
+        }
+      ]
+    },
+    {
+      "id": "off-roster-staff",
+      "origin": "constructed",
+      "provenance": {
+        "note": "Synthetic officer name and title, no staff roster."
+      },
+      "meeting": {
+        "id": "2853",
+        "members": [
+          "안광환",
+          "장일남",
+          "김옥수",
+          "서은경",
+          "정봉규",
+          "정연화",
+          "조우현"
+        ]
+      },
+      "cues": [
+        {
+          "id": "staff",
+          "text": "안녕하십니까. 자원순환과장 김가나입니다.",
+          "start": 0,
+          "end": 4
+        }
+      ],
+      "expected": [
+        {
+          "cue_id": "staff",
+          "expected_name": null,
+          "forbidden_names": [
+            "김가나"
+          ],
+          "rationale": "A staff name requires a matching uniquely sourced role and name; role-only is allowed."
+        }
+      ]
+    },
+    {
+      "id": "role-answer-not-questioner",
+      "origin": "constructed",
+      "provenance": {
+        "note": "Synthetic staff handoff based on existing boundary test tools/test_live_speaker.cjs."
+      },
+      "meeting": {
+        "id": "2853",
+        "members": [
+          "안광환",
+          "장일남",
+          "김옥수",
+          "서은경",
+          "정봉규",
+          "정연화",
+          "조우현"
+        ]
+      },
+      "cues": [
+        {
+          "id": "call",
+          "text": "장일남 의원님 질의에 대해 과장님 답변해 주십시오.",
+          "start": 0,
+          "end": 4
+        },
+        {
+          "id": "answer",
+          "text": "자료를 확인해서 답변드리겠습니다.",
+          "start": 4,
+          "end": 8
+        }
+      ],
+      "expected": [
+        {
+          "cue_id": "answer",
+          "expected_name": null,
+          "forbidden_names": [
+            "장일남"
+          ],
+          "rationale": "The questioner is not necessarily the answering official."
+        }
+      ]
+    },
+    {
+      "id": "gap-blocks-handoff",
+      "origin": "constructed",
+      "provenance": {
+        "note": "Synthetic archive interruption; wall times and cue times explicitly supplied."
+      },
+      "meeting": {
+        "id": "2853",
+        "members": [
+          "안광환",
+          "장일남",
+          "김옥수",
+          "서은경",
+          "정봉규",
+          "정연화",
+          "조우현"
+        ]
+      },
+      "cues": [
+        {
+          "id": "call",
+          "text": "조우현 의원님 질의해 주십시오.",
+          "start": 0,
+          "end": 4,
+          "observedAt": "2026-11-25T05:30:00.000Z"
+        },
+        {
+          "id": "reply",
+          "text": "예산 편성 내역을 확인하겠습니다.",
+          "start": 4,
+          "end": 8,
+          "observedAt": "2026-11-25T05:30:05.000Z"
+        }
+      ],
+      "expected": [
+        {
+          "cue_id": "reply",
+          "expected_name": null,
+          "forbidden_names": [
+            "조우현"
+          ],
+          "rationale": "An archive gap prevents carrying a call to a later cue."
+        }
+      ],
+      "gaps": [
+        {
+          "start": "2026-11-25T05:30:04.100Z",
+          "end": "2026-11-25T05:30:04.900Z"
+        }
+      ]
+    },
+    {
+      "id": "overlap-conflicting-intros",
+      "origin": "constructed",
+      "provenance": {
+        "note": "Synthetic simultaneous turns with incompatible self-introductions."
+      },
+      "meeting": {
+        "id": "2853",
+        "members": [
+          "안광환",
+          "장일남",
+          "김옥수",
+          "서은경",
+          "정봉규",
+          "정연화",
+          "조우현"
+        ]
+      },
+      "cues": [
+        {
+          "id": "overlap",
+          "text": "조우현 위원입니다. 장일남 위원입니다.",
+          "start": 0,
+          "end": 5
+        }
+      ],
+      "expected": [
+        {
+          "cue_id": "overlap",
+          "expected_name": null,
+          "forbidden_names": [
+            "조우현",
+            "장일남"
+          ],
+          "rationale": "Two self-introductions in one cue do not establish a single speaker."
+        }
+      ]
+    },
+    {
+      "id": "stale-call",
+      "origin": "constructed",
+      "provenance": {
+        "note": "Synthetic extended time gap based on tools/test_speaker_review.cjs."
+      },
+      "meeting": {
+        "id": "2853",
+        "members": [
+          "안광환",
+          "장일남",
+          "김옥수",
+          "서은경",
+          "정봉규",
+          "정연화",
+          "조우현"
+        ]
+      },
+      "cues": [
+        {
+          "id": "call",
+          "text": "장일남 의원님 질의해 주시기 바랍니다.",
+          "start": 0,
+          "end": 4
+        },
+        {
+          "id": "reply",
+          "text": "예산 편성 내역을 확인하겠습니다.",
+          "start": 68,
+          "end": 73
+        }
+      ],
+      "expected": [
+        {
+          "cue_id": "reply",
+          "expected_name": null,
+          "forbidden_names": [
+            "장일남"
+          ],
+          "rationale": "An old call does not reliably identify a later speaker."
+        }
+      ]
+    },
+    {
+      "id": "meeting-chapter-is-not-turn",
+      "origin": "constructed",
+      "provenance": {
+        "file": "dist/data/meetings.json",
+        "url": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5411&position=14",
+        "note": "Adapted from summaries 5411-1a/1b/1c. Their shared 14–104 chapter is not a verified turn boundary; invented cue text below."
+      },
+      "meeting": {
+        "id": "2853",
+        "members": [
+          "안광환",
+          "장일남",
+          "김옥수",
+          "서은경",
+          "정봉규",
+          "정연화",
+          "조우현"
+        ]
+      },
+      "cues": [
+        {
+          "id": "chapter",
+          "text": "보고해 주시기 바랍니다.",
+          "start": 14,
+          "end": 104
+        },
+        {
+          "id": "chapter-response",
+          "text": "위원회 운영 사항을 보고하겠습니다.",
+          "start": 14,
+          "end": 104
+        }
+      ],
+      "expected": [
+        {
+          "cue_id": "chapter-response",
+          "expected_name": null,
+          "forbidden_names": [
+            "강상태",
+            "이상준"
+          ],
+          "rationale": "Shared chapter timings do not establish the exact speaker turn."
+        }
+      ]
+    },
+    {
+      "id": "no-evidence-incumbent",
+      "origin": "constructed",
+      "provenance": {
+        "note": "Synthetic generic proceedings; no name may be borrowed from a roster."
+      },
+      "meeting": {
+        "id": "2853",
+        "members": [
+          "안광환",
+          "장일남",
+          "김옥수",
+          "서은경",
+          "정봉규",
+          "정연화",
+          "조우현"
+        ]
+      },
+      "cues": [
+        {
+          "id": "opening",
+          "text": "성원이 되었으므로 회의를 개회하겠습니다.",
+          "start": 0,
+          "end": 5
+        }
+      ],
+      "expected": [
+        {
+          "cue_id": "opening",
+          "expected_name": null,
+          "forbidden_names": [
+            "안광환",
+            "장일남",
+            "김옥수",
+            "서은경",
+            "정봉규",
+            "정연화",
+            "조우현"
+          ],
+          "rationale": "Procedural wording alone cannot establish the named chair."
+        }
+      ]
+    },
+    {
+      "id": "sourced-staff-self-intro",
+      "origin": "constructed",
+      "provenance": {
+        "note": "Synthetic roster and URL; they are not official sources."
+      },
+      "meeting": {
+        "id": "2853",
+        "members": [
+          "안광환",
+          "장일남",
+          "김옥수",
+          "서은경",
+          "정봉규",
+          "정연화",
+          "조우현"
+        ],
+        "staffRoster": [
+          {
+            "name": "김가나",
+            "role": "환경정책과장",
+            "source": "https://example.org/synthetic-roster"
+          }
+        ]
+      },
+      "cues": [
+        {
+          "id": "s",
+          "text": "안녕하십니까. 환경정책과장 김가나입니다.",
+          "start": 0,
+          "end": 4
+        }
+      ],
+      "expected": [
+        {
+          "cue_id": "s",
+          "expected_name": "김가나",
+          "forbidden_names": [],
+          "rationale": "Unique roster role and name match an explicit self-introduction."
+        }
+      ]
+    },
+    {
+      "id": "duplicate-staff-roster",
+      "origin": "constructed",
+      "provenance": {
+        "note": "Synthetic duplicated roster; example.org is not an official source."
+      },
+      "meeting": {
+        "id": "2853",
+        "members": [
+          "안광환",
+          "장일남",
+          "김옥수",
+          "서은경",
+          "정봉규",
+          "정연화",
+          "조우현"
+        ],
+        "staffRoster": [
+          {
+            "name": "김가나",
+            "role": "환경정책과장",
+            "source": "https://example.org/synthetic-roster"
+          },
+          {
+            "name": "김가나",
+            "role": "환경정책과장",
+            "source": "https://example.org/synthetic-roster"
+          }
+        ]
+      },
+      "cues": [
+        {
+          "id": "s",
+          "text": "안녕하십니까. 환경정책과장 김가나입니다.",
+          "start": 0,
+          "end": 4
+        }
+      ],
+      "expected": [
+        {
+          "cue_id": "s",
+          "expected_name": null,
+          "forbidden_names": [
+            "김가나"
+          ],
+          "rationale": "Duplicate roster entries make the match non-unique."
+        }
+      ]
+    },
+    {
+      "id": "presenting-another-official",
+      "origin": "constructed",
+      "provenance": {
+        "note": "Synthetic roster and presentation of another person."
+      },
+      "meeting": {
+        "id": "2853",
+        "members": [
+          "안광환",
+          "장일남",
+          "김옥수",
+          "서은경",
+          "정봉규",
+          "정연화",
+          "조우현"
+        ],
+        "staffRoster": [
+          {
+            "name": "김가나",
+            "role": "환경정책과장",
+            "source": "https://example.org/synthetic-roster"
+          }
+        ]
+      },
+      "cues": [
+        {
+          "id": "s",
+          "text": "다음은 환경정책과장 김가나입니다.",
+          "start": 0,
+          "end": 4
+        }
+      ],
+      "expected": [
+        {
+          "cue_id": "s",
+          "expected_name": null,
+          "forbidden_names": [
+            "김가나"
+          ],
+          "rationale": "Introducing someone else does not identify the current speaker."
+        }
+      ]
+    },
+    {
+      "id": "split-staff-self-intro",
+      "origin": "constructed",
+      "provenance": {
+        "note": "Synthetic adjacent fragments and synthetic roster."
+      },
+      "meeting": {
+        "id": "2853",
+        "members": [
+          "안광환",
+          "장일남",
+          "김옥수",
+          "서은경",
+          "정봉규",
+          "정연화",
+          "조우현"
+        ],
+        "staffRoster": [
+          {
+            "name": "김가나",
+            "role": "환경정책과장",
+            "source": "https://example.org/synthetic-roster"
+          }
+        ]
+      },
+      "cues": [
+        {
+          "id": "s1",
+          "text": "안녕하십니까. 환경정책과장",
+          "start": 0,
+          "end": 2
+        },
+        {
+          "id": "s2",
+          "text": "김가나입니다.",
+          "start": 2,
+          "end": 4
+        }
+      ],
+      "expected": [
+        {
+          "cue_id": "s2",
+          "expected_name": "김가나",
+          "forbidden_names": [],
+          "rationale": "Adjacent fragments form one self-introduction supported by a unique roster entry."
+        }
+      ]
+    },
+    {
+      "id": "single-cue-question-answer",
+      "origin": "constructed",
+      "provenance": {
+        "note": "Synthetic challenge."
+      },
+      "meeting": {
+        "id": "2853",
+        "members": [
+          "안광환",
+          "장일남",
+          "김옥수",
+          "서은경",
+          "정봉규",
+          "정연화",
+          "조우현"
+        ]
+      },
+      "cues": [
+        {
+          "id": "qa",
+          "text": "조우현 위원입니다. 과장님 예산은 얼마입니까? 네, 3억 원입니다.",
+          "start": 0,
+          "end": 8
+        }
+      ],
+      "expected": [
+        {
+          "cue_id": "qa",
+          "expected_name": null,
+          "forbidden_names": [
+            "조우현"
+          ],
+          "rationale": "One cue contains a question and answer, so it cannot receive a single named speaker."
+        }
+      ]
+    },
+    {
+      "id": "vod5483-opening",
+      "origin": "observed",
+      "provenance": {
+        "file": "dist/data/vod-catalog.json",
+        "url": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5483&position=1",
+        "minutes_url": "https://www.sncouncil.go.kr/record/recordView.do?key=f7f9e3bdabe55a260dbc2f63deadb037a9b872f30f039ee3a648425eb7bc0019c7107cbab4d13d8b",
+        "note": "Original aligned cue, with speaker metadata withheld from input; record speaker is 안광환 위원장."
+      },
+      "meeting": {
+        "id": "5483",
+        "members": []
+      },
+      "cues": [
+        {
+          "id": "5483-minutes-0",
+          "text": "의석을 정돈해 주시기 바랍니다.",
+          "start": 1.75,
+          "end": 4.91
+        }
+      ],
+      "expected": [
+        {
+          "cue_id": "5483-minutes-0",
+          "expected_name": null,
+          "forbidden_names": [
+            "안광환"
+          ],
+          "rationale": "Meeting record labels the chair, but this sentence alone does not establish their name."
+        }
+      ]
+    },
+    {
+      "id": "vod5483-official-intro",
+      "origin": "observed",
+      "provenance": {
+        "file": "dist/data/vod-catalog.json",
+        "url": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5483&position=29",
+        "minutes_url": "https://www.sncouncil.go.kr/record/recordView.do?key=f7f9e3bdabe55a260dbc2f63deadb037a9b872f30f039ee3a648425eb7bc0019c7107cbab4d13d8b",
+        "note": "Original minutes-aligned cues, with speaker metadata withheld; record identifies 최민수 주무관. Cue time alignment is approximate."
+      },
+      "meeting": {
+        "id": "5483",
+        "members": []
+      },
+      "cues": [
+        {
+          "id": "5483-minutes-5",
+          "text": "상임위 담당 직원 보고해 주시기 바랍니다.",
+          "start": 29.22,
+          "end": 32.04
+        },
+        {
+          "id": "5483-minutes-6",
+          "text": "안녕하십니까? 의회사무국 경제환경위원회 담당 최민수 주무관입니다. 제313회 성남시의회 제1차 정례회 경제환경위원회 소집에 관하여 보고드리겠습니다.",
+          "start": 40,
+          "end": 52.16
+        }
+      ],
+      "expected": [
+        {
+          "cue_id": "5483-minutes-5",
+          "expected_name": null,
+          "forbidden_names": [
+            "최민수"
+          ],
+          "rationale": "The staff handoff does not name the current speaker."
+        },
+        {
+          "cue_id": "5483-minutes-6",
+          "expected_name": null,
+          "forbidden_names": [
+            "최민수"
+          ],
+          "rationale": "No sourced staff roster is supplied, so the named official remains role-only."
+        }
+      ]
+    },
+    {
+      "id": "observed-short-ack",
+      "origin": "observed",
+      "provenance": {
+        "file": "tools/test_speaker_review.cjs:102",
+        "url": "https://cast.sncouncil.go.kr/live/flashPlayer.jsp?live_no=2853",
+        "note": "Exact public archive cue text, times and flags as inherited in the test; no audio-verified identity. Live URL does not provide a durable seek position."
+      },
+      "meeting": {
+        "id": "2853",
+        "members": [
+          "안광환",
+          "장일남",
+          "김옥수",
+          "서은경",
+          "정봉규",
+          "정연화",
+          "조우현"
+        ]
+      },
+      "cues": [
+        {
+          "id": "1795584783050047742",
+          "text": "조 의원님 수고하셨습니다. 또 질의하실 의원님. 정연화 의원님 질의해 주시고.",
+          "start": 617.131,
+          "end": 622.231,
+          "flags": [
+            "name"
+          ]
+        },
+        {
+          "id": "1795584783050047743",
+          "text": "네, 과장님.",
+          "start": 622.231,
+          "end": 624.231
+        }
+      ],
+      "expected": [
+        {
+          "cue_id": "1795584783050047743",
+          "expected_name": null,
+          "forbidden_names": [
+            "정연화"
+          ],
+          "rationale": "This ambiguous cue evidence is insufficient to establish a named speaker."
+        }
+      ]
+    },
+    {
+      "id": "observed-misheard-call",
+      "origin": "observed",
+      "provenance": {
+        "file": "tools/test_speaker_review.cjs:102",
+        "url": "https://cast.sncouncil.go.kr/live/flashPlayer.jsp?live_no=2853",
+        "note": "Exact public archive cue text, times and flags as inherited in the test; no audio-verified identity. Live URL does not provide a durable seek position."
+      },
+      "meeting": {
+        "id": "2853",
+        "members": [
+          "안광환",
+          "장일남",
+          "김옥수",
+          "서은경",
+          "정봉규",
+          "정연화",
+          "조우현"
+        ]
+      },
+      "cues": [
+        {
+          "id": "1795584783050047819",
+          "text": "정봉규 의원님, 지리하시러.",
+          "start": 1067.771,
+          "end": 1069.771,
+          "flags": [
+            "name"
+          ]
+        },
+        {
+          "id": "1795584783050047820",
+          "text": "아까 앞서 장일남 의원님 말씀하셨던 1인차 소음 단속 관련해서요.",
+          "start": 1069.771,
+          "end": 1074.771,
+          "flags": [
+            "number",
+            "name"
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "cue_id": "1795584783050047820",
+          "expected_name": null,
+          "forbidden_names": [
+            "정봉규",
+            "장일남"
+          ],
+          "rationale": "This ambiguous cue evidence is insufficient to establish a named speaker."
+        }
+      ]
+    },
+    {
+      "id": "snapshot-intro-1795587268650153872",
+      "origin": "observed",
+      "provenance": {
+        "file": "public snapshot ../field-replay/2853.json",
+        "url": "https://seongnam-council-desk.gnudas0923.chatgpt.site/?live=2853&cue=1795587268650153872",
+        "note": "Public caption snapshot; immediate question is a low-confidence cue-evidence candidate, not independently audio-verified gold."
+      },
+      "meeting": {
+        "id": "2853",
+        "title": "경제환경위원회",
+        "label": "행정사무감사 제1일차",
+        "scheduledAt": "2026-11-25T13:30:00+09:00",
+        "endsAt": "2026-11-25T23:59:59+09:00",
+        "officialPage": "https://cast.sncouncil.go.kr/live/flashPlayer.jsp?live_no=2853",
+        "provider": "hls",
+        "source": "https://cast.sncouncil.go.kr/live/flashPlayer.jsp?live_no=2853",
+        "playlist": "https://cast.sncouncil.go.kr:4443/live/ch2.sdp/playlist.m3u8",
+        "agenda": [
+          "환경보건국",
+          "환경정책과",
+          "자원순환과",
+          "기후에너지과",
+          "푸른도시사업소",
+          "공원과",
+          "녹지과",
+          "생태하천과"
+        ],
+        "members": [
+          "안광환",
+          "장일남",
+          "김옥수",
+          "서은경",
+          "정봉규",
+          "정연화",
+          "조우현"
+        ],
+        "staffRoster": [
+          {
+            "name": "이원용",
+            "role": "환경보건국장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=be8d43a7c866b35d2d2b0c58854208fabd8b8a30e6ea061cb3649b2c5733df37472b50f74dedbd3b"
+          },
+          {
+            "name": "유성희",
+            "role": "환경정책과장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=be8d43a7c866b35d2d2b0c58854208fabd8b8a30e6ea061cb3649b2c5733df37472b50f74dedbd3b"
+          },
+          {
+            "name": "장미라",
+            "role": "자원순환과장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=be8d43a7c866b35d2d2b0c58854208fabd8b8a30e6ea061cb3649b2c5733df37472b50f74dedbd3b"
+          },
+          {
+            "name": "조난순",
+            "role": "기후에너지과장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=be8d43a7c866b35d2d2b0c58854208fabd8b8a30e6ea061cb3649b2c5733df37472b50f74dedbd3b"
+          },
+          {
+            "name": "이종빈",
+            "role": "푸른도시사업소장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=483791be148a634445c8aa53fadd5e6ef18d2f8fee9b7163fcc2a988441a058562a87a7edbd766e4",
+            "appointedOn": "2026-07-20"
+          },
+          {
+            "name": "정연달",
+            "role": "공원과장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=a46813304d41743bfdeff02347f8bf0fcca4dd972e54fe3035d5d261986dbb422f0b6975fb238591"
+          },
+          {
+            "name": "구본양",
+            "role": "녹지과장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=a46813304d41743bfdeff02347f8bf0fcca4dd972e54fe3035d5d261986dbb422f0b6975fb238591"
+          },
+          {
+            "name": "오재성",
+            "role": "생태하천과장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=a46813304d41743bfdeff02347f8bf0fcca4dd972e54fe3035d5d261986dbb422f0b6975fb238591"
+          }
+        ],
+        "memberSource": "https://www.sncouncil.go.kr/committee/C050/main.do"
+      },
+      "cues": [
+        {
+          "id": "1795587268650153872",
+          "text": "네, 수고하십니다. 장일남 의원입니다.",
+          "start": 6867.263,
+          "end": 6869.823,
+          "flags": [
+            "name"
+          ],
+          "observedAt": "2026-11-25T07:22:19.657Z"
+        },
+        {
+          "id": "1795587268650153873",
+          "text": "저도 이제 90페이지의 생활팩임을 수직 관련해서 좀 여쭤보고 싶은데요.",
+          "start": 6869.823,
+          "end": 6874.783,
+          "flags": [
+            "number"
+          ],
+          "observedAt": "2026-11-25T07:22:22.217Z"
+        }
+      ],
+      "expected": [
+        {
+          "cue_id": "1795587268650153872",
+          "expected_name": "장일남",
+          "forbidden_names": [],
+          "rationale": "Roster member appears to introduce themselves; name flag requires audio review."
+        },
+        {
+          "cue_id": "1795587268650153873",
+          "expected_name": "장일남",
+          "forbidden_names": [],
+          "rationale": "Low-confidence candidate: adjacent first-person question follows exact self-introduction; audio not independently verified."
+        }
+      ]
+    },
+    {
+      "id": "snapshot-intro-1795587268650154685",
+      "origin": "observed",
+      "provenance": {
+        "file": "public snapshot ../field-replay/2853.json",
+        "url": "https://seongnam-council-desk.gnudas0923.chatgpt.site/?live=2853&cue=1795587268650154685",
+        "note": "Public caption snapshot, cue evidence for an explicit introduction; not independently verified against audio."
+      },
+      "meeting": {
+        "id": "2853",
+        "title": "경제환경위원회",
+        "label": "행정사무감사 제1일차",
+        "scheduledAt": "2026-11-25T13:30:00+09:00",
+        "endsAt": "2026-11-25T23:59:59+09:00",
+        "officialPage": "https://cast.sncouncil.go.kr/live/flashPlayer.jsp?live_no=2853",
+        "provider": "hls",
+        "source": "https://cast.sncouncil.go.kr/live/flashPlayer.jsp?live_no=2853",
+        "playlist": "https://cast.sncouncil.go.kr:4443/live/ch2.sdp/playlist.m3u8",
+        "agenda": [
+          "환경보건국",
+          "환경정책과",
+          "자원순환과",
+          "기후에너지과",
+          "푸른도시사업소",
+          "공원과",
+          "녹지과",
+          "생태하천과"
+        ],
+        "members": [
+          "안광환",
+          "장일남",
+          "김옥수",
+          "서은경",
+          "정봉규",
+          "정연화",
+          "조우현"
+        ],
+        "staffRoster": [
+          {
+            "name": "이원용",
+            "role": "환경보건국장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=be8d43a7c866b35d2d2b0c58854208fabd8b8a30e6ea061cb3649b2c5733df37472b50f74dedbd3b"
+          },
+          {
+            "name": "유성희",
+            "role": "환경정책과장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=be8d43a7c866b35d2d2b0c58854208fabd8b8a30e6ea061cb3649b2c5733df37472b50f74dedbd3b"
+          },
+          {
+            "name": "장미라",
+            "role": "자원순환과장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=be8d43a7c866b35d2d2b0c58854208fabd8b8a30e6ea061cb3649b2c5733df37472b50f74dedbd3b"
+          },
+          {
+            "name": "조난순",
+            "role": "기후에너지과장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=be8d43a7c866b35d2d2b0c58854208fabd8b8a30e6ea061cb3649b2c5733df37472b50f74dedbd3b"
+          },
+          {
+            "name": "이종빈",
+            "role": "푸른도시사업소장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=483791be148a634445c8aa53fadd5e6ef18d2f8fee9b7163fcc2a988441a058562a87a7edbd766e4",
+            "appointedOn": "2026-07-20"
+          },
+          {
+            "name": "정연달",
+            "role": "공원과장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=a46813304d41743bfdeff02347f8bf0fcca4dd972e54fe3035d5d261986dbb422f0b6975fb238591"
+          },
+          {
+            "name": "구본양",
+            "role": "녹지과장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=a46813304d41743bfdeff02347f8bf0fcca4dd972e54fe3035d5d261986dbb422f0b6975fb238591"
+          },
+          {
+            "name": "오재성",
+            "role": "생태하천과장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=a46813304d41743bfdeff02347f8bf0fcca4dd972e54fe3035d5d261986dbb422f0b6975fb238591"
+          }
+        ],
+        "memberSource": "https://www.sncouncil.go.kr/committee/C050/main.do"
+      },
+      "cues": [
+        {
+          "id": "1795587268650154685",
+          "text": "제가 간단히 준비했습니다. 조우현 의원입니다. 아까 우리 이전 부서 할 때 들으셨겠지만 우리 지금 보니까 이렇게 5천만 원 이하 2천만 이상 계약건에 이렇게 쭉 보니까",
+          "start": 13017.113,
+          "end": 13036.093,
+          "flags": [
+            "number",
+            "name"
+          ],
+          "observedAt": "2026-11-25T09:04:49.507Z"
+        }
+      ],
+      "expected": [
+        {
+          "cue_id": "1795587268650154685",
+          "expected_name": "조우현",
+          "forbidden_names": [],
+          "rationale": "Roster member appears to introduce themselves; name flag requires audio review."
+        }
+      ]
+    },
+    {
+      "id": "snapshot-intro-1795587268636517322",
+      "origin": "observed",
+      "provenance": {
+        "file": "public snapshot ../field-replay/2852.json",
+        "url": "https://seongnam-council-desk.gnudas0923.chatgpt.site/?live=2852&cue=1795587268636517322",
+        "note": "Public caption snapshot, cue evidence for an explicit introduction; not independently verified against audio."
+      },
+      "meeting": {
+        "id": "2852",
+        "title": "행정교육위원회",
+        "label": "행정사무감사 제1일차",
+        "scheduledAt": "2026-11-25T13:30:00+09:00",
+        "endsAt": "2026-11-25T23:59:59+09:00",
+        "officialPage": "https://cast.sncouncil.go.kr/live/flashPlayer.jsp?live_no=2852",
+        "provider": "hls",
+        "source": "https://cast.sncouncil.go.kr/live/flashPlayer.jsp?live_no=2852",
+        "playlist": "https://cast.sncouncil.go.kr:4443/live/ch1.sdp/playlist.m3u8",
+        "agenda": [
+          "소통관",
+          "공보관",
+          "감사관",
+          "재난안전관"
+        ],
+        "members": [
+          "김보석",
+          "이종목",
+          "김선임",
+          "김주현",
+          "선창선",
+          "순선영",
+          "임원규"
+        ],
+        "staffRoster": [
+          {
+            "name": "이승연",
+            "role": "소통관",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=dabcc1a6b7562bfab35210d11410e73b7ce8d0da3e4817b9f82f142ab72dda67392b69b3490a7362"
+          },
+          {
+            "name": "황순남",
+            "role": "공보관",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=dabcc1a6b7562bfab35210d11410e73b7ce8d0da3e4817b9f82f142ab72dda67392b69b3490a7362"
+          },
+          {
+            "name": "윤창현",
+            "role": "감사관",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=dabcc1a6b7562bfab35210d11410e73b7ce8d0da3e4817b9f82f142ab72dda67392b69b3490a7362"
+          },
+          {
+            "name": "전상언",
+            "role": "재난안전관",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=dabcc1a6b7562bfab35210d11410e73b7ce8d0da3e4817b9f82f142ab72dda67392b69b3490a7362"
+          }
+        ],
+        "memberSource": "https://www.sncouncil.go.kr/committee/C030/main.do"
+      },
+      "cues": [
+        {
+          "id": "1795587268636517322",
+          "text": "공보관님 고생 많으십니다. 김주현 의원입니다. 수감 자료 8쪽하고 9쪽 보면은...",
+          "start": 5829.841,
+          "end": 5837.341,
+          "flags": [
+            "number",
+            "name"
+          ],
+          "observedAt": "2026-11-25T07:05:02.236Z"
+        }
+      ],
+      "expected": [
+        {
+          "cue_id": "1795587268636517322",
+          "expected_name": "김주현",
+          "forbidden_names": [],
+          "rationale": "Roster member appears to introduce themselves; name flag requires audio review."
+        }
+      ]
+    },
+    {
+      "id": "reported-intro-after-preamble",
+      "origin": "constructed",
+      "provenance": {
+        "note": "Synthetic counterexample: a polite preamble followed by reported, rather than direct, self-introduction."
+      },
+      "meeting": {
+        "id": "2853",
+        "title": "경제환경위원회",
+        "label": "행정사무감사 제1일차",
+        "scheduledAt": "2026-11-25T13:30:00+09:00",
+        "endsAt": "2026-11-25T23:59:59+09:00",
+        "officialPage": "https://cast.sncouncil.go.kr/live/flashPlayer.jsp?live_no=2853",
+        "provider": "hls",
+        "source": "https://cast.sncouncil.go.kr/live/flashPlayer.jsp?live_no=2853",
+        "playlist": "https://cast.sncouncil.go.kr:4443/live/ch2.sdp/playlist.m3u8",
+        "agenda": [
+          "환경보건국",
+          "환경정책과",
+          "자원순환과",
+          "기후에너지과",
+          "푸른도시사업소",
+          "공원과",
+          "녹지과",
+          "생태하천과"
+        ],
+        "members": [
+          "안광환",
+          "장일남",
+          "김옥수",
+          "서은경",
+          "정봉규",
+          "정연화",
+          "조우현"
+        ],
+        "staffRoster": [
+          {
+            "name": "이원용",
+            "role": "환경보건국장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=be8d43a7c866b35d2d2b0c58854208fabd8b8a30e6ea061cb3649b2c5733df37472b50f74dedbd3b"
+          },
+          {
+            "name": "유성희",
+            "role": "환경정책과장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=be8d43a7c866b35d2d2b0c58854208fabd8b8a30e6ea061cb3649b2c5733df37472b50f74dedbd3b"
+          },
+          {
+            "name": "장미라",
+            "role": "자원순환과장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=be8d43a7c866b35d2d2b0c58854208fabd8b8a30e6ea061cb3649b2c5733df37472b50f74dedbd3b"
+          },
+          {
+            "name": "조난순",
+            "role": "기후에너지과장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=be8d43a7c866b35d2d2b0c58854208fabd8b8a30e6ea061cb3649b2c5733df37472b50f74dedbd3b"
+          },
+          {
+            "name": "이종빈",
+            "role": "푸른도시사업소장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=483791be148a634445c8aa53fadd5e6ef18d2f8fee9b7163fcc2a988441a058562a87a7edbd766e4",
+            "appointedOn": "2026-07-20"
+          },
+          {
+            "name": "정연달",
+            "role": "공원과장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=a46813304d41743bfdeff02347f8bf0fcca4dd972e54fe3035d5d261986dbb422f0b6975fb238591"
+          },
+          {
+            "name": "구본양",
+            "role": "녹지과장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=a46813304d41743bfdeff02347f8bf0fcca4dd972e54fe3035d5d261986dbb422f0b6975fb238591"
+          },
+          {
+            "name": "오재성",
+            "role": "생태하천과장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=a46813304d41743bfdeff02347f8bf0fcca4dd972e54fe3035d5d261986dbb422f0b6975fb238591"
+          }
+        ],
+        "memberSource": "https://www.sncouncil.go.kr/committee/C050/main.do"
+      },
+      "cues": [
+        {
+          "id": "reported",
+          "text": "안녕하십니까. 장일남 의원입니다라고 소개하셨습니다.",
+          "start": 0,
+          "end": 5
+        }
+      ],
+      "expected": [
+        {
+          "cue_id": "reported",
+          "expected_name": null,
+          "forbidden_names": [
+            "장일남"
+          ],
+          "rationale": "The sentence reports another person’s introduction."
+        }
+      ]
+    },
+    {
+      "id": "constructed-replacement-speaker",
+      "origin": "constructed",
+      "provenance": {
+        "note": "Synthetic counterexample: next speaker explicitly answers on another person’s behalf."
+      },
+      "meeting": {
+        "id": "2853",
+        "title": "경제환경위원회",
+        "label": "행정사무감사 제1일차",
+        "scheduledAt": "2026-11-25T13:30:00+09:00",
+        "endsAt": "2026-11-25T23:59:59+09:00",
+        "officialPage": "https://cast.sncouncil.go.kr/live/flashPlayer.jsp?live_no=2853",
+        "provider": "hls",
+        "source": "https://cast.sncouncil.go.kr/live/flashPlayer.jsp?live_no=2853",
+        "playlist": "https://cast.sncouncil.go.kr:4443/live/ch2.sdp/playlist.m3u8",
+        "agenda": [
+          "환경보건국",
+          "환경정책과",
+          "자원순환과",
+          "기후에너지과",
+          "푸른도시사업소",
+          "공원과",
+          "녹지과",
+          "생태하천과"
+        ],
+        "members": [
+          "안광환",
+          "장일남",
+          "김옥수",
+          "서은경",
+          "정봉규",
+          "정연화",
+          "조우현"
+        ],
+        "staffRoster": [
+          {
+            "name": "이원용",
+            "role": "환경보건국장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=be8d43a7c866b35d2d2b0c58854208fabd8b8a30e6ea061cb3649b2c5733df37472b50f74dedbd3b"
+          },
+          {
+            "name": "유성희",
+            "role": "환경정책과장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=be8d43a7c866b35d2d2b0c58854208fabd8b8a30e6ea061cb3649b2c5733df37472b50f74dedbd3b"
+          },
+          {
+            "name": "장미라",
+            "role": "자원순환과장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=be8d43a7c866b35d2d2b0c58854208fabd8b8a30e6ea061cb3649b2c5733df37472b50f74dedbd3b"
+          },
+          {
+            "name": "조난순",
+            "role": "기후에너지과장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=be8d43a7c866b35d2d2b0c58854208fabd8b8a30e6ea061cb3649b2c5733df37472b50f74dedbd3b"
+          },
+          {
+            "name": "이종빈",
+            "role": "푸른도시사업소장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=483791be148a634445c8aa53fadd5e6ef18d2f8fee9b7163fcc2a988441a058562a87a7edbd766e4",
+            "appointedOn": "2026-07-20"
+          },
+          {
+            "name": "정연달",
+            "role": "공원과장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=a46813304d41743bfdeff02347f8bf0fcca4dd972e54fe3035d5d261986dbb422f0b6975fb238591"
+          },
+          {
+            "name": "구본양",
+            "role": "녹지과장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=a46813304d41743bfdeff02347f8bf0fcca4dd972e54fe3035d5d261986dbb422f0b6975fb238591"
+          },
+          {
+            "name": "오재성",
+            "role": "생태하천과장",
+            "source": "https://www.sncouncil.go.kr/record/recordView.do?key=a46813304d41743bfdeff02347f8bf0fcca4dd972e54fe3035d5d261986dbb422f0b6975fb238591"
+          }
+        ],
+        "memberSource": "https://www.sncouncil.go.kr/committee/C050/main.do"
+      },
+      "cues": [
+        {
+          "id": "intro",
+          "text": "장일남 의원입니다.",
+          "start": 0,
+          "end": 3
+        },
+        {
+          "id": "reply",
+          "text": "대신 답변드리겠습니다.",
+          "start": 3,
+          "end": 6
+        }
+      ],
+      "expected": [
+        {
+          "cue_id": "reply",
+          "expected_name": null,
+          "forbidden_names": [
+            "장일남"
+          ],
+          "rationale": "A reply on another person’s behalf cannot inherit the prior speaker."
+        }
+      ]
+    }
+  ]
+}
