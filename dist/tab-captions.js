@@ -23,14 +23,14 @@
     session = s;
     try {
       if (playerMode) {
-        if (typeof video.captureStream !== 'function') throw new Error('? ????? ?? ??? ??? ???? ????. ? ??? ??? ???.');
+        if (typeof video.captureStream !== 'function') throw new Error('이 브라우저는 영상 오디오 캡처를 지원하지 않습니다. 탭 공유를 이용해 주세요.');
         s.stream = video.captureStream();
-        if (!s.stream.getAudioTracks().length) throw new Error('?? ???? ?? ???? ?????. ??? ??? ? ?? ??? ???.');
+        if (!s.stream.getAudioTracks().length) throw new Error('영상 오디오가 아직 준비되지 않았습니다. 재생을 확인한 후 다시 시작해 주세요.');
       } else {
         // Called before any awaits so the browser can use the user's click activation.
         s.stream = await navigator.mediaDevices.getDisplayMedia({video:true, audio:true});
         if (s.stopped) { s.stream.getTracks().forEach(t => t.stop()); return; }
-        if (!s.stream.getAudioTracks().length) throw new Error('??? ???? ????. ???? ?? ? ??? ??? ??? ???.');
+        if (!s.stream.getAudioTracks().length) throw new Error('공유된 오디오가 없습니다. 브라우저 탭과 탭 오디오 공유를 선택해 주세요.');
         s.stream.getVideoTracks()[0].addEventListener('ended', () => { if (session === s) stop(); });
         video.srcObject = s.stream;
         video.muted = true; // Prevent a captured tab from being fed back into itself.
