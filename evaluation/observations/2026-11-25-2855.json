@@ -1,0 +1,20 @@
+{
+  "meetingId": "2855",
+  "date": "2026-11-25",
+  "title": "도시건설위원회",
+  "source": "https://seongnam-council-desk.gnudas0923.chatgpt.site/api/live/minutes?meetingId=2855",
+  "observations": [
+    {
+      "id": "1795587269017471199",
+      "start": 3594.991,
+      "spelling": "corrected_in_context",
+      "sourceSha256": "5e5ae35ba81e83d8239ef473c667676399e2760bd41aed196bc04c4363e336c2"
+    },
+    {
+      "id": "1795587269017471208",
+      "start": 3639.271,
+      "spelling": "corrected_in_context",
+      "sourceSha256": "925e6734b61ebb3d6a7329402addc0b985c56db196cb7913d33e954cc0c52b1d"
+    }
+  ]
+}

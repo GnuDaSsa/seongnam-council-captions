@@ -1,0 +1,121 @@
+{
+  "meetingId": "2853",
+  "date": "2026-11-25",
+  "title": "경제환경위원회",
+  "source": "https://seongnam-council-desk.gnudas0923.chatgpt.site/api/live/minutes?meetingId=2853",
+  "observations": [
+    {
+      "id": "1795584783050047742",
+      "start": 617.131,
+      "speaker": {
+        "status": "address_in_text"
+      },
+      "sourceSha256": "637f7b299bed0bbc394aa3491d3f27f0d13c4aff357b9ab7a77e59f4ba017a79"
+    },
+    {
+      "id": "1795584783050047743",
+      "start": 622.231,
+      "speaker": {
+        "status": "candidate",
+        "method": "명부의 직접 호명 직후 상대 직책을 부른 짧은 응답(수동 확인 필요)",
+        "evidence": [
+          "1795584783050047742",
+          "1795584783050047743"
+        ]
+      },
+      "sourceSha256": "79333e959f38ec1dc00a356096cc705729a504ec0580d333bfb5b1f2f66d08c1"
+    },
+    {
+      "id": "1795584783050047808",
+      "start": 1035.051,
+      "terms": [
+        "맹산환경생태학습원"
+      ],
+      "sourceSha256": "ea73e39edf741df23f4ca9b891fcfb9aeb064ce0e7aac4f9a43ee3efab251647"
+    },
+    {
+      "id": "1795584783050047819",
+      "start": 1067.771,
+      "speaker": {
+        "status": "address_in_text"
+      },
+      "sourceSha256": "0638a3341db298bf8cbb1b18f91490f2774d4d411916a67cb65494b83f50cd60"
+    },
+    {
+      "id": "1795584783050047871",
+      "start": 1197.541,
+      "terms": [
+        "이륜차"
+      ],
+      "sourceSha256": "5844cdc594e28951671344087e08b6d31644ff513c9ab5ae958058d141273de9"
+    },
+    {
+      "id": "1795584783050047894",
+      "start": 1294.301,
+      "terms": [
+        "이륜차"
+      ],
+      "sourceSha256": "9daf5bb309aad99874ed7a8654b318a0eabc6ae2cb1111d28364219d8b91163c"
+    },
+    {
+      "id": "1795584783050047917",
+      "start": 1402.701,
+      "terms": [
+        "이륜차"
+      ],
+      "sourceSha256": "08a7496ad8711d066182b5dd79e07f1bc8715547f23925a710c2e3e44da074ea"
+    },
+    {
+      "id": "1795586250321338115",
+      "start": 1897.838,
+      "terms": [
+        "탄천습지생태원"
+      ],
+      "sourceSha256": "a475c0f1f5d7d187cae1e2e7760908a6c5366064a0657eb1392c5181fe696a54"
+    },
+    {
+      "id": "1795587268650153530",
+      "start": 4609.703,
+      "spelling": "corrected_in_context",
+      "sourceSha256": "96d806089b408240c27561bed35557bf22fb439cdd6986b0f97a5eea2281c935"
+    },
+    {
+      "id": "1795587268650153532",
+      "start": 4634.293,
+      "spelling": "corrected_in_context",
+      "sourceSha256": "4b22e7841e842e4b005e13acbf443a78ebdae26ed732666ab13bc8e199290352"
+    },
+    {
+      "id": "1795587268650153536",
+      "start": 4654.293,
+      "spelling": "corrected_in_context",
+      "sourceSha256": "cc8788a233c70b33f2d0da9937ef9bc3bb264bcba9879d690db758e3d00c0b78"
+    },
+    {
+      "id": "1795587268650153537",
+      "start": 4660.593,
+      "spelling": "corrected_in_context",
+      "sourceSha256": "a8eff4f6267a27509d68a9c7e87cdaa7d3b2dc863fecfb1c4c789ee39e7bab49"
+    },
+    {
+      "id": "1795587268650153565",
+      "start": 4885.793,
+      "spelling": "corrected_in_context",
+      "sourceSha256": "11ba71576cae773d964fe5a0cd1ef65248dae9efa0e8fcb587557b6147478b68"
+    },
+    {
+      "id": "1795587268650153586",
+      "start": 5032.793,
+      "spelling": "unchanged",
+      "sourceSha256": "deb9ef040a48fd0dfc5bd406ddf42adf02e70b8b649ea9f7fbc071076fe43cec"
+    },
+    {
+      "id": "1795587268650153593",
+      "start": 5073.503,
+      "speaker": {
+        "status": "address_in_text"
+      },
+      "sourceSha256": "5ea1341726d40b1b80d085cb7bc6ad94b01707de34999001e86c3e8c21a9babc"
+    }
+  ]
+}
