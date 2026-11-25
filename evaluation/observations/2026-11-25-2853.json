@@ -119,7 +119,7 @@
     {
       "id": "1795587268650153586",
       "start": 5032.793,
-      "spelling": "unchanged",
+      "spelling": "corrected_in_context",
       "sourceSha256": "deb9ef040a48fd0dfc5bd406ddf42adf02e70b8b649ea9f7fbc071076fe43cec"
     },
     {
@@ -129,6 +129,30 @@
         "status": "address_in_text"
       },
       "sourceSha256": "5ea1341726d40b1b80d085cb7bc6ad94b01707de34999001e86c3e8c21a9babc"
+    },
+    {
+      "id": "1795587268650153787",
+      "start": 6219.613,
+      "speaker": {
+        "status": "address_in_text"
+      },
+      "sourceSha256": "dbf7e2f917b741e9b5cc36a2d292c33fb2e82c38df4f7cd0505701b89a97f40d"
+    },
+    {
+      "id": "1795587268650153788",
+      "start": 6225.893,
+      "speaker": {
+        "status": "address_in_text"
+      },
+      "sourceSha256": "c73efdc6480ed2ed7f92cbf9a0922de1ad3fa5b76abd0507f943902a15faaa86"
+    },
+    {
+      "id": "1795587268650153871",
+      "start": 6859.793,
+      "speaker": {
+        "status": "address_in_text"
+      },
+      "sourceSha256": "1da6a9530a41bf206b8c8d583f50ab14c546468c2323ffd386e69e003748b82f"
     }
   ]
 }
