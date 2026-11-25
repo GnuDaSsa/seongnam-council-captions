@@ -1,0 +1,57 @@
+name: Caption quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '17 0-9 * * 1-5'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Check spelling, speaker attribution and minutes exports
+        run: node --test tools/test_*.cjs tools/test_*.mjs evaluation/*.test.cjs
+
+  observe:
+    needs: regression
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    concurrency:
+      group: public-caption-observations
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: caption-quality-log
+          path: observation-log
+      - name: Check the public committee archives
+        run: node evaluation/monitor_live.cjs observation-log/evaluation/observations
+      - name: Commit new or changed observations
+        working-directory: observation-log
+        run: |
+          git add -- evaluation/observations
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Update observed council caption review cases'
+          git push origin HEAD:refs/heads/caption-quality-log

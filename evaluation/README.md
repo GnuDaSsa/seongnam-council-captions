@@ -1,5 +1,11 @@
 # 10-minute public recording evaluation
 
+## 운영 자막 회귀 검사
+
+`main`에 커밋하거나 PR을 열 때 자막·발언자·회의록 테스트를 실행한다. 평일 한국시간 09:17부터 18:17까지 매시간에는 편성표에 등록된 공유 자막 회의의 누적 기록도 조회한다. GitHub 예약 실행은 지연될 수 있다. 새 사례가 생기거나 기존 사례의 판정이 바뀐 경우 `caption-quality-log` 브랜치에 결과를 커밋한다. 같은 자료를 다시 읽었을 때 변경이 없으면 커밋을 만들지 않는다. [실행 기록](https://github.com/GnuDaSsa/seongnam-council-captions/actions/workflows/caption-quality.yml) · [위원회별 관찰 기록](https://github.com/GnuDaSsa/seongnam-council-captions/tree/caption-quality-log/evaluation/observations)
+
+관찰 파일에는 회의·구간 ID, 시각, 원문 해시, ‘가름’ 교정 여부, 위원회 용어 제안, 호명 또는 발언자 후보 근거를 기록한다. 구간 ID로 파일의 `source`에 있는 원문을 대조할 수 있다. 교정되지 않은 사례와 화면 후보는 사람이 확인할 대상이다. 실제 화자와 전사 정답은 원본 영상·공식 회의록으로 평가한다. [갈음·가름 검증](20261125_gareum.md)
+
 For the comparison of four committee excerpts and the production retry strategy, see the [2026-11-25 committee evaluation](20261125_comparison.md).
 
 Source: [official VOD and posted chapter transcripts](https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5467&position=591), 2026-09-07 plenary session, original 591–1191 seconds. The selected 600 seconds are saved outside this repository as 16 kHz mono PCM. Its first 388 seconds are chapter 3 and the remainder is chapter 4. Downloading the player HTML and HLS and extracting its audio requires access to the official public server. Do not submit audio or text to a remote transcription service.
