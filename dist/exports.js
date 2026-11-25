@@ -16,6 +16,11 @@
     const m = meeting || {};
     if (Array.isArray(m.minutesLines)) return m.minutesLines.map(clean);
     const result = [clean(m.title || "성남시의회"), "회의록 초안"];
+    // 내려받은 파일 맨 위에 출처 주소와 내려받은 때를 적는다
+    if (m.downloadUrl || m.downloadedAt) {
+      const header = global.CouncilCitation ? global.CouncilCitation.downloadHeader(m.downloadUrl, m.downloadedAt || new Date()) : [];
+      result.push(...header.map(clean));
+    }
     for (const [label, value] of [["회의일", m.date], ["회의체", m.body], ["수록 범위", m.coverage], ["원본 영상", m.sourceUrl], ["회의록 출처", m.minutesUrl]]) {
       if (value) result.push(label + "  " + clean(value));
     }
