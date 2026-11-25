@@ -10,6 +10,33 @@
   const medium = /(?:서면|자료|유인물|설명서|이것|문서|서류|보고서|회의록)(?:으로|로)(?:써)?/u;
   const attachedMedium = /(?:서면|자료|유인물|설명서|이것|문서|서류|보고서|회의록)(?:으로|로)(?:써)?$/u;
 
+  function correctCompletion(text) {
+    return text.replace(/중\s*공/gu, (matched, offset, whole) => {
+      const before = whole.slice(0, offset).split(/[.!?。？！;\n]/u).pop();
+      const after = whole.slice(offset + matched.length).split(/[.!?。？！;\n]/u)[0];
+      // Hollow structures, the Chinese government, and heavy industry are unrelated.
+      const attached = /[가-힣A-Za-z0-9]/u.test(whole[offset - 1] || '');
+      if (/중\s*공\s*(?:슬래브|구조|축|정부|업)/u.test(before + matched + after) ||
+          (attached && !/(?:올해|내년|착공|\d{1,4}\s*년(?:도|의)?)$/u.test(before))) return matched;
+      const topic = /아직|언제|올해|내년|\d{1,4}\s*년(?:도|의)?|공사|시설|사업|건축|건설|착공/u.test(before);
+      const explicitCompletion = /^\s*(?:검사|승인|예정|이후|된\s*다음|을\s*앞두)/u.test(after) ||
+        (topic && /^\s*(?:이\s*(?:되|돼|됐|됩|될)|을\s*할\s*수)/u.test(after));
+      const pairedWithStart = /착공/u.test(before) && /^\s*(?:까지|예정|[,.!?。？！;]|$)/u.test(after);
+      return explicitCompletion || pairedWithStart ? '준공' : matched;
+    });
+  }
+
+  function correctOfficialInquiry(text) {
+    // Join the known administrative term; do not guess similar-sounding subjects.
+    const joined = text.replace(/관원\s+질의/gu, '관원질의');
+    return joined.replace(/관원\s*질(?:이|을)/gu, (matched, offset, whole) => {
+      const before = whole.slice(0, offset).split(/[.!?。？！;\n]/u).pop();
+      const after = whole.slice(offset + matched.length).split(/[.!?。？！;\n]/u)[0];
+      if (!/(?:회신|답변|답을|답이|행정\s*절차|국토부|법제처|유권|질의|공문|요청)/u.test(before + after)) return matched;
+      return matched.endsWith('을') ? '관원질의를' : '관원질의';
+    });
+  }
+
   function correct(input) {
     const original = String(input ?? '');
     let cursor = 0;
@@ -39,6 +66,7 @@
       previous = position;
     }
     result += original.slice(cursor);
+    result = correctOfficialInquiry(correctCompletion(result));
     return {text: result, changed: result !== original};
   }
   return Object.freeze({correct});
