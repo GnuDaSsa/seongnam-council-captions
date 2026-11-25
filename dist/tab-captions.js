@@ -7,6 +7,7 @@
     if (!s) return;
     session = null;
     s.stopped = true;
+    clearTimeout(s.loadTimer);
     s.worker?.terminate();
     if (s.processor) { s.processor.onaudioprocess = null; s.processor.disconnect(); }
     s.source?.disconnect();
@@ -46,6 +47,12 @@
       await s.context.resume();
       if (s.stopped) return;
       s.worker = new Worker(workerUrl, {type:'module'});
+      s.loadTimer = setTimeout(() => {
+        if (session === s && !s.ready) {
+          onStatus('음성 인식 모델을 불러오지 못했습니다. 네트워크와 브라우저 보안 설정을 확인해 주세요.');
+          stop();
+        }
+      }, 120000);
       let blocks = [], length = 0, position = 0;
       const rate = s.context.sampleRate, chunkSamples = Math.round(rate * 8);
       function dispatch(chunk) {
@@ -59,7 +66,8 @@
           if (p.status === 'progress' && Number.isFinite(p.progress)) onStatus(`음성 인식 모델 다운로드 중: ${Math.round(p.progress)}%`);
           else if (p.status === 'initiate') onStatus('음성 인식 모델을 준비하고 있습니다.');
         } else if (data.type === 'ready') {
-          s.ready = true; onStatus('탭 오디오를 듣고 있습니다.');
+          clearTimeout(s.loadTimer);
+          s.ready = true; onStatus(playerMode ? '영상 오디오를 듣고 있습니다.' : '탭 오디오를 듣고 있습니다.');
           if (s.pending) { const next=s.pending; s.pending=null; dispatch(next); }
         } else if (data.type === 'result') {
           s.busy = false;

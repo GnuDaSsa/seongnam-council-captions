@@ -92,7 +92,6 @@
   el('player-captions').onclick = () => start('player');
   el('capture-start').onclick = () => start('tab');
   el('capture-stop').onclick = () => { window.CouncilTabCapture.stop(); report('자막을 중지했습니다.'); };
-  el('live-refresh').onclick = () => { if (!mode) openBroadcast(); };
   el('live-save').onclick = () => {
     if (!records.length) return;
     const blob=CouncilExports.minutesHwpx({title:'경제환경위원회 행정사무감사 제1일차',date:'2026-11-25',body:'성남시의회 경제환경위원회',sourceUrl:source,coverage:'이 브라우저에서 들은 구간의 자동 자막. 시간은 자막 수집 기준.',segments:records});
