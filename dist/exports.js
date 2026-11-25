@@ -14,6 +14,7 @@
   }
   function lines(meeting) {
     const m = meeting || {};
+    if (Array.isArray(m.minutesLines)) return m.minutesLines.map(clean);
     const result = [clean(m.title || "성남시의회"), "회의록 초안"];
     for (const [label, value] of [["회의일", m.date], ["회의체", m.body], ["수록 범위", m.coverage], ["원본 영상", m.sourceUrl], ["회의록 출처", m.minutesUrl]]) {
       if (value) result.push(label + "  " + clean(value));

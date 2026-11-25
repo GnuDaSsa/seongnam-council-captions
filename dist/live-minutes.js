@@ -6,14 +6,36 @@
   const flags = {number:'숫자 확인',name:'이름 확인',proceeding:'출석·표결 확인',repetition:'구절 반복',low_confidence:'인식 불확실',severe_uncertainty:'원음 대조 필요',segment_review:'해당 구간 재확인'};
   const stamp = value => { const n = Math.max(0, Math.floor(Number(value) || 0)); return [Math.floor(n / 3600), Math.floor(n / 60) % 60, n % 60].map(x => String(x).padStart(2, '0')).join(':'); };
   const date = value => { if (value == null || value === '') return '확인 불가'; const d = new Date(value); return Number.isFinite(d.getTime()) ? d.toLocaleString('ko-KR', {timeZone:'Asia/Seoul',hour12:false}) : '확인 불가'; };
-  function bad(cue) { return !!cue.rejected || cue.flags?.includes('severe_uncertainty') || cue.flags?.includes('segment_review') || cue.flags?.includes('repetition') || (cue.flags?.includes('low_confidence') && cue.text === '[음성 재확인]') || !!window.CouncilQuality?.repeated(cue.text) || !!window.CouncilQuality?.repeated(cue.rawText); }
-  function initial(cue) { return bad(cue) ? '[음성 인식 오류 · 원음 재확인 필요]' : String(cue.text || cue.rawText || ''); }
+  const {bad, initial} = window.CouncilMinutesFormat;
   function key(cue) { return `council-live-minutes:${meeting.id}:${cue.id}`; }
   function metaKey(cue) { return key(cue) + ':meta'; }
   function meta(cue) { try { return JSON.parse(edits.get(metaKey(cue)) || localStorage.getItem(metaKey(cue)) || '{}'); } catch (_) { return {}; } }
   function saveMeta(cue, value) { const k = metaKey(cue), v = JSON.stringify(value); edits.set(k,v); try { localStorage.setItem(k,v); } catch (_) { el('minutes-status').textContent = '브라우저 저장 공간을 사용할 수 없어 수정 내용이 새로고침 후 사라질 수 있습니다.'; } }
-  function read(cue) { if (edits.has(key(cue))) return edits.get(key(cue)); try { const value = localStorage.getItem(key(cue)); return value === null ? initial(cue) : value; } catch (_) { return initial(cue); } }
-  function write(cue, value) { edits.set(key(cue), value); try { localStorage.setItem(key(cue), value); } catch (_) { el('minutes-status').textContent = '브라우저 저장 공간을 사용할 수 없어 수정 내용이 새로고침 후 사라질 수 있습니다.'; } }
+  function read(cue) {
+    const k = key(cue);
+    if (edits.has(k)) return edits.get(k);
+    try {
+      const value = localStorage.getItem(k);
+      if (value === null) return initial(cue);
+      const oldPlaceholder = value === '[음성 인식 오류 · 원음 재확인 필요]' ||
+        value === '[인식 구간 오류 · 원본 청크 전체 재확인 필요]';
+      const hasEditEvidence = localStorage.getItem(k + ':explicit') === '1' || history(cue).length > 0;
+      if (oldPlaceholder && !hasEditEvidence && cue.flags?.includes('segment_review') && !bad(cue) &&
+          typeof cue.rawText === 'string' && cue.rawText.trim() && cue.rawText.trim() !== value &&
+          !['[음성 인식 오류 · 원음 재확인 필요]', '[인식 구간 오류 · 원본 청크 전체 재확인 필요]', '[original text unavailable]'].includes(cue.rawText.trim())) return initial(cue);
+      return value;
+    } catch (_) { return initial(cue); }
+  }
+  function write(cue, value) { edits.set(key(cue), value); try { localStorage.setItem(key(cue), value); localStorage.setItem(key(cue) + ':explicit', '1'); } catch (_) { el('minutes-status').textContent = '브라우저 저장 공간을 사용할 수 없어 수정 내용이 새로고침 후 사라질 수 있습니다.'; } }
+  function historyKey(cue) { return key(cue) + ':history'; }
+  function history(cue) { try { return JSON.parse(edits.get(historyKey(cue)) || localStorage.getItem(historyKey(cue)) || '[]'); } catch (_) { return []; } }
+  function recordHistory(cue, value) {
+    const records = history(cue);
+    if ((records.at(-1)?.text ?? initial(cue)) === value) return;
+    records.push({at:new Date().toISOString(),text:value});
+    const k=historyKey(cue), v=JSON.stringify(records); edits.set(k,v);
+    try { localStorage.setItem(k,v); } catch (_) { el('minutes-status').textContent = '브라우저 저장 공간을 사용할 수 없어 수정 내용이 새로고침 후 사라질 수 있습니다.'; }
+  }
   function coverage() {
     const cues = archive.cues;
     const first = cues[0], last = cues[cues.length - 1];
@@ -24,40 +46,78 @@
     return `수집 범위: ${begin} ~ ${end} (한국시간), ${cues.length}개 구간 · 상태: ${status} · 갱신: ${date(archive.updatedAt)}. 확인된 중단: ${gaps}. 중단 시각은 추정치이며 다른 누락도 있을 수 있습니다.`;
   }
   function model() {
-    const segments = archive.cues.map(cue => ({id:String(cue.id), start:cue.start, end:cue.end, speaker:meta(cue).speaker || '발언자·직위 미확인', status:'자동 전사 · 미검토', text:[`기록 ID: ${cue.id} · 수집 시각: ${cue.observedAt ? date(cue.observedAt) : '확인 불가'}`, read(cue), ...(meta(cue).kind && meta(cue).kind !== '일반 발언' ? ['담당자 분류: ' + meta(cue).kind] : []), ...(read(cue) !== initial(cue) ? ['담당자 편집됨'] : []), ...(cue.flags?.length ? [`검토 필요: ${cue.flags.map(f => flags[f] || '추가 확인').join(', ')}`] : []), ...(!bad(cue) && (cue.rawText || cue.text) && (cue.rawText !== cue.text || read(cue) !== initial(cue)) ? [`인식 원문: ${cue.rawText || cue.text}`] : [])].join('\n')}));
-    const confirmed = archive.cues.filter(cue => meta(cue).confirmed && ['자료 제출 요청','의결'].includes(meta(cue).kind)).map(cue => ({kind:meta(cue).kind + ' · 담당자 확인',text:"기록 " + cue.id + ": " + read(cue),cueIds:[String(cue.id)]}));
-    const candidates = archive.cues.filter(cue => !bad(cue) && !cue.flags?.includes('low_confidence') && /(제출해\s*주시기\s*바랍니다|가결되었음을\s*선포합니다)/.test(cue.text || '')).map(cue => ({kind:'확인할 발언 후보',text:'기록 ' + cue.id + ': ' + cue.text,cueIds:[String(cue.id)]}));
-    const review = archive.cues.filter(cue => bad(cue) || cue.flags?.length).map(cue => ({kind:'원음 확인',text:`기록 ${cue.id}: ${bad(cue) ? '인식 오류 가능' : cue.flags.map(f => flags[f] || '추가 확인').join(', ')}`,cueIds:[String(cue.id)]}));
-    return {title:`${meeting.title} ${meeting.label || ''}`.trim(),date:meeting.scheduledAt?.slice(0,10),body:"성남시의회 " + meeting.title + " · 발언자 및 직위 미확인",agenda:meeting.agenda || [],sourceUrl:meeting.source,coverage:coverage(),confirmedItems:confirmed,draft:{items:[...candidates,...review]},segments};
+    return {minutesLines:window.CouncilMinutesFormat.lines({meeting,archive,read,meta,coverage:coverage(),bad,initial})};
   }
   function preview() { el('minutes-preview').textContent = CouncilExports.minutesText(model()); }
   function render() {
     const container = el('minutes-cues'); container.replaceChildren();
+    const guesses = window.CouncilSpeakerReview?.guesses(meeting, archive.cues) || {};
+    const evidenceById = new Map(archive.cues.map(cue => [String(cue.id), cue]));
     for (const cue of archive.cues) {
       const card = document.createElement('div'); card.className = 'minutes-cue';
       const label = document.createElement('label'), area = document.createElement('textarea'), details = document.createElement('details'), summary = document.createElement('summary'), raw = document.createElement('pre');
-      label.textContent = `[${stamp(cue.start)} ~ ${stamp(cue.end)}] 기록 ${cue.id} · 발언자·직위 미확인`;
+      const caption = document.createElement('span');
+      function showSpeaker(name) {
+        caption.textContent = `[${stamp(cue.start)} ~ ${stamp(cue.end)}] 기록 ${cue.id} · ${name || '발언자·직위 미확인'}`;
+      }
+      showSpeaker(meta(cue).speaker);
+      label.append(caption);
       area.value = read(cue); area.rows = 2; area.setAttribute('aria-label', `기록 ${cue.id} 수정`);
+      const reviewNotice = document.createElement('p');
+      reviewNotice.className = 'cue-review';
+      reviewNotice.textContent = cue.flags?.length ? '검토 필요: ' + cue.flags.map(flag => flags[flag] || '추가 확인').join(', ') : '';
       const metaBox = document.createElement('div'), speaker = document.createElement('input'), kind = document.createElement('select'), confirmed = document.createElement('input'), confirmLabel = document.createElement('label');
       speaker.placeholder = '확인한 발언자 (선택)'; speaker.setAttribute('aria-label','확인한 발언자'); speaker.value = meta(cue).speaker || '';
       kind.setAttribute('aria-label','담당자 분류'); for (const name of ['일반 발언','질의','답변','자료 제출 요청','의결']) { const option = document.createElement('option'); option.value = name; option.textContent = name; kind.append(option); } kind.value = meta(cue).kind || '일반 발언';
       confirmed.type = 'checkbox'; confirmed.checked = !!meta(cue).confirmed; confirmLabel.append(confirmed, document.createTextNode(' 자료 제출 요청 또는 의결 확인'));
-      function updateMeta() { saveMeta(cue,{speaker:speaker.value,kind:kind.value,confirmed:confirmed.checked}); preview(); }
+      function updateMeta() { saveMeta(cue,{speaker:speaker.value,kind:kind.value,confirmed:confirmed.checked}); showSpeaker(speaker.value); preview(); }
       speaker.addEventListener('input',updateMeta); kind.addEventListener('change',updateMeta); confirmed.addEventListener('change',updateMeta); metaBox.append(speaker,kind,confirmLabel);
+      const guess = guesses[String(cue.id)];
+      if (guess) {
+        const hint = document.createElement('div'), accept = document.createElement('button');
+        hint.textContent = '발언자 후보 (미확인)　' + [guess.role, guess.name].filter(Boolean).join(' ');
+        if (guess.confidence === 'low') hint.append(document.createTextNode(' · 단서가 약함'));
+        const evidence = document.createElement('details'), title = document.createElement('summary');
+        title.textContent = guess.method || '발언자 후보 근거';
+        evidence.append(title);
+        for (const sourceId of guess.evidence || []) {
+          const source = evidenceById.get(String(sourceId));
+          if (!source) continue;
+          const line = document.createElement('p');
+          line.textContent = `[${stamp(source.start)}] ${source.rawText || source.text}`;
+          evidence.append(line);
+        }
+        hint.append(evidence);
+        accept.type = 'button'; accept.textContent = '발언자 확인 후 적용';
+        accept.addEventListener('click', () => { speaker.value = [guess.role, guess.name].filter(Boolean).join(' '); speaker.dispatchEvent(new Event('input', {bubbles:true})); });
+        metaBox.append(hint,accept);
+      }
       const suggestions = document.createElement('div');
-      for (const candidate of window.CouncilDepartmentReview?.suggestions(cue.text || '', meeting.agenda || []) || []) {
+      const proposals = [
+        ...(window.CouncilCommitteeTerms?.suggestions(meeting, area.value) || []),
+        ...(window.CouncilDepartmentReview?.suggestions(area.value, meeting.agenda || []) || [])
+      ];
+      for (const candidate of proposals) {
         const note = document.createElement('span'), apply = document.createElement('button');
         note.textContent = `표기 확인: ${candidate.heard} → ${candidate.official} `;
         apply.type = 'button'; apply.textContent = '이 표기로 수정';
-        apply.addEventListener('click', () => { area.value = area.value.replace(candidate.heard, candidate.official); area.dispatchEvent(new Event('input', {bubbles:true})); });
+        apply.addEventListener('click', () => { area.value = area.value.replace(candidate.heard, candidate.official); area.dispatchEvent(new Event('input', {bubbles:true})); area.dispatchEvent(new Event('change', {bubbles:true})); });
         suggestions.append(note, apply);
+        try { const url = new URL(candidate.source); if (url.protocol === 'https:') { const link = document.createElement('a'); link.href=url.href; link.textContent=' 공식 근거'; link.target='_blank'; link.rel='noopener noreferrer'; suggestions.append(link); } } catch (_) {}
       }
       const editState = document.createElement('small');
       function markEdit() { editState.textContent = area.value !== initial(cue) ? '담당자 편집됨' : '자동 전사 원문'; }
       markEdit(); area.addEventListener('input', () => { write(cue, area.value); markEdit(); preview(); });
-      summary.textContent = '수집 원문과 검토 표시';
+      area.addEventListener('change', () => { recordHistory(cue, area.value); showHistory(); });
+      const historyText = document.createElement('pre');
+      function showHistory() { historyText.textContent = history(cue).map(item => date(item.at) + ' · 편집: ' + item.text).join('\n') || '저장된 편집 이력 없음'; }
+      showHistory();
+      summary.textContent = '수집 원문·정리 결과·편집 이력';
       raw.textContent = `수집 시각: ${cue.observedAt ? date(cue.observedAt) : '확인 불가'}\n원문: ${cue.rawText || cue.text || ''}\n검토 표시: ${(cue.flags || []).map(f => flags[f] || f).join(', ') || '없음'}${bad(cue) ? '\n인식 오류 가능: 원문은 저장 문서에서 제외됩니다.' : ''}`;
-      details.append(summary,raw); label.append(area); card.append(label,metaBox,suggestions,editState,details); container.append(card);
+      const formatted = document.createElement('pre');
+      function showFormatted() { const result = window.CouncilMinutesFormat.tidy(area.value); const original = String(cue.rawText || cue.text || ''); formatted.textContent = (result === original ? '원문과 같음' : '원문과 정리 결과가 다름') + '\n문서 정리 결과: ' + result; }
+      showFormatted(); area.addEventListener('input', showFormatted);
+      details.append(summary,raw,formatted,historyText); label.append(area); card.append(label,reviewNotice,metaBox,suggestions,editState,details); container.append(card);
     }
     preview(); el('minutes-content').hidden = false;
     el('minutes-status').textContent = coverage();

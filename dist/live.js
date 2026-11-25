@@ -76,12 +76,12 @@
   const flagNames = {number:'숫자 확인', name:'이름 확인', proceeding:'출석·표결 확인', repetition:'구절 반복', low_confidence:'인식 불확실', severe_uncertainty:'원음 대조 필요', segment_review:'해당 구간 재확인'};
   function reviewFlags(cue) { return Array.isArray(cue.flags) ? cue.flags.map(flag => flagNames[flag] || '추가 확인') : []; }
   function rejected(cue) {
-    return !!cue.rejected || cue.flags?.includes('severe_uncertainty') || cue.flags?.includes('segment_review') || cue.flags?.includes('repetition') ||
+    return !!cue.rejected || cue.flags?.includes('severe_uncertainty') || cue.flags?.includes('repetition') ||
       (cue.flags?.includes('low_confidence') && cue.text === '[음성 재확인]') ||
       !!window.CouncilQuality?.repeated(cue.text) || !!window.CouncilQuality?.repeated(cue.rawText);
   }
   function safeText(cue) {
-    if (!rejected(cue)) return String(cue.text || cue.rawText || '');
+    if (!rejected(cue)) return String((cue.flags?.includes('segment_review') && cue.rawText) || cue.text || '');
     return cue.flags?.includes('low_confidence') || cue.flags?.includes('segment_review') ? '[음성 재확인 필요]' : '[음성 인식 반복 오류 · 해당 구간 재확인 필요]';
   }
   function render(cues) {

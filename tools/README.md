@@ -53,3 +53,16 @@ python tools/shared_stt.py --meeting-id 2853 --meeting-id 2855 --meeting-id 2852
 
 전환 전에 저장한 실제 자막 스냅샷이 있을 때는 `restore_captions.py`로 회의 ID가 일치하는 자료를 이력에 복원할 수 있다. 복원할 때도 운영자 서명이 필요하며, 읽기 전용 회의록 조회와 실시간 송출 상태는 독립적으로 유지된다.
 
+### 회의록 작업 재현
+
+아래 예시는 회의 중 한 시점의 공개 자막을 받아 새 폴더에 처리 결과를 저장한다. 사이트 편집 화면과 같은 용어 제안·발언자 후보·회의록 정리 함수를 쓴다.
+
+```powershell
+curl.exe -fSs "https://seongnam-council-desk.gnudas0923.chatgpt.site/api/live/minutes?meetingId=2853" -o meeting-2853.json
+node tools/minutes_pipeline.cjs meeting-2853.json minutes-run-1
+```
+
+`raw.json`은 내려받은 파일과 바이트가 같다. `aligned.json`에는 구간과 중복 여부, `corrected.json`에는 원문·교정문·용어 후보, `speakers.json`에는 발언자 후보 및 확인 결과가 들어간다. `minutes.txt`는 사람이 읽을 초안이다. `run.json`은 모든 출력이 끝난 뒤 기록하며 파일별 SHA-256을 담는다. 재실행할 때는 새 출력 폴더를 사용한다.
+
+확인한 내용은 `--edits reviews.json`으로 입력한다. 형식은 `{"meetingId":"2853","cues":{"발언ID":{"text":"확인한 발언","speaker":"확인한 이름 또는 직책"}}}`이며 수정한 항목만 기입한다. 이후 일정으로 바뀌면 원래 편성표를 `--manifest`로 지정한다. 프로그램은 확인된 편집과 후보를 따로 보관한다. [과거 음성 검증 결과](../evaluation/20261125_comparison.md)
+

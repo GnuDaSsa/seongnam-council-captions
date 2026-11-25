@@ -85,7 +85,7 @@ class ProducerTests(unittest.TestCase):
             self.segment('reversed', 1.5, 1.0),
             self.segment('not finite', math.nan, 1.2),
             self.segment('negative', -0.1, 0.2),
-            self.segment('outside chunk', 2.5, 3.1),
+            self.segment('outside chunk', 2.5, 4.2),
             self.segment('valid', 0.2, 0.8),
         ]
         batch, _, reasons = stt.cue_batch(segments, 10.0, 3.0, 100.0, 0)
@@ -97,8 +97,15 @@ class ProducerTests(unittest.TestCase):
         self.assertEqual((review[0]['start'], review[0]['end']), (10.0, 13.0))
         self.assertEqual(set(review[0]['rawText'].splitlines()),
                          {'zero duration', 'reversed', 'not finite', 'negative', 'outside chunk'})
-        self.assertEqual(review[0]['text'], '[인식 구간 오류 · 원본 청크 전체 재확인 필요]')
+        self.assertEqual(review[0]['text'], review[0]['rawText'])
         self.assertTrue(all(0 <= cue['start'] < cue['end'] <= 86400 for cue in batch))
+
+    def test_minor_end_overrun_is_clamped_and_duplicate_review_is_omitted(self):
+        segments = [self.segment('답변입니다.', 1.2, 3.3), self.segment('답변입니다.', 1.2, 4.7)]
+        batch, _, reasons = stt.cue_batch(segments, 10.0, 3.0, 100.0, 0)
+        self.assertEqual(reasons, {'outside_source_chunk': 1})
+        self.assertEqual([(c['start'], c['end'], c['text']) for c in batch], [(11.2, 13.0, '답변입니다.')])
+        self.assertNotIn('segment_review', batch[0]['flags'])
 
     def test_oversized_text_is_split_into_chunk_review_items(self):
         raw = '가' * 4100

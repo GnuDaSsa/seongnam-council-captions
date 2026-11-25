@@ -108,8 +108,12 @@ def cue_batch(segments, chunk_start, chunk_duration, origin, first_id):
         if not raw:
             continue
         reason = None
+        absolute_start = None
         try:
             start, end = float(segment.start), float(segment.end)
+            # The decoder can place the final token just past the recorded PCM.
+            if 0 <= start < chunk_duration < end <= chunk_duration + 1.0:
+                end = chunk_duration
             absolute_start, absolute_end = round(chunk_start + start, 3), round(chunk_start + end, 3)
             if not math.isfinite(start) or not math.isfinite(end):
                 reason = 'non_finite_time'
@@ -124,7 +128,7 @@ def cue_batch(segments, chunk_start, chunk_duration, origin, first_id):
         if reason is None:
             ordered.append((absolute_start, index, absolute_end, raw, text, flags))
         else:
-            invalid.append((raw, flags))
+            invalid.append((raw, flags, absolute_start, reason))
             invalid_reasons[reason] = invalid_reasons.get(reason, 0) + 1
 
     ordered.sort(key=lambda item: (item[0], item[1]))
@@ -140,13 +144,18 @@ def cue_batch(segments, chunk_start, chunk_duration, origin, first_id):
     # keeps each item inside the source audio window without inventing a segment time.
     if invalid:
         pieces = []
-        for raw, flags in invalid:
+        accepted_turns = {(entry[0], entry[3]) for entry in ordered}
+        for raw, flags, start, reason in invalid:
+            if reason == 'outside_source_chunk' and (start, raw) in accepted_turns:
+                continue
             while raw:
                 part, raw = raw[:1800], raw[1800:]
                 pieces.append((part, flags))
         groups = []
+        audio_flags = {'severe_uncertainty', 'repetition'}
         for part, source_flags in pieces:
-            if groups and len(groups[-1][0]) + 1 + len(part) <= 2000 and \
+            if groups and set(groups[-1][1]).intersection(audio_flags) == set(source_flags).intersection(audio_flags) and \
+                    len(groups[-1][0]) + 1 + len(part) <= 2000 and \
                     len(set(groups[-1][1]).union(source_flags, {'segment_review'})) <= 12:
                 groups[-1][0] += '\n' + part
                 groups[-1][1].extend(source_flags)
@@ -158,7 +167,7 @@ def cue_batch(segments, chunk_start, chunk_duration, origin, first_id):
             cues.append({'id': str(counter), 'start': rounded_chunk_start, 'end': chunk_end,
                          'rawText': raw or '[original text unavailable]',
                          'observedAt': dt.datetime.fromtimestamp(origin + chunk_start, dt.timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z'),
-                         'text': '[인식 구간 오류 · 원본 청크 전체 재확인 필요]',
+                         'text': '[음성 재확인]' if {'repetition', 'severe_uncertainty'}.intersection(flags) else raw,
                          'flags': flags})
         cues.sort(key=lambda cue: cue['start'])
     return cues, counter, invalid_reasons
