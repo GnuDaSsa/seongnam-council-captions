@@ -13,17 +13,16 @@
       "sourceSha256": "637f7b299bed0bbc394aa3491d3f27f0d13c4aff357b9ab7a77e59f4ba017a79"
     },
     {
-      "id": "1795584783050047743",
-      "start": 622.231,
+      "id": "1795584783050047789",
+      "start": 926.201,
       "speaker": {
         "status": "candidate",
-        "method": "명부의 직접 호명 직후 상대 직책을 부른 짧은 응답(수동 확인 필요)",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
         "evidence": [
-          "1795584783050047742",
-          "1795584783050047743"
+          "1795584783050047789"
         ]
       },
-      "sourceSha256": "79333e959f38ec1dc00a356096cc705729a504ec0580d333bfb5b1f2f66d08c1"
+      "sourceSha256": "bd636e0525b0ecf15526be184783dae69db0af8d5d0e6b5d861a2ce44224ab29"
     },
     {
       "id": "1795584783050047808",
@@ -42,17 +41,28 @@
       "sourceSha256": "0638a3341db298bf8cbb1b18f91490f2774d4d411916a67cb65494b83f50cd60"
     },
     {
-      "id": "1795584783050047820",
-      "start": 1069.771,
+      "id": "1795584783050047821",
+      "start": 1075.201,
       "speaker": {
         "status": "candidate",
-        "method": "호명 단어 오인식 가능성 + 직후 다른 의원의 선행 발언 인용(수동 확인 필요)",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
         "evidence": [
-          "1795584783050047819",
-          "1795584783050047820"
+          "1795584783050047821"
         ]
       },
-      "sourceSha256": "558ba65d11c33ad0a84ed86900eec5b8db131d8c3d679b32863bf91b71b4a9c4"
+      "sourceSha256": "32944035f1c3ad58f29dcf4f13c05d2ddaccb7d45cceedb3b21b27662b8d4a81"
+    },
+    {
+      "id": "1795584783050047822",
+      "start": 1078.611,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795584783050047822"
+        ]
+      },
+      "sourceSha256": "b6fed2413cdfc87775a513f0b14d59ed3f024f356f05d4b3cc3e6ad828444455"
     },
     {
       "id": "1795584783050047871",
@@ -71,6 +81,18 @@
       "sourceSha256": "9daf5bb309aad99874ed7a8654b318a0eabc6ae2cb1111d28364219d8b91163c"
     },
     {
+      "id": "1795584783050047907",
+      "start": 1334.281,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795584783050047907"
+        ]
+      },
+      "sourceSha256": "432d72ebe1df7c90470cbdbec0b05dcde6a042509e46784b05e05463d7e35a20"
+    },
+    {
       "id": "1795584783050047917",
       "start": 1402.701,
       "terms": [
@@ -79,12 +101,110 @@
       "sourceSha256": "08a7496ad8711d066182b5dd79e07f1bc8715547f23925a710c2e3e44da074ea"
     },
     {
+      "id": "1795584783050047963",
+      "start": 1718.741,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795584783050047963"
+        ]
+      },
+      "sourceSha256": "a505c62dbe1ba09ac5c63f49c69476aa9601e4f1e09847d3f585c6186190a9fc"
+    },
+    {
+      "id": "1795584783050047964",
+      "start": 1722.041,
+      "speaker": {
+        "status": "candidate",
+        "method": "직전 질의 또는 자기소개에 바로 이어진 응답 표현. 실명 미확인",
+        "evidence": [
+          "1795584783050047963",
+          "1795584783050047964"
+        ]
+      },
+      "sourceSha256": "1da988e999fb4f07c5d899d0092d6733e561ab3f8ec33f902304bd3a9a04c26f"
+    },
+    {
       "id": "1795586250321338115",
       "start": 1897.838,
       "terms": [
         "탄천습지생태원"
       ],
       "sourceSha256": "a475c0f1f5d7d187cae1e2e7760908a6c5366064a0657eb1392c5181fe696a54"
+    },
+    {
+      "id": "1795586250321338122",
+      "start": 1921.978,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795586250321338122"
+        ]
+      },
+      "sourceSha256": "d321286e64976152281397d31cc5727c9a50e40958c015977bd95d0069f718ee"
+    },
+    {
+      "id": "1795586250321338150",
+      "start": 2101.178,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795586250321338150"
+        ]
+      },
+      "sourceSha256": "f7ba8f3a57a92501320acc8446c74cb4d1cf16d040eb7bdc2da70d8c681ddc6e"
+    },
+    {
+      "id": "1795586250321338151",
+      "start": 2109.998,
+      "speaker": {
+        "status": "candidate",
+        "method": "직전 질의 또는 자기소개에 바로 이어진 응답 표현. 실명 미확인",
+        "evidence": [
+          "1795586250321338150",
+          "1795586250321338151"
+        ]
+      },
+      "sourceSha256": "8c618111a04b28ddaaa1e0fe96fb0115dd1bd39732cb2ff144a266044fc6f297"
+    },
+    {
+      "id": "1795586250321338204",
+      "start": 2520.978,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795586250321338204"
+        ]
+      },
+      "sourceSha256": "7670b7a3c2a654f91f43f3e1da2b2e53d638b5ee818e95fa035341745fed97f5"
+    },
+    {
+      "id": "1795587268650153425",
+      "start": 2922.733,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650153425"
+        ]
+      },
+      "sourceSha256": "0889489daa718913bffcec95b1b72f7c0e31fd6bdae942ea60513344ea15a05b"
+    },
+    {
+      "id": "1795587268650153522",
+      "start": 4550.093,
+      "speaker": {
+        "status": "candidate",
+        "method": "명시적 자기소개와 공식 명부 직책·성명 대조 (원음 확인 필요)",
+        "evidence": [
+          "1795587268650153522"
+        ]
+      },
+      "sourceSha256": "0ce9673aca0db74d3ba770e0ad7979566645986b2ccb40657b43691ee7bcd41e"
     },
     {
       "id": "1795587268650153525",
@@ -121,18 +241,6 @@
         ]
       },
       "sourceSha256": "fa4d47ce16158dd02baa134ef94df8d2c21277270caab2d9c1f0c5a6a6b224eb"
-    },
-    {
-      "id": "1795587268650153528",
-      "start": 4586.873,
-      "speaker": {
-        "status": "candidate",
-        "method": "직책 자기소개 (원음 확인 필요)",
-        "evidence": [
-          "1795587268650153528"
-        ]
-      },
-      "sourceSha256": "f300bd30a89fdf01f2db763e29ac6e119f21849ccb16bc2552eddf7a6f0d1335"
     },
     {
       "id": "1795587268650153530",
@@ -179,6 +287,42 @@
       "sourceSha256": "5ea1341726d40b1b80d085cb7bc6ad94b01707de34999001e86c3e8c21a9babc"
     },
     {
+      "id": "1795587268650153601",
+      "start": 5125.333,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650153601"
+        ]
+      },
+      "sourceSha256": "93da08fd9c609fc5095014a75d2ba38b424eef976eba542ea353486b435b3b70"
+    },
+    {
+      "id": "1795587268650153651",
+      "start": 5430.193,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650153651"
+        ]
+      },
+      "sourceSha256": "719d0981c4c903a5c244b02fd007ec9be1f79ff6ac2fcc2b87251656d35d05b7"
+    },
+    {
+      "id": "1795587268650153702",
+      "start": 5711.293,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650153702"
+        ]
+      },
+      "sourceSha256": "fe5967e50c133e0c11017d6b85f947852abd1024893b9bc7d674b1363754df31"
+    },
+    {
       "id": "1795587268650153787",
       "start": 6219.613,
       "speaker": {
@@ -207,6 +351,18 @@
       "sourceSha256": "e2732aa0d97a0a721b56dad21e4212c897fe9af9f4fd622514553f8b2dbb2226"
     },
     {
+      "id": "1795587268650153827",
+      "start": 6619.793,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650153827"
+        ]
+      },
+      "sourceSha256": "c55b42f936035ac9bc520f58d8941496c46c7a853136a5f9ea57f2273532bb1b"
+    },
+    {
       "id": "1795587268650153871",
       "start": 6859.793,
       "speaker": {
@@ -225,6 +381,68 @@
         ]
       },
       "sourceSha256": "5d181a7267b518b2cc7d963cb39ceb5dfb7a8572f369e591be6c6baadb1b9ae5"
+    },
+    {
+      "id": "1795587268650153873",
+      "start": 6869.823,
+      "speaker": {
+        "status": "candidate",
+        "method": "직전 실명 자기소개에 이어진 본인의 질의 표현 (원음 확인 필요)",
+        "evidence": [
+          "1795587268650153872",
+          "1795587268650153873"
+        ]
+      },
+      "sourceSha256": "422070de78dd28e0cc6deb24c943da2cc651d1c6ca60831b9264a38514e43520"
+    },
+    {
+      "id": "1795587268650153881",
+      "start": 6922.793,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650153881"
+        ]
+      },
+      "sourceSha256": "1307e1761769cb77f1385adba47399cd0ee803ba381e154f3d2969e3adb7f1dc"
+    },
+    {
+      "id": "1795587268650153941",
+      "start": 7270.693,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650153941"
+        ]
+      },
+      "sourceSha256": "968fe27927301ca4c23b54ae937614278238da1fb1e914d33d9bbd115bb237d2"
+    },
+    {
+      "id": "1795587268650153942",
+      "start": 7273.813,
+      "speaker": {
+        "status": "candidate",
+        "method": "직전 질의 또는 자기소개에 바로 이어진 응답 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650153941",
+          "1795587268650153942"
+        ]
+      },
+      "sourceSha256": "2b8423efcb3597579ad33d197c7408bf3a2e5011559a0507796d14e4bd0ac087"
+    },
+    {
+      "id": "1795587268650153958",
+      "start": 7376.793,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650153958"
+        ]
+      },
+      "sourceSha256": "b83d057e21f054053584fcdd28ae36207e8e3eac204f5c133f18d9ef3de73624"
     },
     {
       "id": "1795587268650154003",
@@ -349,6 +567,944 @@
         ]
       },
       "sourceSha256": "9068bd2be235612669bf4f72b848a10934733cc2a66e7e96e1e5b33ce71c1c83"
+    },
+    {
+      "id": "1795587268650154189",
+      "start": 8882.793,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154189"
+        ]
+      },
+      "sourceSha256": "9c761db219a67723051c4cea428839905eaad750267b533103a417bb62be6722"
+    },
+    {
+      "id": "1795587268650154205",
+      "start": 8982.663,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154205"
+        ]
+      },
+      "sourceSha256": "7d52b56231c6ea4486cf56499a970403feee76a17a78b79f4eaea9750f2c5d49"
+    },
+    {
+      "id": "1795587268650154207",
+      "start": 8988.563,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154207"
+        ]
+      },
+      "sourceSha256": "606c9965483c93fdd43772a23b854e155077747d965279011091b23268f468dd"
+    },
+    {
+      "id": "1795587268650154215",
+      "start": 9058.293,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154215"
+        ]
+      },
+      "sourceSha256": "8958cba0f694c2ac5ea189cf91710ebc763d5a09b272deaf48a65a8569be76a0"
+    },
+    {
+      "id": "1795587268650154286",
+      "start": 9474.793,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154286"
+        ]
+      },
+      "sourceSha256": "9e4812a813738616f40d0d771957b778354296d2d5ff795c14391bd83286070f"
+    },
+    {
+      "id": "1795587268650154306",
+      "start": 9628.793,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154306"
+        ]
+      },
+      "sourceSha256": "c7508cb1b3db099b76f4d7b4d226a22c3513da91029fca86d313d08725a40f11"
+    },
+    {
+      "id": "1795587268650154333",
+      "start": 9786.453,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154333"
+        ]
+      },
+      "sourceSha256": "b8407b7e69330e57964bac91e747db457ef3f3859f13b7fd85cee86f16852c6d"
+    },
+    {
+      "id": "1795587268650154335",
+      "start": 9789.133,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154335"
+        ]
+      },
+      "sourceSha256": "116a316659dc01a1e0432e024ed8a97ee647cbdf595c26020648547fb0a56196"
+    },
+    {
+      "id": "1795587268650154336",
+      "start": 9790.373,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154336"
+        ]
+      },
+      "sourceSha256": "bda3b7b10ef8a366328db30153fb836aaec7345f566253250105d0ea464eff1c"
+    },
+    {
+      "id": "1795587268650154361",
+      "start": 11162.233,
+      "speaker": {
+        "status": "candidate",
+        "method": "명시적 자기소개와 공식 명부 직책·성명 대조 (원음 확인 필요)",
+        "evidence": [
+          "1795587268650154361"
+        ]
+      },
+      "sourceSha256": "57271151c15eba1685e1fbe3422f080a5b12da7cf4c0b777467684e7f19ccb7c"
+    },
+    {
+      "id": "1795587268650154372",
+      "start": 11230.363,
+      "speaker": {
+        "status": "candidate",
+        "method": "의원 자기소개. 인식한 이름과 명부가 달라 실명 보류",
+        "evidence": [
+          "1795587268650154372"
+        ]
+      },
+      "sourceSha256": "0d13b70660a40aa13490384d94531bab352c806fefad20f933b168eb14b3056b"
+    },
+    {
+      "id": "1795587268650154373",
+      "start": 11233.343,
+      "speaker": {
+        "status": "candidate",
+        "method": "직전 질의 또는 자기소개에 바로 이어진 응답 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154372",
+          "1795587268650154373"
+        ]
+      },
+      "sourceSha256": "cee4c32b303173c2471e76109aa3c00d095185a9bea18d6855a12377441131c3"
+    },
+    {
+      "id": "1795587268650154392",
+      "start": 11361.793,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154392"
+        ]
+      },
+      "sourceSha256": "328557393795910db4b5b3dc3ef8ee9d38b54dda307febb026877d010f032382"
+    },
+    {
+      "id": "1795587268650154393",
+      "start": 11362.793,
+      "speaker": {
+        "status": "candidate",
+        "method": "직전 질의 또는 자기소개에 바로 이어진 응답 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154392",
+          "1795587268650154393"
+        ]
+      },
+      "sourceSha256": "892758770a3d567d7cc6d55abc033d009e9f81e2241c19b9b3f5d5d2f3b5bc98"
+    },
+    {
+      "id": "1795587268650154404",
+      "start": 11418.583,
+      "spelling": "unchanged",
+      "sourceSha256": "2f65b060e04fb88f7dd003513869af53ad383086b2781730fd9c34e030f2c5ef"
+    },
+    {
+      "id": "1795587268650154409",
+      "start": 11463.293,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154409"
+        ]
+      },
+      "sourceSha256": "4c1371bf5b6905c38e870d560427d7b678fad5e668af2dcad2c40475e7b66802"
+    },
+    {
+      "id": "1795587268650154417",
+      "start": 11497.753,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154417"
+        ]
+      },
+      "sourceSha256": "7d1eb2f59e10bb83f96e71a4e646ce14a398db4e758b41f24de082f6cdee6781"
+    },
+    {
+      "id": "1795587268650154420",
+      "start": 11510.273,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154420"
+        ]
+      },
+      "sourceSha256": "ad259706256f42b5c1d430c2b6747d9ad92afedc718aa03e0c5695c2af402439"
+    },
+    {
+      "id": "1795587268650154428",
+      "start": 11566.293,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154428"
+        ]
+      },
+      "sourceSha256": "a8d41df88ebfa12cbee76bb9220baefff2a213f504e24ea101f54584ca51aeaf"
+    },
+    {
+      "id": "1795587268650154430",
+      "start": 11583.723,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154430"
+        ]
+      },
+      "sourceSha256": "adb16797be41d1babf811789d551e14e22d32b1dc27d8a1292444826ba5c84d1"
+    },
+    {
+      "id": "1795587268650154431",
+      "start": 11589.443,
+      "speaker": {
+        "status": "candidate",
+        "method": "직전 질의 또는 자기소개에 바로 이어진 응답 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154430",
+          "1795587268650154431"
+        ]
+      },
+      "sourceSha256": "14c95b13b8bbc34444e9920fa33916df3fd10fd8e9b1ea1c3cfc55c2d360d286"
+    },
+    {
+      "id": "1795587268650154432",
+      "start": 11590.633,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154432"
+        ]
+      },
+      "sourceSha256": "fec7ad286afffa7b002f531990a5775c3a8592d4e98fe6dfc0896353d06ae3e5"
+    },
+    {
+      "id": "1795587268650154433",
+      "start": 11592.593,
+      "speaker": {
+        "status": "candidate",
+        "method": "직전 직책 질문·발령 답변과 공식 명부 인사일 대조 (원음 확인 필요)",
+        "evidence": [
+          "1795587268650154432",
+          "1795587268650154433"
+        ]
+      },
+      "sourceSha256": "cd3f7424ba958768bf75c32bedfd3f2531ce9e5ab7233882ef61ab431fb8d4bd"
+    },
+    {
+      "id": "1795587268650154438",
+      "start": 11620.493,
+      "speaker": {
+        "status": "candidate",
+        "method": "명시적 자기소개와 공식 명부 직책·성명 대조 (원음 확인 필요)",
+        "evidence": [
+          "1795587268650154438"
+        ]
+      },
+      "sourceSha256": "e3a10aab9953e2713184867c735eec2dd2a2da82b4b4cb0ddc04e4bc7daba6d8"
+    },
+    {
+      "id": "1795587268650154441",
+      "start": 11633.003,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154441"
+        ]
+      },
+      "sourceSha256": "043f138550e387c75cef68734922881854f854c69b9c0eb95a00a28743ba24d5"
+    },
+    {
+      "id": "1795587268650154442",
+      "start": 11641.913,
+      "speaker": {
+        "status": "candidate",
+        "method": "직전 질의 또는 자기소개에 바로 이어진 응답 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154441",
+          "1795587268650154442"
+        ]
+      },
+      "sourceSha256": "6f895d1eacdf345812d1d2943a86e96ea4de2fa385d8519bdd4448ab188a4854"
+    },
+    {
+      "id": "1795587268650154490",
+      "start": 11933.773,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154490"
+        ]
+      },
+      "sourceSha256": "4390c6bd2a5473bee481aa4ae958a8493e5a64fbb2d11cc579d4412b93ef83cb"
+    },
+    {
+      "id": "1795587268650154491",
+      "start": 11935.773,
+      "speaker": {
+        "status": "candidate",
+        "method": "직전 질의 또는 자기소개에 바로 이어진 응답 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154490",
+          "1795587268650154491"
+        ]
+      },
+      "sourceSha256": "85f22ba2c2aec113ac7f47c7988127f5f2698d899d48455b2915bb2479db9f8d"
+    },
+    {
+      "id": "1795587268650154492",
+      "start": 11946.493,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154492"
+        ]
+      },
+      "sourceSha256": "053b628730f6040f637f459ced4ef63d7eca3009e4e858daa3eb5544084165ca"
+    },
+    {
+      "id": "1795587268650154496",
+      "start": 11971.793,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154496"
+        ]
+      },
+      "sourceSha256": "220bbb71bca1b9297bcffbc509695c8350f4d5b42fd5a30916d15feb42e99950"
+    },
+    {
+      "id": "1795587268650154497",
+      "start": 11972.793,
+      "speaker": {
+        "status": "candidate",
+        "method": "직전 질의 또는 자기소개에 바로 이어진 응답 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154496",
+          "1795587268650154497"
+        ]
+      },
+      "sourceSha256": "fb1d9189ee4c03a961cf3c6a1b937e634267c8da7b17b9e102ff831125f32911"
+    },
+    {
+      "id": "1795587268650154498",
+      "start": 11978.863,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154498"
+        ]
+      },
+      "sourceSha256": "39605af6d32f169a573cab8976a8425ae7fe380877a2bf700df6d892460ec68c"
+    },
+    {
+      "id": "1795587268650154499",
+      "start": 11984.253,
+      "speaker": {
+        "status": "candidate",
+        "method": "직전 질의 또는 자기소개에 바로 이어진 응답 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154498",
+          "1795587268650154499"
+        ]
+      },
+      "sourceSha256": "39974d766e0eaf7d9226f000fb56f6518859055b05741738334a50353206fe68"
+    },
+    {
+      "id": "1795587268650154507",
+      "start": 12012.793,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154507"
+        ]
+      },
+      "sourceSha256": "43d6c69892cdf10deb8df7613cc120a648422b436cc166c8c04bcb84723a133f"
+    },
+    {
+      "id": "1795587268650154511",
+      "start": 12036.703,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154511"
+        ]
+      },
+      "sourceSha256": "f23cc6c8e19892ce86ca20e1a8825a622cc6f2319fffb2057322fa00fe5a684f"
+    },
+    {
+      "id": "1795587268650154512",
+      "start": 12043.043,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154512"
+        ]
+      },
+      "sourceSha256": "c9a4386c0b86a304958355f244c381659ed84b5d5fd62f612891abc316e64ae2"
+    },
+    {
+      "id": "1795587268650154515",
+      "start": 12053.193,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154515"
+        ]
+      },
+      "sourceSha256": "5f3c7ea2aeda8ac280668b22f3f0d723ef8a5b0558f6baa035b466bdf43e2d65"
+    },
+    {
+      "id": "1795587268650154556",
+      "start": 12300.643,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154556"
+        ]
+      },
+      "sourceSha256": "08453aeb46916711561297e8a18345a8b6955df25a03edb846e52f8c193373ef"
+    },
+    {
+      "id": "1795587268650154566",
+      "start": 12354.793,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154566"
+        ]
+      },
+      "sourceSha256": "89ae1d1fbbcab59830f20643d0b740fb53da8dd0319d9ab1abfba70043136da1"
+    },
+    {
+      "id": "1795587268650154569",
+      "start": 12370.893,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154569"
+        ]
+      },
+      "sourceSha256": "e045ac48ea396d7f87ce7ad6cc95db104d9fd91e4155622b9b89dd96cd4bcf41"
+    },
+    {
+      "id": "1795587268650154576",
+      "start": 12420.293,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154576"
+        ]
+      },
+      "sourceSha256": "192a17cfdfd72ffaf51c64e305ef1e19538cd5f18acc5364dc0dc6a250e406c6"
+    },
+    {
+      "id": "1795587268650154577",
+      "start": 12425.793,
+      "speaker": {
+        "status": "candidate",
+        "method": "직전 질의 또는 자기소개에 바로 이어진 응답 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154576",
+          "1795587268650154577"
+        ]
+      },
+      "sourceSha256": "810b112862f0af44010a3444cb3660af873cfca92aa9f0a2f98ba8376bcef26d"
+    },
+    {
+      "id": "1795587268650154578",
+      "start": 12428.293,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154578"
+        ]
+      },
+      "sourceSha256": "fe61609ec62cd191fbf2e66cdd60318570f1ebfec7f7ea25f4a6e04f73345484"
+    },
+    {
+      "id": "1795587268650154579",
+      "start": 12444.013,
+      "speaker": {
+        "status": "candidate",
+        "method": "직전 질의 또는 자기소개에 바로 이어진 응답 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154578",
+          "1795587268650154579"
+        ]
+      },
+      "sourceSha256": "443610d54f41e13cabfc40141a0270e54d2af23eed97af34c9fd5aa3ab95c008"
+    },
+    {
+      "id": "1795587268650154580",
+      "start": 12446.273,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154580"
+        ]
+      },
+      "sourceSha256": "e0861d61ec1ea574b5bc51720ecaa18d51a690a17acff3230903b56cb44dfe1c"
+    },
+    {
+      "id": "1795587268650154597",
+      "start": 12531.733,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154597"
+        ]
+      },
+      "sourceSha256": "369990c7c59e6b5c031b25e586a4601a5ecf0790b67402f6f63d021550522ca9"
+    },
+    {
+      "id": "1795587268650154599",
+      "start": 12540.163,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154599"
+        ]
+      },
+      "sourceSha256": "2d16043b895a51ed3aec6309d068a0bfbd0ba9bcb0a7804acd6a5efc47538ac2"
+    },
+    {
+      "id": "1795587268650154617",
+      "start": 12658.673,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154617"
+        ]
+      },
+      "sourceSha256": "cbfde2c598c60d8b55887bdcc7973b890cafcb090607ea48c0b0ee8224859030"
+    },
+    {
+      "id": "1795587268650154619",
+      "start": 12671.053,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154619"
+        ]
+      },
+      "sourceSha256": "b1529b3ff29a64cc9053f7e5b59ed767ce73bbbcf7b5c39eb484437a0f547aec"
+    },
+    {
+      "id": "1795587268650154620",
+      "start": 12676.973,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154620"
+        ]
+      },
+      "sourceSha256": "c04101dc1f0501035099b0630d8e9688aa8febe95066666a2fb60c1b6eb0cd2b"
+    },
+    {
+      "id": "1795587268650154672",
+      "start": 12945.463,
+      "speaker": {
+        "status": "address_in_text"
+      },
+      "sourceSha256": "40c1d936408a81a90e41053149826f66561785fc1d5504a18f21d6dd9535b618"
+    },
+    {
+      "id": "1795587268650154680",
+      "start": 12986.293,
+      "speaker": {
+        "status": "candidate",
+        "method": "직책 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795587268650154680"
+        ]
+      },
+      "sourceSha256": "8c3dd2ce72120a76fc57b84b2fa26d4b9506cd3befab83efac748b3925eaac2e"
+    },
+    {
+      "id": "1795587268650154683",
+      "start": 13006.653,
+      "spelling": "corrected_in_context",
+      "sourceSha256": "c6c7e1ae37877c931be5228e8dda8fb27f9501649084d02c0b4a32806c85591d"
+    },
+    {
+      "id": "1795587268650154685",
+      "start": 13017.113,
+      "speaker": {
+        "status": "candidate",
+        "method": "명부 의원의 명시적 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795587268650154685"
+        ]
+      },
+      "sourceSha256": "8aaffb1c801eb8a5c8585f1546e8103edda7ac7e10be86b271bef2b7b5af55a7"
+    },
+    {
+      "id": "1795587268650154705",
+      "start": 13161.523,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154705"
+        ]
+      },
+      "sourceSha256": "315b76f565dd1e483ad1cb1635bf9b206c79305e81941d33e5eef6954b311faf"
+    },
+    {
+      "id": "1795587268650154706",
+      "start": 13163.523,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154706"
+        ]
+      },
+      "sourceSha256": "33040f8bd97b42b8c0bcd92d3ff4fa38e42836bde25e7f6d2ba85ff0b52fa2bb"
+    },
+    {
+      "id": "1795587268650154708",
+      "start": 13173.293,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154708"
+        ]
+      },
+      "sourceSha256": "60c9b96cb089265d244094ae951a1419ac627700ab0c7a73033e7e40433441ae"
+    },
+    {
+      "id": "1795587268650154710",
+      "start": 13179.293,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154710"
+        ]
+      },
+      "sourceSha256": "c5b3fb513a712a68e6a4c03ad5c341bd721837cd83bd70d2ec8d534ca92cf460"
+    },
+    {
+      "id": "1795587268650154711",
+      "start": 13181.293,
+      "speaker": {
+        "status": "candidate",
+        "method": "직전 질의 또는 자기소개에 바로 이어진 응답 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154710",
+          "1795587268650154711"
+        ]
+      },
+      "sourceSha256": "14c95b13b8bbc34444e9920fa33916df3fd10fd8e9b1ea1c3cfc55c2d360d286"
+    },
+    {
+      "id": "1795587268650154714",
+      "start": 13201.983,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154714"
+        ]
+      },
+      "sourceSha256": "f878f6d40ecbd56774e987d1165186f43c4bc77253a799369abd6c74ff449ece"
+    },
+    {
+      "id": "1795587268650154753",
+      "start": 13442.293,
+      "speaker": {
+        "status": "candidate",
+        "method": "직책 호칭 뒤 이름 자기소개와 회의 의원 명부 대조 (원음 확인 필요)",
+        "evidence": [
+          "1795587268650154753"
+        ]
+      },
+      "sourceSha256": "9c3607bf98ee97ec1872ce71312805434ed6d35bfc8adb1d68611f0cb64f6b72"
+    },
+    {
+      "id": "1795587268650154756",
+      "start": 13460.863,
+      "spelling": "unchanged",
+      "sourceSha256": "2bad83fc9023474afc301fe5cb330de143d39e8cbe4d9aaf7b066f9b06f2ff35"
+    },
+    {
+      "id": "1795587268650154757",
+      "start": 13471.393,
+      "spelling": "unchanged",
+      "sourceSha256": "c61fefba6aae1f5973878a47307af1450c86b36b3c983c0af78322788073d44e"
+    },
+    {
+      "id": "1795587268650154776",
+      "start": 13640.793,
+      "spelling": "unchanged",
+      "sourceSha256": "46f55c69c0b8687acc78ab7844fabc76ea9ebeae58ac1e86f263a2dbeb8b1003"
+    },
+    {
+      "id": "1795587268650154777",
+      "start": 13654.393,
+      "spelling": "unchanged",
+      "sourceSha256": "52a39c8547d0ce4ab95bb2f5c4750df2b832d3d17fd75933d22ec88f11294a60"
+    },
+    {
+      "id": "1795587268650154845",
+      "start": 14173.793,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154845"
+        ]
+      },
+      "sourceSha256": "c5e6250d1557a628637147ce65c649bb0f7fb1e7d5fad78d112a91dde6914090"
+    },
+    {
+      "id": "1795587268650154897",
+      "start": 14569.733,
+      "speaker": {
+        "status": "candidate",
+        "method": "직책 자기소개. 인식한 실명은 확인 필요",
+        "evidence": [
+          "1795587268650154897"
+        ]
+      },
+      "sourceSha256": "7bd6ccf9f6c9a62eac9bd7323971be54fa3d568e0b9294a2035077099a265591"
+    },
+    {
+      "id": "1795587268650154904",
+      "start": 14612.633,
+      "spelling": "corrected_in_context",
+      "sourceSha256": "10e19a784340d674abe1824308bc61b5a33576d58bd0032f7d088b62d9710503"
+    },
+    {
+      "id": "1795587268650154953",
+      "start": 14978.793,
+      "speaker": {
+        "status": "candidate",
+        "method": "명부 의원의 명시적 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795587268650154953"
+        ]
+      },
+      "sourceSha256": "7849ff9f659eb5c63570b02e41cd5afe2f91d80ed3c08af60902ae975190ce5d"
+    },
+    {
+      "id": "1795587268650154957",
+      "start": 14993.793,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154957"
+        ]
+      },
+      "sourceSha256": "85a4492d30b17d5dcbf067ffa7e03769731658247a7a7db02ca6ec483929ce44"
+    },
+    {
+      "id": "1795587268650154958",
+      "start": 15012.073,
+      "speaker": {
+        "status": "candidate",
+        "method": "직전 질의 또는 자기소개에 바로 이어진 응답 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154957",
+          "1795587268650154958"
+        ]
+      },
+      "sourceSha256": "4ce1d88266dd4a55928a67ed94066f5b02f328bc5bf45dcb9858708935c60998"
+    },
+    {
+      "id": "1795587268650154969",
+      "start": 15073.293,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154969"
+        ]
+      },
+      "sourceSha256": "b7b056115c4885982227d163117af2c7a96bd42f0ab683b80b3af4712547539b"
+    },
+    {
+      "id": "1795587268650154981",
+      "start": 15172.793,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154981"
+        ]
+      },
+      "sourceSha256": "1fd3ee0c17f081a77f17f010c883bf819003e2ee6a28249d5681d27e04e6847b"
+    },
+    {
+      "id": "1795587268650154998",
+      "start": 15315.713,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650154998"
+        ]
+      },
+      "sourceSha256": "f109e74a5c8e7784ee0e75299af04972135fbdcdab1da429ed3dba1e262b2b25"
+    },
+    {
+      "id": "1795587268650155007",
+      "start": 15384.543,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650155007"
+        ]
+      },
+      "sourceSha256": "a46216ddbe80ea9f6d215bb138757e8eefa561b870a91077da6cada577323e08"
+    },
+    {
+      "id": "1795587268650155018",
+      "start": 15444.353,
+      "speaker": {
+        "status": "candidate",
+        "method": "질문 종결 또는 담당자 호칭이 있는 질의 표현. 실명 미확인",
+        "evidence": [
+          "1795587268650155018"
+        ]
+      },
+      "sourceSha256": "56b4668db614333229f1d9d43eb6c4feb39a7a3c553728d967ca9f69b85e1041"
+    },
+    {
+      "id": "1795587268650155044",
+      "start": 15578.653,
+      "speaker": {
+        "status": "candidate",
+        "method": "명시적 자기소개와 공식 명부 직책·성명 대조 (원음 확인 필요)",
+        "evidence": [
+          "1795587268650155044"
+        ]
+      },
+      "sourceSha256": "2ce2a0d41a55cdd9b3f68162538e6942411fdeec7370560540eae9237a7c8253"
+    },
+    {
+      "id": "1795587268650155047",
+      "start": 15598.833,
+      "speaker": {
+        "status": "candidate",
+        "method": "직책 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795587268650155047"
+        ]
+      },
+      "sourceSha256": "74c5431b9e2855998fac03d2180b82fb014ab0cc109e14b18d59df9b12986849"
+    },
+    {
+      "id": "1795587268650155048",
+      "start": 15603.123,
+      "speaker": {
+        "status": "candidate",
+        "method": "직책 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795587268650155048"
+        ]
+      },
+      "sourceSha256": "4c5686f68b80dc1471a8ffe40efb7fbf2a9a7f8c7979eafb4e80a384c9d0021f"
+    },
+    {
+      "id": "1795587268650155049",
+      "start": 15607.033,
+      "speaker": {
+        "status": "candidate",
+        "method": "직책 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795587268650155049"
+        ]
+      },
+      "sourceSha256": "174af250454d4feca92ebd6ea4dec6c7509040719ad96a7c27fcacd844ec8ae3"
+    },
+    {
+      "id": "1795587268650155050",
+      "start": 15611.163,
+      "speaker": {
+        "status": "candidate",
+        "method": "직책 자기소개 (원음 확인 필요)",
+        "evidence": [
+          "1795587268650155050"
+        ]
+      },
+      "sourceSha256": "f7fec5d64ec5c5733b5493c91a24cdef9d0f5b667e7ae83f8c7ff7ad7270a58d"
     }
   ]
 }
