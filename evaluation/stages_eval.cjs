@@ -15,6 +15,10 @@ const samples = [
   ['question', 'qa2', 32, 82.5, {32:'정연화', 52:'정연화'}],
 ];
 
+// The 74.5s proposal self-introduction below was selected after observing this
+// rule's candidate and checked against the official transcript. It remains outside
+// the annotated score so this follow-up is not presented as independent validation.
+
 function normalized(text) {
   return Array.from(text.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, ''));
 }
@@ -43,12 +47,19 @@ for (const [label, prefix, start, end, annotations] of samples) {
     text:chunk.text, rawText:chunk.text,
   }));
   const guesses = speakers.guesses(meeting, cues);
-  const score = {annotated:0, offered:0, correct:0};
+  const selectedIds = new Set(cues.filter(cue => start <= cue.start && cue.start < end).map(cue => cue.id));
+  const selectedGuesses = [...selectedIds].map(id => guesses[id]).filter(Boolean);
+  const score = {
+    candidateChunks:selectedGuesses.length,
+    namedCandidateChunks:selectedGuesses.filter(candidate => candidate.name).length,
+    roleOnlyCandidateChunks:selectedGuesses.filter(candidate => !candidate.name).length,
+    annotated:0, offered:0, correct:0,
+  };
   for (const cue of cues) {
     const name = annotations[cue.start];
     if (!name) continue;
     score.annotated++;
-    if (!guesses[cue.id]) continue;
+    if (!guesses[cue.id]?.name) continue;
     score.offered++;
     if (guesses[cue.id].name === name) score.correct++;
   }

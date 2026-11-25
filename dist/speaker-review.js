@@ -52,7 +52,7 @@
   }
   function explicitOfficialIntro(text) {
     const match = text.match(OFFICIAL_INTRO);
-    return match && !quotedIntro(text, match) ? { name: match[2], role: match[1] } : null;
+    return match && !quotedIntro(text, match) ? { name: match[2], role: '집행부(직위 확인 필요)' } : null;
   }
   function escapeRegExp(value) { return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
   function recognizedMember(text, members) {
@@ -60,19 +60,43 @@
     for (const name of members) {
       const pattern = new RegExp(`${escapeRegExp(name)}\\s*((?<!부)위원장|의원|(?<!부)위원)\\s*(?:님)?[\\s,，]*(?:${DIRECTIVE})`);
       const match = text.match(pattern);
-      if (match) matches.push({ name, role: /(?<!부)위원장/.test(match[1]) ? '위원장' : '의원', match });
+      if (match) {
+        matches.push({ name, role: /(?<!부)위원장/.test(match[1]) ? '위원장' : '의원', match, kind: 'direct' });
+        continue;
+      }
+      // This exact ASR substitution is accepted only with the next cue's explicit
+      // citation to a different committee member's earlier remarks.
+      const observedMishear = new RegExp(`${escapeRegExp(name)}\\s*의원\\s*님[,，\\s]*지리하시러`);
+      const misheard = text.match(observedMishear);
+      if (misheard) matches.push({ name, role: '의원', match: misheard, kind: 'misheard_query' });
     }
     // Multiple named members or a cited/reported call cannot establish who has the floor.
     const mentioned = members.filter(name => text.includes(name));
     if (matches.length !== 1 || mentioned.length !== 1 || quotedIntro(text, matches[0].match)) return null;
     return matches[0];
   }
+  function citesEarlierMember(text, members, calledName) {
+    const cited = members.filter(name => name !== calledName && new RegExp(`^(?:아까\\s*)?앞서\\s*${escapeRegExp(name)}\\s*(?:의원|위원장)\\s*님?\\s*말씀하셨던`).test(text));
+    const mentioned = members.filter(name => text.includes(name));
+    return cited.length === 1 && mentioned.length === 1 ? cited[0] : null;
+  }
+  function proceduralRole(text, members) {
+    if (!text || members.some(name => text.includes(name))) return null;
+    if (/(?:라고|라며|선포했다고|선포하셨다고|선포했다|선포하셨다)/.test(text)) return null;
+    const body = text.replace(/\s*(?:안녕하십니까|안녕하십니까\s*[?？])\s*$/, '').trim();
+    if (/[?？]|(?:^|[.!。]\s*)(?:네|예|아니요)\s*[,，.!?。]/.test(body)) return null;
+    const opening = /(?:개회|개의)(?:를)?\s*(?:선포합니다|선포하겠습니다|하겠습니다|합니다)[.!。]*(?:\s*(?:존경하는|동료위원|여러분|그리고)[^?？]{0,100})?$/.test(body) &&
+      (/(?:성원이\s*되었으므로|(?:위원회|본회의|회의)\s*(?:를\s*)?(?:개회|개의))/.test(body));
+    if (opening) return '개회 또는 개의 정형 진행 문구(실명 미확인)';
+    if (/산회(?:를)?\s*선포(?:합니다|하겠습니다)[.!。]*$/.test(body)) return '산회 선포 정형 진행 문구(실명 미확인)';
+    if (/가결되었음을\s*선포(?:합니다|하겠습니다)[.!。]*$/.test(body)) return '가결 선포 정형 진행 문구(실명 미확인)';
+    return null;
+  }
 
   function guesses(meeting, cues) {
     const result = {};
     if (!meeting || !Array.isArray(cues)) return result;
     const members = membersOf(meeting);
-    if (!members.length) return result;
     const ordered = cues.map((cue, index) => ({ cue, index, start: Number(cue?.start) }))
       .filter(item => cueId(item.cue));
     const allTimed = ordered.every(item => Number.isFinite(item.start));
@@ -89,7 +113,12 @@
       }
       const official = explicitOfficialIntro(text);
       if (official && !members.includes(official.name)) {
-        result[id] = { name: official.name, role: official.role, confidence: 'low', evidence: [id], method: '직책과 이름을 포함한 자기소개 문구(명부 미대조)' };
+        result[id] = { name: official.name, role: official.role, confidence: 'low', evidence: [id], method: '직책·이름 자기소개 문구(성명 명부 미대조, 직위 원문 확인 필요)' };
+        continue;
+      }
+      const procedure = proceduralRole(text, members);
+      if (procedure) {
+        result[id] = { name: '', role: '의사진행자', confidence: 'medium', evidence: [id], method: procedure };
         continue;
       }
 
@@ -98,8 +127,11 @@
       if (!called || uncertain(cue, true) || i + 1 >= ordered.length) continue;
       const next = ordered[i + 1].cue, nextText = cueText(next), nextId = cueId(next);
       const briefAck = BRIEF_ADDRESSED_ACK.test(nextText);
-      if ((!substantive(nextText) && !briefAck) || uncertain(next) || nextId === id || !safeId(nextId)) continue;
-      if (members.some(name => nextText.includes(name))) continue;
+      const citedMember = citesEarlierMember(nextText, members, called.name);
+      if ((!substantive(nextText) && !briefAck) || nextId === id || !safeId(nextId)) continue;
+      if (called.kind === 'misheard_query' && !citedMember) continue;
+      if (members.some(name => nextText.includes(name)) && !(called.kind === 'misheard_query' && citedMember)) continue;
+      if (uncertain(next, called.kind === 'misheard_query' && !!citedMember)) continue;
       const gap = Number(next?.start) - Number(cue?.end);
       if (!Number.isFinite(gap) || gap < 0 || gap > 15) continue;
       result[nextId] = {
@@ -107,7 +139,8 @@
         role: called.role,
         confidence: 'low',
         evidence: [id, nextId],
-        method: briefAck ? '명부의 직접 호명 직후 상대 직책을 부른 짧은 응답(수동 확인 필요)' : '명부의 직접 호명 직후 연속된 한 구간 추정'
+        method: called.kind === 'misheard_query' ? '호명 단어 오인식 가능성 + 직후 다른 의원의 선행 발언 인용(수동 확인 필요)' :
+          briefAck ? '명부의 직접 호명 직후 상대 직책을 부른 짧은 응답(수동 확인 필요)' : '명부의 직접 호명 직후 연속된 한 구간 추정'
       };
     }
     return result;
