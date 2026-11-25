@@ -1,6 +1,7 @@
 import {readFile, readdir, mkdir, writeFile} from 'node:fs/promises';
 import {join, relative, extname} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {createHash} from 'node:crypto';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const dist = join(root, 'dist');
@@ -18,6 +19,16 @@ async function collect(dir) {
   }
 }
 await collect(dist);
+// Give browsers a new URL when a script or stylesheet changes between releases.
+const entry = assets['/index.html'];
+const html = Buffer.from(entry.body, 'base64').toString('utf8');
+const versionedHtml = html.replace(/\b(src|href)="\.\/([^"?#]+\.(?:js|css))"/g, (match, attr, path) => {
+  const asset = assets['/' + path];
+  if (!asset) throw new Error('Missing page asset: ' + path);
+  const hash = createHash('sha256').update(Buffer.from(asset.body, 'base64')).digest('hex').slice(0,12);
+  return `${attr}="./${path}?v=${hash}"`;
+});
+entry.body = Buffer.from(versionedHtml, 'utf8').toString('base64');
 const catalog = JSON.parse(await readFile(join(dist, 'data/live-meetings.json'), 'utf8'));
 const publicKey = (await readFile(join(root, 'worker/publisher.pub'), 'utf8')).trim();
 if (!/^[A-Za-z0-9_-]{43}$/.test(publicKey)) throw Error('Invalid Ed25519 public key');

@@ -5,7 +5,7 @@
   let pollTimer, scheduleTimer, liveVisible = true;
   const video = el('live-video'), frame = el('live-video-placeholder'), captions = el('live-captions');
   let hls, retry, mode = '', generation = 0, lastShared = null, localCues = [];
-  let historyGeneration = 0;
+  let historyGeneration = 0, historyScrollPending = false;
 
   function report(text) { el('caption-status').textContent = text; }
   function stopPlayer() { clearTimeout(retry); hls?.destroy(); hls = null; }
@@ -161,6 +161,21 @@
     captions.replaceChildren();
     const latest = cues.at(-1);
     el('live-speaker-name').textContent = latest ? speakerLabel(latest) : '발언자 미확인';
+    const recentLink = el('live-speaker-recent');
+    if (recentLink) {
+      const recent = !mode && [...cues].reverse().find(cue => String(cue.speaker?.name || '').trim() && cue.id != null);
+      const available = !mode && lastShared && String(lastShared.meetingId) === meetingId;
+      recentLink.hidden = !available;
+      if (available) {
+        const url = new URL(location.href);
+        url.search = ''; url.hash = '';
+        url.searchParams.set('live', meetingId);
+        if (recent) url.searchParams.set('cue', String(recent.id)); else url.searchParams.set('speaker','recent');
+        recentLink.href = url.pathname + url.search + url.hash;
+        const time = recent && (recent.observedAt && Number.isFinite(Date.parse(recent.observedAt)) ? new Date(recent.observedAt).toLocaleTimeString('ko-KR', {timeZone:'Asia/Seoul',hour12:false}) : stamp(recent.start));
+        recentLink.textContent = recent ? `이름이 추정된 최근 발언 · ${time} · ${speakerLabel(recent)} · 원문 보기` : '이 회의에서 이름이 추정된 최근 발언 보기';
+      } else { recentLink.removeAttribute('href'); recentLink.textContent = ''; }
+    }
     const latestTime = latest ? (latest.observedAt && Number.isFinite(Date.parse(latest.observedAt)) ? new Date(latest.observedAt).toLocaleTimeString('ko-KR', {timeZone:'Asia/Seoul',hour12:false}) : stamp(latest.start)) : '';
     const method = latest && hasSpeaker(latest) ? String(latest.speaker.method || '').slice(0, 100) : '';
     el('live-speaker-meta').textContent = latest ? [latestTime, method, hasSpeaker(latest) ? '자동 추정 · 확인 필요' : '확인된 이름·직책 없음'].filter(Boolean).join(' · ') : '자막을 기다리는 중';
@@ -232,26 +247,46 @@
           if (String(nameplates.meetingId) === id && Array.isArray(nameplates.observations)) observations = nameplates.observations;
         } catch (_) { /* Nameplate history is optional. */ }
       }
+      if (ticket !== historyGeneration || selected !== selection || mode === 'tab' || !panel.open) return;
       let candidates = {};
       try { candidates = window.CouncilLiveSpeaker?.attribute(meeting, archive.cues, observations, archive.gaps || []) || {}; } catch (_) {}
-      const matches = uniqueCues(archive.cues).map(cue => {
+      const all = uniqueCues(archive.cues).map(cue => {
         const candidate = candidates[String(cue.id)] || cue.speaker;
         const speaker = window.CouncilLiveSpeaker?.displayCandidate ? window.CouncilLiveSpeaker.displayCandidate(cue,candidate) : candidate;
         return {...cue,speaker};
-      }).filter(hasSpeaker);
+      });
+      const matches = all.filter(hasSpeaker);
+      const url = new URL(location.href);
+      let requestedId = url.searchParams.get('cue');
+      if (!requestedId && url.searchParams.get('speaker') === 'recent') {
+        const recent = [...all].reverse().find(cue => String(cue.speaker?.name || '').trim());
+        if (!recent) { status.textContent = '아직 이름이 추정된 발언이 없습니다.'; return; }
+        requestedId = String(recent.id); url.searchParams.delete('speaker'); url.searchParams.set('cue', requestedId);
+        history.replaceState(null, '', url);
+      }
+      const requested = requestedId ? all.find(cue => String(cue.id) === requestedId) : null;
       const rows = matches.slice(-30).reverse();
-      if (!rows.length) { status.textContent = '이름이나 역할이 추정된 이전 발언이 없습니다.'; return; }
-      status.textContent = `이 회의에서 추정한 발언 ${matches.length}건 · 최근 ${rows.length}건 표시`;
+      if (requested) {
+        const index = rows.findIndex(cue => String(cue.id) === requestedId);
+        if (index >= 0) rows.splice(index,1);
+        rows.unshift(requested);
+      }
+      if (!rows.length) { status.textContent = requestedId ? '요청한 자막을 찾을 수 없습니다.' : '이름이나 역할이 추정된 이전 발언이 없습니다.'; return; }
+      status.textContent = `${requestedId && !requested ? '요청한 자막을 찾을 수 없습니다. · ' : ''}이 회의에서 추정한 발언 ${matches.length}건 · 최근 ${Math.min(matches.length,30)}건 표시`;
       const byId = new Map(archive.cues.map(cue => [String(cue.id),cue]));
+      let selectedItem = null;
       for (const cue of rows) {
         const item = document.createElement('li');
+        const isSelected = requestedId && String(cue.id) === requestedId;
+        if (isSelected) { item.setAttribute('aria-current','true'); selectedItem = item; }
         const time = cue.observedAt && Number.isFinite(Date.parse(cue.observedAt)) ? new Date(cue.observedAt).toLocaleTimeString('ko-KR', {timeZone:'Asia/Seoul',hour12:false}) : stamp(cue.start);
         const heading = document.createElement('strong'), excerpt = document.createElement('span');
         heading.textContent = time + ' · ' + speakerLabel(cue);
-        excerpt.textContent = safeText(cue).slice(0,120);
+        excerpt.textContent = isSelected ? String(cue.rawText || cue.text || '').slice(0,280) : safeText(cue).slice(0,120);
         const details = document.createElement('details'), summary = document.createElement('summary'), evidence = document.createElement('small');
         summary.textContent = '발언자 추정 근거';
-        evidence.textContent = [cue.speaker.method,...speakerEvidence(cue,byId)].filter(Boolean).join('\n');
+        details.open = !!isSelected;
+        evidence.textContent = [cue.speaker?.method,...speakerEvidence(cue,byId)].filter(Boolean).join('\n');
         const observedAt = cue.observedAt && Date.parse(cue.observedAt);
         const nearby = Number.isFinite(observedAt) ? observations.filter(item => Math.abs(Date.parse(item.capturedAt) - observedAt) <= 5000) : [];
         if (nearby.length) evidence.textContent += '\n명패 판독(발언자 확정 아님): ' + nearby.map(item => {
@@ -259,14 +294,26 @@
           return reading ? `${reading.time} · ${reading.names.join(', ') || '읽힌 이름 없음'}` : '';
         }).filter(Boolean).join(' / ');
         details.append(summary,evidence);
-        item.append(heading,excerpt,details);
+        item.append(heading,excerpt);
+        if (evidence.textContent.trim()) item.append(details);
         list.append(item);
       }
+      if (selectedItem && historyScrollPending) { historyScrollPending = false; selectedItem.scrollIntoView?.({block:'nearest'}); }
     } catch (_) {
       if (ticket === historyGeneration && selected === selection && mode !== 'tab' && panel.open) status.textContent = '이전 발언을 불러오지 못했습니다.';
     }
   }
   el('live-speaker-history').addEventListener('toggle', () => { if (el('live-speaker-history').open) loadSpeakerHistory(); else ++historyGeneration; });
+  el('live-speaker-recent')?.addEventListener('click', event => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const href = el('live-speaker-recent').href;
+    if (!href) return;
+    event.preventDefault();
+    history.replaceState(null, '', href);
+    historyScrollPending = true;
+    const panel = el('live-speaker-history');
+    if (panel.open) loadSpeakerHistory(); else panel.open = true;
+  });
   function sharedStatus(data) {
     if (data.status === 'ended') return '공유 자막 제공 종료';
     if (data.status === 'interrupted') return '공유 자막 제공이 중단되었습니다. 마지막으로 받은 자막을 표시합니다.';
@@ -371,7 +418,14 @@
     window.CouncilLiveMinutes.select(chosen);
     el('live-inline-frame').hidden = true; el('live-inline-frame').removeAttribute('src');
     lastShared = null; localCues = []; el('live-speaker-history').hidden = false; el('live-speaker-history-list').replaceChildren(); el('live-speaker-history-status').textContent = ''; el('local-save').disabled = true; el('local-save-txt').disabled = true; render([]);
-    if (el('live-speaker-history').open) loadSpeakerHistory();
+    const linkUrl = new URL(location.href);
+    if (String(linkUrl.searchParams.get('live')) !== meetingId) { linkUrl.searchParams.delete('cue'); linkUrl.searchParams.delete('speaker'); }
+    linkUrl.searchParams.set('live', meetingId); history.replaceState(null, '', linkUrl);
+    const panel = el('live-speaker-history');
+    const linked = linkUrl.searchParams.has('cue') || linkUrl.searchParams.get('speaker') === 'recent';
+    historyScrollPending = linked;
+    if (linked && !panel.open) panel.open = true;
+    else if (panel.open) loadSpeakerHistory();
     el('live-meeting-select').value = meetingId;
     el('live-title').textContent = `${chosen.title} ${chosen.label}`;
     const when = chosen.scheduledAt ? new Intl.DateTimeFormat('ko-KR', {timeZone:'Asia/Seoul',month:'numeric',day:'numeric',weekday:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(chosen.scheduledAt)) : '';
@@ -380,7 +434,6 @@
     el('live-source').textContent = chosen.provider === 'youtube' ? '유튜브에서 보기 ↗' : '공식 중계 보기 ↗';
     el('live-official').href = chosen.officialPage || source;
     el('live-official').hidden = !chosen.officialPage || chosen.officialPage === source;
-    const url = new URL(location.href); url.searchParams.set('live', meetingId); history.replaceState(null, '', url);
     report('공유 자막을 확인하는 중입니다.'); openBroadcast(); poll(selection);
   }
   el('live-meeting-select').addEventListener('change', event => selectMeeting(event.target.value));
