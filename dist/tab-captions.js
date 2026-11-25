@@ -1,6 +1,8 @@
 (function () {
   'use strict';
-  const workerUrl = new URL('asr/worker.js', document.currentScript.src);
+  const scriptUrl = new URL(document.currentScript.src);
+  const workerUrl = new URL('asr/worker.js', scriptUrl);
+  workerUrl.search = scriptUrl.search;
   let session = null;
   function stop() {
     const s = session;
@@ -78,7 +80,10 @@
           else if (p.status === 'initiate') onStatus('음성 인식 모델을 준비하고 있습니다.');
         } else if (data.type === 'ready') {
           clearTimeout(s.loadTimer);
-          s.ready = true; onStatus(playerMode ? '영상 오디오를 듣고 있습니다.' : '탭 오디오를 듣고 있습니다.');
+          s.ready = true;
+          onStatus(mediaTimeline && data.model === 'Xenova/whisper-tiny'
+            ? '경량 음성 모델로 영상 오디오를 듣고 있습니다.'
+            : playerMode ? '영상 오디오를 듣고 있습니다.' : '탭 오디오를 듣고 있습니다.');
           if (s.pending) { const next=s.pending; s.pending=null; dispatch(next); }
         } else if (data.type === 'result') {
           s.busy = false;
@@ -119,7 +124,7 @@
         else { if (s.pending) onStatus('인식 속도가 느려 일부 구간을 건너뜁니다.'); s.pending=chunk; }
       };
       onStatus('음성 인식 모델을 내려받고 있습니다. 처음에는 시간이 걸릴 수 있습니다.');
-      s.worker.postMessage({type:'init'});
+      s.worker.postMessage({type:'init', mediaTimeline});
     } catch (error) {
       if (session === s) stop();
       throw error;

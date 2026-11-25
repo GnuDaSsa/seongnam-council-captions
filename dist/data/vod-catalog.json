@@ -237,7 +237,8 @@
           "rejected": false
         }
       ],
-      "minutesUrl": "https://www.sncouncil.go.kr/record/recordView.do?key=f7f9e3bdabe55a260dbc2f63deadb037a9b872f30f039ee3a648425eb7bc0019c7107cbab4d13d8b"
+      "minutesUrl": "https://www.sncouncil.go.kr/record/recordView.do?key=f7f9e3bdabe55a260dbc2f63deadb037a9b872f30f039ee3a648425eb7bc0019c7107cbab4d13d8b",
+      "speakerTranscript": true
     },
     {
       "id": "5481",
@@ -391,7 +392,9 @@
           "source": "asr",
           "rejected": false
         }
-      ]
+      ],
+      "minutesUrl": "https://www.sncouncil.go.kr/record/recordView.do?key=d5096a59117e05628d68628087ece0e98b223662685adc6f1f3098d748de7beb5203d3a0929015ad",
+      "speakerTranscript": true
     },
     {
       "id": "5544",
@@ -492,7 +495,9 @@
           "text": "성남시 의료원은 분당소리대병은 명이 13명이 혀빈",
           "source": "asr"
         }
-      ]
+      ],
+      "minutesUrl": "https://www.sncouncil.go.kr/record/recordView.do?key=3c1a9c24413d573fa9180cdadb54ee40ab4e968c752b6021668c889f1c87d7e4a8dddb63e4cef926",
+      "speakerTranscript": true
     },
     {
       "id": "5467",
@@ -574,7 +579,9 @@
           "source": "asr",
           "rejected": false
         }
-      ]
+      ],
+      "minutesUrl": "https://www.sncouncil.go.kr/record/recordView.do?key=fe4625cdedd808bd4c839af6aa981f49d19963aecf119e33d122b25cfb05bb36cb4f192eb100112c",
+      "speakerTranscript": true
     },
     {
       "id": "5411",
@@ -672,7 +679,9 @@
           "source": "asr",
           "rejected": false
         }
-      ]
+      ],
+      "minutesUrl": "https://www.sncouncil.go.kr/record/recordView.do?key=eb4f36637b2332e6abd4544a0a868f2825cdc82c07d691ae160dd514d88e5a04d66ae99255391580",
+      "speakerTranscript": true
     }
   ]
 }

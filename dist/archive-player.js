@@ -6,6 +6,8 @@
   let capture = false, generation = 0, generated = [], catalogCues = [], track = 'existing', canGenerate = false;
   let renderedCues = null, cueButtons = [], activeButton = null, recentCue = null, captureError = '';
   let speechContext = [];
+  let reference = null, referenceRequest = null, referenceState = 'idle';
+  let attributionMeeting = null;
 
   function stamp(value) {
     const n = Math.max(0, Math.floor(Number(value) || 0));
@@ -13,13 +15,19 @@
       .map(part => String(part).padStart(2, '0')).join(':');
   }
   function cueList() { return track === 'existing' ? catalogCues : generated; }
+  function updateTrackSummary() {
+    const personal = track === 'personal';
+    const sourceStatus = {loading:'발언자 대조 자료를 불러오는 중입니다.', ready:'이 회의의 공식 발언록과 인식한 문장을 대조합니다.',
+      empty:'공개된 발언록이 없어 자기소개·질의 표현 등 음성 단서만 사용합니다.', error:'발언록을 불러오지 못해 음성 단서만 사용합니다.'};
+    el('vod-track-summary').textContent = personal
+      ? '현재 재생 위치의 음성을 받아씁니다. ' + (sourceStatus[referenceState] || '')
+      : '영상에 미리 준비한 자막입니다. 각 발언에 회의록 대조 여부를 표시합니다.';
+  }
   function updateTrackUI(message) {
+    updateTrackSummary();
     const personal = track === 'personal';
     el('vod-mode-existing').checked = !personal;
     el('vod-mode-personal').checked = personal;
-    el('vod-track-summary').textContent = personal
-      ? '현재 재생 위치의 음성을 이 브라우저에서 받아씁니다.'
-      : '영상에 미리 준비한 자막입니다. 각 발언에 회의록 대조 여부를 표시합니다.';
     el('vod-generate').hidden = !personal || capture || !canGenerate;
     el('vod-stop').hidden = !personal || !capture;
     if (message) el('vod-caption-status').textContent = message;
@@ -31,10 +39,62 @@
       ? '생성한 개인 자막이 있습니다. 재생 중 다시 생성할 수 있습니다.'
       : '영상을 재생한 뒤 ‘음성 인식 시작’을 누르세요.';
   }
+  function referenceDecision(cue, context) {
+    const aligned = window.CouncilVodSpeaker?.assess(meeting,cue);
+    if (aligned) return aligned;
+    if (reference) return window.CouncilVodTranscript?.assess(meeting,cue,reference,context);
+  }
+  function withReferenceRoster(selected, data) {
+    const members = new Set(selected.members || []);
+    const staff = new Map((selected.staffRoster || []).map(row => [row.name + '|' + row.role, row]));
+    for (const {name,role} of data.turns) {
+      if (!/^[가-힣]{2,4}$/.test(name) || typeof role !== 'string' || !role.trim()) continue;
+      if (/^(?:의원|위원|(?:부)?의장|(?:부)?위원장|위원장대리|의장직무대리)$/.test(role)) members.add(name);
+      else if (!staff.has(name + '|' + role)) staff.set(name + '|' + role,{name,role,source:data.sourceUrl});
+    }
+    return {...selected, members:[...members], staffRoster:[...staff.values()]};
+  }
+  async function loadReference() {
+    if (!meeting || referenceRequest || ['ready','empty'].includes(referenceState)) return;
+    const selected = meeting, controller = new AbortController();
+    referenceRequest = controller; referenceState = 'loading'; updateTrackSummary();
+    const timeout = setTimeout(() => controller.abort(), 22000);
+    const query = encodeURIComponent(selected.id);
+    try {
+      const urls = selected.speakerTranscript ? ['/data/vod-transcripts/' + query + '.json', '/api/vod/transcript?id=' + query] : ['/api/vod/transcript?id=' + query];
+      let data;
+      for (const url of urls) {
+        const response = await fetch(url, {signal:controller.signal});
+        if (response.ok) { data = await response.json(); break; }
+      }
+      if (!data || String(data.meetingId) !== String(selected.id) || !Array.isArray(data.turns)) throw Error('Invalid meeting transcript');
+      if (referenceRequest !== controller) return;
+      if (!data.turns.length) { referenceState = 'empty'; return; }
+      if (!window.CouncilVodTranscript?.validatesSource(selected,data)) throw Error('Unlinked meeting transcript');
+      reference = data;
+      referenceState = 'ready';
+      attributionMeeting = withReferenceRoster(selected,data);
+      // An official record can arrive after recognition has already emitted a cue.
+      for (const cue of generated) {
+        const decision = referenceDecision(cue);
+        if (decision?.blocked) delete cue.speaker;
+        else if (decision?.speaker) cue.speaker = decision.speaker;
+      }
+      renderedCues = null;
+    } catch (_) {
+      if (referenceRequest === controller) referenceState = 'error';
+    } finally {
+      clearTimeout(timeout);
+      if (referenceRequest === controller) {
+        referenceRequest = null;
+        updateTrackSummary(); render();
+      }
+    }
+  }
   function inferPersonalSpeaker(cue) {
     speechContext = [...speechContext.slice(-7),cue];
     if (!meeting || cue.rejected) return;
-    const official = window.CouncilVodSpeaker?.assess(meeting,cue);
+    const official = referenceDecision(cue,speechContext);
     if (official?.blocked) {
       speechContext = [];
       return;
@@ -42,9 +102,10 @@
     if (official?.speaker) return official.speaker;
     if (!window.CouncilLiveSpeaker?.attribute) return;
     try {
-      const candidate = window.CouncilLiveSpeaker.attribute(meeting,speechContext,[],[])[cue.id];
+      const identity = attributionMeeting || meeting;
+      const candidate = window.CouncilLiveSpeaker.attribute(identity,speechContext,[],[])[cue.id];
       if (!candidate) return;
-      if (meeting.members?.length || meeting.staffRoster?.length) return candidate;
+      if (identity.members?.length || identity.staffRoster?.length) return candidate;
       // Unknown archives can still show a role without implying a roster match.
       const role = String(candidate.role || '').trim().match(/(센터장|위원장|질의자|답변자|담당관|주무관|과장|국장|팀장|부장|소장|의원|위원)$/)?.[1] || '';
       if (role) return {...candidate,name:'',role};
@@ -106,7 +167,7 @@
     const fresh = track === 'personal' && capture && !video.paused && !video.seeking && recentCue &&
       Date.now() - recentCue.receivedAt <= 15000 && now >= recentCue.cue.start && now - recentCue.cue.end <= 60;
     const recent = fresh && current !== recentCue.cue ? recentCue.cue : null;
-    const signature = JSON.stringify([current?.id, current && speaker(current), current && safeText(current), recent?.id, recent && speaker(recent), track, cues.length]);
+    const signature = JSON.stringify([current?.id, current && speaker(current), current && sourceLabel(current), current && safeText(current), recent?.id, recent && speaker(recent), recent && sourceLabel(recent), track, cues.length]);
     if (output.dataset.signature !== signature) {
       output.dataset.signature = signature; output.replaceChildren();
       if (current) output.append(part('strong','vod-now-speaker',speaker(current)), part('span','vod-now-text',safeText(current)), part('small','vod-now-source',sourceLabel(current)));
@@ -135,6 +196,7 @@
     catch (_) { return ''; }
   }
   function selectMeeting(id) {
+    referenceRequest?.abort(); referenceRequest = null; reference = null; referenceState = 'idle'; attributionMeeting = null;
     ++resolveGeneration; stopPlayer(); meeting = meetings.find(item => String(item.id) === String(id)) || null;
     generated = []; catalogCues = []; track = 'existing'; canGenerate = false; recentCue = null;
     const placeholder = el('vod-placeholder'); placeholder.hidden = false;
@@ -173,6 +235,7 @@
     if (capture || !meeting || track !== 'personal' || !canGenerate) return;
     if (video.paused || video.ended || !video.readyState) { el('vod-caption-status').textContent = '영상을 재생한 뒤 ‘음성 인식 시작’을 누르세요.'; return; }
     const token = ++generation; capture = true; captureError = ''; speechContext = [];
+    void loadReference();
     updateTrackUI('개인 음성 인식을 준비하고 있습니다.');
     try {
       await window.CouncilTabCapture.startPlayer({video, mediaTimeline:true,
@@ -277,6 +340,7 @@
       if (!event.target.checked) return;
       if (value === 'existing') stopCapture();
       track = value; recentCue = null;
+      if (value === 'personal') void loadReference();
       updateTrackUI(); render();
     });
   }

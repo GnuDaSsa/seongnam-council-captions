@@ -26,7 +26,9 @@
       "title": "개회식 및 제1차 본회의",
       "date": "2026-11-20",
       "officialPage": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5544&position=0",
-      "playlist": "https://cast.sncouncil.go.kr:4443/vod/_definst_/mp4:A0001/20261120131457084.mp4/playlist.m3u8"
+      "playlist": "https://cast.sncouncil.go.kr:4443/vod/_definst_/mp4:A0001/20261120131457084.mp4/playlist.m3u8",
+      "minutesUrl": "https://www.sncouncil.go.kr/record/recordView.do?key=3c1a9c24413d573fa9180cdadb54ee40ab4e968c752b6021668c889f1c87d7e4a8dddb63e4cef926",
+      "speakerTranscript": true
     },
     {
       "id": "5542",
@@ -40,63 +42,81 @@
       "title": "제2차 본회의",
       "date": "2026-10-08",
       "officialPage": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5488&position=0",
-      "playlist": "https://cast.sncouncil.go.kr:4443/vod/_definst_/mp4:A0001/20261008142125617.mp4/playlist.m3u8"
+      "playlist": "https://cast.sncouncil.go.kr:4443/vod/_definst_/mp4:A0001/20261008142125617.mp4/playlist.m3u8",
+      "minutesUrl": "https://www.sncouncil.go.kr/record/recordView.do?key=9e541f3ec5c4b06519c98928bcb655736f08e71cbdb3cf4d92979c06b633d267b4bc0f9f62571a45",
+      "speakerTranscript": true
     },
     {
       "id": "5484",
       "title": "제1차 문화복지체육위원회",
       "date": "2026-10-07",
       "officialPage": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5484&position=0",
-      "playlist": "https://cast.sncouncil.go.kr:4443/vod/_definst_/mp4:A0005/20261010171222192.mp4/playlist.m3u8"
+      "playlist": "https://cast.sncouncil.go.kr:4443/vod/_definst_/mp4:A0005/20261010171222192.mp4/playlist.m3u8",
+      "minutesUrl": "https://www.sncouncil.go.kr/record/recordView.do?key=43a132950930886bbd9802454ab1aa5a792025394b19810a0bff3c0f2809603fb8c5a459400ef4be",
+      "speakerTranscript": true
     },
     {
       "id": "5483",
       "title": "제1차 경제환경위원회",
       "date": "2026-10-07",
       "officialPage": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5483&position=0",
-      "playlist": "https://cast.sncouncil.go.kr:4443/vod/_definst_/mp4:A0004/20261008191019999.mp4/playlist.m3u8"
+      "playlist": "https://cast.sncouncil.go.kr:4443/vod/_definst_/mp4:A0004/20261008191019999.mp4/playlist.m3u8",
+      "minutesUrl": "https://www.sncouncil.go.kr/record/recordView.do?key=f7f9e3bdabe55a260dbc2f63deadb037a9b872f30f039ee3a648425eb7bc0019c7107cbab4d13d8b",
+      "speakerTranscript": true
     },
     {
       "id": "5482",
       "title": "제1차 도시건설위원회",
       "date": "2026-10-07",
       "officialPage": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5482&position=0",
-      "playlist": "https://cast.sncouncil.go.kr:4443/vod/_definst_/mp4:A0006/20261008140254947.mp4/playlist.m3u8"
+      "playlist": "https://cast.sncouncil.go.kr:4443/vod/_definst_/mp4:A0006/20261008140254947.mp4/playlist.m3u8",
+      "minutesUrl": "https://www.sncouncil.go.kr/record/recordView.do?key=1d984bf04da30663f8c0722f356eeb1f426b9fd9a819e7c41aa123e3c326691f4620c633f58361e8",
+      "speakerTranscript": true
     },
     {
       "id": "5481",
       "title": "제1차 행정교육위원회",
       "date": "2026-10-07",
       "officialPage": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5481&position=0",
-      "playlist": "https://cast.sncouncil.go.kr:4443/vod/_definst_/mp4:A0003/20261007192717020.mp4/playlist.m3u8"
+      "playlist": "https://cast.sncouncil.go.kr:4443/vod/_definst_/mp4:A0003/20261007192717020.mp4/playlist.m3u8",
+      "minutesUrl": "https://www.sncouncil.go.kr/record/recordView.do?key=d5096a59117e05628d68628087ece0e98b223662685adc6f1f3098d748de7beb5203d3a0929015ad",
+      "speakerTranscript": true
     },
     {
       "id": "5480",
       "title": "제1차 의회운영위원회",
       "date": "2026-10-07",
       "officialPage": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5480&position=0",
-      "playlist": "https://cast.sncouncil.go.kr:4443/vod/_definst_/mp4:A0002/20261007140142000.mp4/playlist.m3u8"
+      "playlist": "https://cast.sncouncil.go.kr:4443/vod/_definst_/mp4:A0002/20261007140142000.mp4/playlist.m3u8",
+      "minutesUrl": "https://www.sncouncil.go.kr/record/recordView.do?key=3a92da6bd9b09a6eb0bfd1d52dcc93fb2da5c741dbdea1297187b32b37df8bf2f673d8bf6f3c1707",
+      "speakerTranscript": true
     },
     {
       "id": "5479",
       "title": "제2차 장애인 복지시설 행정사무조사 특위",
       "date": "2026-10-06",
       "officialPage": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5479&position=0",
-      "playlist": "https://cast.sncouncil.go.kr:4443/vod/_definst_/mp4:A0016/20261006174725084.mp4/playlist.m3u8"
+      "playlist": "https://cast.sncouncil.go.kr:4443/vod/_definst_/mp4:A0016/20261006174725084.mp4/playlist.m3u8",
+      "minutesUrl": "https://www.sncouncil.go.kr/record/recordView.do?key=4161092c23de4ccf7fc74686469df1dd87283c8a76eb3941477868f8f62075b10ddedbc87ff9a333",
+      "speakerTranscript": true
     },
     {
       "id": "5478",
       "title": "개회식 및 제1차 본회의",
       "date": "2026-10-06",
       "officialPage": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5478&position=0",
-      "playlist": "https://cast.sncouncil.go.kr:4443/vod/_definst_/mp4:A0001/20261006130426535.mp4/playlist.m3u8"
+      "playlist": "https://cast.sncouncil.go.kr:4443/vod/_definst_/mp4:A0001/20261006130426535.mp4/playlist.m3u8",
+      "minutesUrl": "https://www.sncouncil.go.kr/record/recordView.do?key=ca0006366940922912b5242805ef4b6a9b742df053f5865815aa56bd4f1db73e29e98b2d624f5bce",
+      "speakerTranscript": true
     },
     {
       "id": "5476",
       "title": "제2차 의회운영위원회 [폐회중]",
       "date": "2026-09-22",
       "officialPage": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5476&position=0",
-      "playlist": "https://cast.sncouncil.go.kr:4443/vod/_definst_/mp4:A0002/20260922212316312.mp4/playlist.m3u8"
+      "playlist": "https://cast.sncouncil.go.kr:4443/vod/_definst_/mp4:A0002/20260922212316312.mp4/playlist.m3u8",
+      "minutesUrl": "https://www.sncouncil.go.kr/record/recordView.do?key=f1e5b9ce13dd8d144188bcb5c1c1f5b3e2ed97797ab4564334c60fb00aeb555c0b04d415f1d21448",
+      "speakerTranscript": true
     }
   ]
 }

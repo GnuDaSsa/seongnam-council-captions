@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import expect, sync_playwright
 
 @contextmanager
 def server():
@@ -21,19 +21,59 @@ catalog = {'meetings':[
     {'id':'5483','title':'Test council','date':'2026-10-07','officialPage':'https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5483',
      'playlist':'https://cast.sncouncil.go.kr/vod/test.m3u8','minutesUrl':'https://www.sncouncil.go.kr/record/recordView.do?key=abc123','cues':[{'id':'a','start':2,'end':5,'text':'first cache','speaker':'Chair','source':'minutes_aligned'},{'id':'b','start':8,'end':11,'text':'second cache','source':'asr'}]},
     {'id':'2','title':'Other council','date':'2026-10-08','officialPage':'https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=2',
-     'playlist':'https://cast.sncouncil.go.kr/vod/test2.m3u8','staffRoster':[{'name':'김정아','role':'자원행정팀장'}],'cues':[]}]}
+     'playlist':'https://cast.sncouncil.go.kr/vod/test2.m3u8','staffRoster':[{'name':'김정아','role':'자원행정팀장','source':'https://www.seongnam.go.kr/'}],'cues':[]}]}
+
+media_stub = '''
+  Object.defineProperty(HTMLMediaElement.prototype,'currentTime',{configurable:true,get(){return this._time || 0},set(v){this._time=v}});
+  Object.defineProperty(HTMLMediaElement.prototype,'readyState',{configurable:true,get(){return 4}});
+  Object.defineProperty(HTMLMediaElement.prototype,'paused',{configurable:true,get(){return this._paused !== false}});
+  HTMLMediaElement.prototype.play=function(){this._paused=false;this.dispatchEvent(new Event('playing'));return Promise.resolve()};
+  HTMLMediaElement.prototype.pause=function(){this._paused=true;this.dispatchEvent(new Event('pause'))};
+  HTMLMediaElement.prototype.load=function(){};
+'''
+
+transcript_stub = '''
+  window.transcriptRequests = [];
+  const realFetch = window.fetch;
+  window.fetch = (input, options) => {
+    const url = new URL(input, location.href);
+    if (url.pathname !== '/api/vod/transcript') return realFetch(input, options);
+    return new Promise(resolve => {
+      window.transcriptRequests.push({path:url.pathname + url.search, signal:options?.signal, resolve});
+    });
+  };
+  window.finishTranscript = (index, status, data) => {
+    window.transcriptRequests[index].resolve(new Response(JSON.stringify(data), {status}));
+  };
+'''
+
+def start_personal(view, request_count):
+    view.locator('#vod-mode-personal').check()
+    view.evaluate("document.getElementById('vod-video').play()")
+    view.locator('#vod-generate').click()
+    view.wait_for_function('count => window.transcriptRequests.length === count', arg=request_count)
+    expect(view.locator('#vod-track-summary')).to_contain_text('발언자 대조 자료를 불러오는 중')
+
+def emit_personal(view, start, text):
+    view.evaluate('''([start, text]) => {
+      const video = document.getElementById('vod-video');
+      window.captureArgs.onCue({start, end:start+5, text});
+      video.currentTime = start+1;
+      video.dispatchEvent(new Event('timeupdate'));
+    }''', [start, text])
+
+def official_transcript(meeting_id, turns):
+    return {'meetingId':meeting_id,
+            'sourceUrl':'https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no='+meeting_id,
+            'turns':turns}
+
+def finish_transcript(view, index, status, data):
+    view.evaluate('args => window.finishTranscript(...args)', [index, status, data])
 
 with server() as base, sync_playwright() as p:
     browser = p.chromium.launch(channel='chrome', headless=True)
     page = browser.new_page()
-    page.add_init_script('''
-      Object.defineProperty(HTMLMediaElement.prototype,'currentTime',{configurable:true,get(){return this._time || 0},set(v){this._time=v}});
-      Object.defineProperty(HTMLMediaElement.prototype,'readyState',{configurable:true,get(){return 4}});
-      Object.defineProperty(HTMLMediaElement.prototype,'paused',{configurable:true,get(){return this._paused !== false}});
-      HTMLMediaElement.prototype.play=function(){this._paused=false;this.dispatchEvent(new Event('playing'));return Promise.resolve()};
-      HTMLMediaElement.prototype.pause=function(){this._paused=true;this.dispatchEvent(new Event('pause'))};
-      HTMLMediaElement.prototype.load=function(){};
-    ''')
+    page.add_init_script(media_stub)
     def route(r):
         url = r.request.url
         if '/data/vod-catalog.json' in url: r.fulfill(json=catalog)
@@ -168,4 +208,73 @@ with server() as base, sync_playwright() as p:
     assert direct.locator('#vod-panel').is_hidden()
     direct.close()
     print('PASS: VOD tab, cached sync/seek, media timeline generation, stale callback, direct link and tab cleanup')
+
+    reference_page = browser.new_page()
+    reference_page.add_init_script(media_stub + transcript_stub)
+    reference_page.route('**/*',route)
+    reference_page.goto(base+'?vod=5483',wait_until='domcontentloaded')
+    select = reference_page.locator('#vod-meeting-select')
+    now_speaker = reference_page.locator('#vod-caption-now .vod-now-speaker')
+    now_source = reference_page.locator('#vod-caption-now .vod-now-source')
+    track_summary = reference_page.locator('#vod-track-summary')
+    expect(select).to_have_value('5483')
+    start_personal(reference_page, 1)
+    assert reference_page.evaluate('window.transcriptRequests[0].path') == '/api/vod/transcript?id=5483'
+    heard = '폐기물 처리시설 관련 세부 사업비 자료를 위원님들께 별도로 제출하겠습니다.'
+    next_heard = '연말에 시민 의견을 반영한 상세 보완계획을 별도로 안내하겠습니다.'
+    emit_personal(reference_page, 3715, heard)
+    expect(now_speaker).to_have_text('발언자 미확인')
+    expect(now_source).to_have_text('지금 음성 인식 · 미검토')
+    finish_transcript(reference_page, 0, 200, official_transcript('5483', [
+        {'name':'정연화','role':'의원','start':3600,'end':3800,'text':heard+' '+next_heard}
+    ]))
+    reference_caption = '개인 자막 · 공식 회의록 대조 추정'
+    expect(track_summary).to_contain_text('이 회의의 공식 발언록')
+    expect(now_speaker).to_have_text('정연화 의원 · 추정')
+    expect(now_source).to_have_text(reference_caption)
+    expect(reference_page.locator('.vod-cue .vod-cue-speaker')).to_have_text('정연화 의원 · 추정')
+    expect(reference_page.locator('.vod-cue .vod-cue-source')).to_have_text(reference_caption)
+    emit_personal(reference_page, 3725, next_heard)
+    expect(now_speaker).to_have_text('정연화 의원 · 추정')
+    expect(now_source).to_have_text(reference_caption)
+    expect(reference_page.locator('.vod-cue')).to_have_count(2)
+
+    select.select_option('2')
+    start_personal(reference_page, 2)
+    staff_intro = '안녕하십니까. 자원행정팀장 김정아입니다.'
+    emit_personal(reference_page, 127, staff_intro)
+    expect(now_speaker).to_have_text('김정아 자원행정팀장 · 추정')
+    expect(now_source).to_have_text('지금 음성 인식 · 미검토')
+    finish_transcript(reference_page, 1, 200, official_transcript('2', [
+        {'name':'김정아','role':'자원행정팀장','text':staff_intro}
+    ]))
+    expect(now_speaker).to_have_text('김정아 자원행정팀장 · 추정')
+    expect(now_source).to_have_text(reference_caption)
+
+    select.select_option('5483')
+    start_personal(reference_page, 3)
+    select.select_option('2')
+    start_personal(reference_page, 4)
+    assert reference_page.evaluate('window.transcriptRequests[2].signal.aborted')
+    emit_personal(reference_page, 3715, heard)
+    finish_transcript(reference_page, 2, 200, official_transcript('5483', [
+        {'name':'정연화','role':'의원','text':heard}
+    ]))
+    expect(now_speaker).to_have_text('발언자 미확인')
+    expect(track_summary).to_contain_text('발언자 대조 자료를 불러오는 중')
+    finish_transcript(reference_page, 3, 200, official_transcript('2', []))
+    expect(track_summary).to_contain_text('공개된 발언록이 없어')
+    emit_personal(reference_page, 3725, staff_intro)
+    expect(now_speaker).to_have_text('김정아 자원행정팀장 · 추정')
+    expect(now_source).to_have_text('지금 음성 인식 · 미검토')
+
+    select.select_option('5483')
+    start_personal(reference_page, 5)
+    finish_transcript(reference_page, 4, 503, {'error':'official_source_unavailable'})
+    expect(track_summary).to_contain_text('발언록을 불러오지 못해')
+    emit_personal(reference_page, 3725, '자원행정 과장입니다.')
+    expect(now_speaker).to_have_text('과장 · 추정')
+    expect(now_source).to_have_text('지금 음성 인식 · 미검토')
+    reference_page.close()
+    print('PASS: official transcript beyond static cues, late source updates, meeting isolation, empty and error fallback')
     browser.close()

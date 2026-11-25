@@ -8,11 +8,19 @@ self.onmessage = async ({data}) => {
       const { pipeline, env } = await import(TRANSFORMERS);
       env.allowLocalModels = false;
       env.backends.onnx.wasm.numThreads = 1;
-      transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny', {
+      const options = {
         quantized: true,
         progress_callback: p => self.postMessage({type:'progress', progress:p})
-      });
-      self.postMessage({type:'ready'});
+      };
+      let model = data.mediaTimeline ? 'Xenova/whisper-base' : 'Xenova/whisper-tiny';
+      try {
+        transcriber = await pipeline('automatic-speech-recognition', model, options);
+      } catch (error) {
+        if (!data.mediaTimeline) throw error;
+        model = 'Xenova/whisper-tiny';
+        transcriber = await pipeline('automatic-speech-recognition', model, options);
+      }
+      self.postMessage({type:'ready', model});
     } catch (error) { self.postMessage({type:'error', message:String(error?.message || error)}); }
   } else if (data.type === 'audio' && transcriber) {
     try {

@@ -246,7 +246,7 @@ async function nameplates(request, bucket, url, meetings, publicKey, clock, veri
   return error(409, 'Concurrent nameplate update');
 }
 
-export function createSite({assets, meetings, publicKey, attributeSpeakers, resolveArchiveVideo}, clock = Date.now) {
+export function createSite({assets, meetings, publicKey, attributeSpeakers, resolveArchiveVideo, resolveArchiveTranscript}, clock = Date.now) {
   let verifier;
   const visualCache = new Map();
   async function visualEvidence(bucket, meeting) {
@@ -325,6 +325,7 @@ export function createSite({assets, meetings, publicKey, attributeSpeakers, reso
   return {async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === '/api/vod/resolve') return resolveArchiveVideo ? resolveArchiveVideo(request) : error(503,'VOD lookup unavailable');
+    if (url.pathname === '/api/vod/transcript') return resolveArchiveTranscript ? resolveArchiveTranscript(request) : error(503,'VOD transcript unavailable');
     if (url.pathname === '/api/live/nameplates') {
       const result = await nameplates(request, env.BUCKET, url, meetings, publicKey, clock, verifySignature);
       if (request.method === 'PUT' && result.ok) visualCache.delete(url.searchParams.get('meetingId'));

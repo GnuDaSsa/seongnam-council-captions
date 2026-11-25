@@ -25,7 +25,9 @@ const html = Buffer.from(entry.body, 'base64').toString('utf8');
 const versionedHtml = html.replace(/\b(src|href)="\.\/([^"?#]+\.(?:js|css))"/g, (match, attr, path) => {
   const asset = assets['/' + path];
   if (!asset) throw new Error('Missing page asset: ' + path);
-  const hash = createHash('sha256').update(Buffer.from(asset.body, 'base64')).digest('hex').slice(0,12);
+  const digest = createHash('sha256').update(Buffer.from(asset.body, 'base64'));
+  if (path === 'tab-captions.js') digest.update(Buffer.from(assets['/asr/worker.js'].body, 'base64'));
+  const hash = digest.digest('hex').slice(0,12);
   return `${attr}="./${path}?v=${hash}"`;
 });
 entry.body = Buffer.from(versionedHtml, 'utf8').toString('base64');
@@ -45,5 +47,5 @@ const siteConfig = JSON.stringify({assets, meetings:catalog.meetings, publicKey}
 await mkdir(join(dist, 'server'), {recursive:true});
 await writeFile(join(dist, 'server/index.js'), worker + '\n' + vodResolver + '\n' + speakerRegistry +
   'const vodIndex = new Map('+JSON.stringify(vodIndex)+'.map(row => [row.id,row]));\n' +
-  'export default createSite({...'+ siteConfig +', attributeSpeakers:speakerModel.attribute, resolveArchiveVideo:req => resolveVod(req,fetch,vodIndex)});\n');
+  'export default createSite({...'+ siteConfig +', attributeSpeakers:speakerModel.attribute, resolveArchiveVideo:req => resolveVod(req,fetch,vodIndex), resolveArchiveTranscript:req => resolveVodTranscript(req,fetch)});\n');
 console.log('Packaged', Object.keys(assets).length, 'assets and', catalog.meetings.length, 'meetings');
