@@ -1,4 +1,4 @@
-﻿(function () {
+(function () {
   'use strict';
   const workerUrl = new URL('asr/worker.js', document.currentScript.src);
   let session = null;
@@ -12,26 +12,32 @@
     s.source?.disconnect();
     s.silent?.disconnect();
     if (s.context) s.context.close().catch(() => {});
-    s.stream?.getTracks().forEach(t => t.stop());
+    if (!s.playerMode) s.stream?.getTracks().forEach(t => t.stop());
     if (s.video && s.video.srcObject === s.stream) { s.video.pause(); s.video.srcObject = null; }
     s.onEnd?.();
   }
-  async function start({video, onCue = () => {}, onStatus = () => {}, onEnd = () => {}}) {
+  async function start({video, onCue = () => {}, onStatus = () => {}, onEnd = () => {}, playerMode = false}) {
     if (session) stop();
     if (!navigator.mediaDevices?.getDisplayMedia) throw new Error('이 브라우저에서는 화면 공유를 사용할 수 없습니다.');
-    const s = {video, onCue, onStatus, onEnd, stopped:false, busy:false, ready:false, pending:null};
+    const s = {video, onCue, onStatus, onEnd, playerMode, stopped:false, busy:false, ready:false, pending:null};
     session = s;
     try {
-      // Called before any awaits so the browser can use the user's click activation.
-      s.stream = await navigator.mediaDevices.getDisplayMedia({video:true, audio:true});
-      if (s.stopped) { s.stream.getTracks().forEach(t => t.stop()); return; }
-      if (!s.stream.getAudioTracks().length) throw new Error('공유된 오디오가 없습니다. 브라우저 탭과 탭 오디오 공유를 선택해 주세요.');
-      s.stream.getVideoTracks()[0].addEventListener('ended', () => { if (session === s) stop(); });
-      video.srcObject = s.stream;
-      video.muted = true; // Prevent a captured tab from being fed back into itself.
-      video.playsInline = true;
-      await video.play();
-      if (s.stopped) return;
+      if (playerMode) {
+        if (typeof video.captureStream !== 'function') throw new Error('? ????? ?? ??? ??? ???? ????. ? ??? ??? ???.');
+        s.stream = video.captureStream();
+        if (!s.stream.getAudioTracks().length) throw new Error('?? ???? ?? ???? ?????. ??? ??? ? ?? ??? ???.');
+      } else {
+        // Called before any awaits so the browser can use the user's click activation.
+        s.stream = await navigator.mediaDevices.getDisplayMedia({video:true, audio:true});
+        if (s.stopped) { s.stream.getTracks().forEach(t => t.stop()); return; }
+        if (!s.stream.getAudioTracks().length) throw new Error('??? ???? ????. ???? ?? ? ??? ??? ??? ???.');
+        s.stream.getVideoTracks()[0].addEventListener('ended', () => { if (session === s) stop(); });
+        video.srcObject = s.stream;
+        video.muted = true; // Prevent a captured tab from being fed back into itself.
+        video.playsInline = true;
+        await video.play();
+        if (s.stopped) return;
+      }
       s.context = new (window.AudioContext || window.webkitAudioContext)();
       s.source = s.context.createMediaStreamSource(s.stream);
       s.processor = s.context.createScriptProcessor(4096, 1, 1);
@@ -91,6 +97,6 @@
       throw error;
     }
   }
-  window.CouncilTabCapture = {start, stop};
+  window.CouncilTabCapture = {start, startPlayer: options => start({...options, playerMode:true}), stop};
 })();
 
