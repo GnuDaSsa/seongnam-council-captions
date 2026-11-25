@@ -36,6 +36,12 @@ const context = {
   clearTimeout(id) { timers.delete(id); },
   CouncilExports:{minutesHwpx(data){context.exported=data; return new Blob(['test']);}}
 };
+vm.runInNewContext(fs.readFileSync('dist/asr/quality.js','utf8'),context);
+context.window.CouncilQuality = context.CouncilQuality;
+assert.equal(context.CouncilQuality.repeated('-그러니까요.'.repeat(41)),true);
+assert.equal(context.CouncilQuality.repeated('이 제품은 '.repeat(80)),true);
+assert.equal(context.CouncilQuality.repeated('네 네, 그렇습니다. 네 네, 알겠습니다.'),false);
+assert.equal(context.CouncilQuality.repeated('사업은 중요합니다. 사업이 필요한 이유와 사업 추진 방향을 설명하겠습니다.'),false);
 vm.runInNewContext(fs.readFileSync('dist/live.js','utf8'),context);
 const flush = () => new Promise(resolve=>setImmediate(resolve));
 async function settle() { for(let i=0;i<5;i++) await flush(); }
@@ -64,6 +70,13 @@ async function run() {
   assert.match(context.exported.segments[0].text,/검토 필요: 숫자 확인, 이름 확인/);
   assert.match(context.exported.segments[0].text,/인식 원문: 원문/);
   assert.equal(context.exported.segments[0].end,2);
+  const next=[...timers.entries()].find(([,t])=>t.delay===3000); timers.delete(next[0]); next[1].fn();
+  const noisy=feed('2852','-그러니까요.'.repeat(41)); noisy.cues[0].rawText=noisy.cues[0].text;
+  pending.shift().resolve(response(noisy)); await settle();
+  assert.match(el('live-captions').allText,/반복 오류/);
+  el('live-save').onclick();
+  assert.match(context.exported.segments[0].text,/재확인 필요/);
+  assert.doesNotMatch(context.exported.segments[0].text,/그러니까요/);
   console.log('PASS: second polling, late response isolation, default selection, status, flags and export');
 }
 run().catch(error=>{console.error(error);process.exitCode=1});

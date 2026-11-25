@@ -37,3 +37,17 @@ python tools/council_minutes.py --from-meeting 'C:\recordings\meeting.json' --ou
 공식 참고: [파일 전사 가이드](https://developers.openai.com/api/docs/guides/speech-to-text), [GPT-Transcribe 모델](https://developers.openai.com/api/docs/models/gpt-transcribe), [GPT-6.1 Terra 모델](https://developers.openai.com/api/docs/models/gpt-6.1-terra), [텍스트 생성](https://developers.openai.com/api/docs/guides/text). 파일 전사는 최대 25 MB이며 타임스탬프 세분화 옵션은 whisper-1 전용입니다. 이 도구는 32 kbps 단일 채널로 분할하고 각 파일이 24 MB 미만인지 확인합니다.
 
 모의 테스트: `python -m unittest discover -s tools -p "test_*.py"` (API 호출 및 실제 음성 파일 불필요).
+## 생중계 공유 자막 운영
+
+운영 PC 한 대에서 회의별 음성을 받아 모델 하나로 처리한다. 2026년 11월 25일 편성에는 공식 인터넷방송 3개 채널과 별도로 송출하는 현지감사 유튜브 1개 채널이 있다. 공유 전사기는 공식 인터넷방송 채널을 지원한다. 방송 선택과 자막 열람에는 시청자의 API 키가 필요 없다.
+
+Windows 운영 환경은 FFmpeg, Python 3.11, `faster-whisper` 1.2.1, NumPy, cryptography를 사용한다. 운영 PC의 `%LOCALAPPDATA%\SeongnamCouncilDesk\models\faster-whisper-small`에 변환된 다국어 small 모델이 있어야 한다. 서명용 Ed25519 개인키는 같은 운영 디렉터리의 `signing.pem`에 보관한다. 사이트에는 검증용 공개키만 `worker/publisher.pub`에 둔다.
+
+```powershell
+python tools/shared_stt.py --meeting-id 2853 --meeting-id 2855 --meeting-id 2852 --endpoint https://seongnam-council-desk.gnudas0923.chatgpt.site --end-at 2026-11-25T23:59:59+09:00
+```
+
+새 회의를 편성할 때는 공식 일정, 회의별 플레이어, 회의명이 일치하는지 확인해 `dist/data/live-meetings.json`을 갱신한다. 외청 현지감사는 해당 날짜와 기관이 명시된 공식 유튜브 영상 ID를 쓴다. 사이트 소스를 바꾸면 `node tools/build_live_site.mjs`로 Worker를 다시 생성한 뒤 게시한다.
+
+조회 주소는 `/api/live/captions?meetingId=2853`와 같은 형태다. 시작 전에는 404, 연결 중에는 회의 ID·최근 자막·갱신 시각·수집 상태가 담긴 JSON을 반환한다. 화면에서 저장하는 한글 초안의 범위는 그 시점에 표시된 구간이다. 위원 명단은 이름 표기의 참고 자료이며 출석 및 발언자는 원음과 공식 기록으로 확인한다.
+

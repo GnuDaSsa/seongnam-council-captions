@@ -71,7 +71,7 @@
           if (s.pending) { const next=s.pending; s.pending=null; dispatch(next); }
         } else if (data.type === 'result') {
           s.busy = false;
-          if (data.text.trim()) onCue({text:data.text.trim(), start:data.start, end:data.end});
+          if (data.text.trim()) onCue({text:data.text.trim(), rawText:data.text.trim(), rejected:!!data.rejected, start:data.start, end:data.end});
           if (s.pending) { const next=s.pending; s.pending=null; dispatch(next); }
         } else if (data.type === 'error') {
           onStatus('음성 인식 오류: ' + data.message); stop();
