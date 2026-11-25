@@ -6,3 +6,11 @@
 #player-captions{background:#174eaa;border-color:#174eaa;color:white}#live-save:disabled{opacity:.45;cursor:default}.capture-actions{flex-wrap:wrap}
 
 .caption-toolbar button{padding:.6rem .95rem;border:1px solid #bcc9d9;border-radius:5px;background:#fff;font-size:.9rem;font-weight:650;line-height:1.4}.caption-toolbar #player-captions{background:#174eaa;color:white;border-color:#174eaa}
+
+.cue-review,.cue-raw { display:block; margin-top:.25rem; font-size:.78rem; color:#685c4c; }
+.caption-footer details { margin-top:.7rem; }
+.caption-footer summary { cursor:pointer; font-weight:600; }
+.caption-footer .capture-actions { flex-wrap:wrap; gap:.4rem; margin-top:.5rem; }
+.page-heading label[for="live-meeting-select"] { color:#42566e; font-size:.88rem; font-weight:650; margin-right:.5rem; }
+#live-meeting-select { appearance:none; font:inherit; font-weight:650; color:#19334e; padding:.55rem 2rem .55rem .75rem; border:1px solid #a6b6c7; border-radius:.4rem; background:white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%23475f76' stroke-width='1.5'/%3E%3C/svg%3E") right .65rem center / .7rem auto no-repeat; cursor:pointer; margin-bottom:.9rem; }
+@media(max-width:600px) { #live-panel .page-heading { display:block; } #live-status { margin-top:.6rem; } }

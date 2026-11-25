@@ -1,0 +1,125 @@
+{
+  "date": "2026-11-25",
+  "schedule": "https://cast.sncouncil.go.kr/schedule/live_schedule.jsp?sch_year=2026&sch_month=11&sch_day=25",
+  "meetings": [
+    {
+      "id": "2853",
+      "title": "경제환경위원회",
+      "label": "행정사무감사 제1일차",
+      "scheduledAt": "2026-11-25T13:30:00+09:00",
+      "endsAt": "2026-11-25T23:59:59+09:00",
+      "officialPage": "https://cast.sncouncil.go.kr/live/flashPlayer.jsp?live_no=2853",
+      "provider": "hls",
+      "source": "https://cast.sncouncil.go.kr/live/flashPlayer.jsp?live_no=2853",
+      "playlist": "https://cast.sncouncil.go.kr:4443/live/ch2.sdp/playlist.m3u8",
+      "agenda": [
+        "환경보건국",
+        "환경정책과",
+        "자원순환과",
+        "기후에너지과",
+        "푸른도시사업소",
+        "공원과",
+        "녹지과",
+        "생태하천과"
+      ],
+      "members": [
+        "안광환",
+        "장일남",
+        "김옥수",
+        "서은경",
+        "정봉규",
+        "정연화",
+        "조우현"
+      ],
+      "memberSource": "https://www.sncouncil.go.kr/committee/C050/main.do"
+    },
+    {
+      "id": "2852",
+      "title": "행정교육위원회",
+      "label": "행정사무감사 제1일차",
+      "scheduledAt": "2026-11-25T13:30:00+09:00",
+      "endsAt": "2026-11-25T23:59:59+09:00",
+      "officialPage": "https://cast.sncouncil.go.kr/live/flashPlayer.jsp?live_no=2852",
+      "provider": "hls",
+      "source": "https://cast.sncouncil.go.kr/live/flashPlayer.jsp?live_no=2852",
+      "playlist": "https://cast.sncouncil.go.kr:4443/live/ch1.sdp/playlist.m3u8",
+      "agenda": [
+        "소통관",
+        "공보관",
+        "감사관",
+        "재난안전관"
+      ],
+      "members": [
+        "김보석",
+        "이종목",
+        "김선임",
+        "김주현",
+        "선창선",
+        "순선영",
+        "임원규"
+      ],
+      "memberSource": "https://www.sncouncil.go.kr/committee/C030/main.do"
+    },
+    {
+      "id": "2854",
+      "title": "문화복지체육위원회",
+      "label": "행정사무감사 제1일차",
+      "scheduledAt": "2026-11-25T13:30:00+09:00",
+      "endsAt": "2026-11-25T23:59:59+09:00",
+      "officialPage": "https://cast.sncouncil.go.kr/live/flashPlayer.jsp?live_no=2854",
+      "provider": "youtube",
+      "source": "https://www.youtube.com/watch?v=X0Y10WS0HMg",
+      "playlist": null,
+      "youtubeId": "X0Y10WS0HMg",
+      "agenda": [
+        "성남문화재단",
+        "감사실",
+        "경영본부",
+        "예술본부",
+        "문화본부"
+      ],
+      "members": [
+        "윤혜선",
+        "백진규",
+        "김건우",
+        "김소희",
+        "민영미",
+        "이세미",
+        "장정현",
+        "추선미"
+      ],
+      "memberSource": "https://www.sncouncil.go.kr/committee/C060/main.do"
+    },
+    {
+      "id": "2855",
+      "title": "도시건설위원회",
+      "label": "행정사무감사 제1일차",
+      "scheduledAt": "2026-11-25T13:30:00+09:00",
+      "endsAt": "2026-11-25T23:59:59+09:00",
+      "officialPage": "https://cast.sncouncil.go.kr/live/flashPlayer.jsp?live_no=2855",
+      "provider": "hls",
+      "source": "https://cast.sncouncil.go.kr/live/flashPlayer.jsp?live_no=2855",
+      "playlist": "https://cast.sncouncil.go.kr:4443/live/ch4.sdp/playlist.m3u8",
+      "agenda": [
+        "도시주택국",
+        "도시계획과",
+        "건축과",
+        "주택과",
+        "공동주택과",
+        "건축안전관리과"
+      ],
+      "members": [
+        "박기범",
+        "이정아",
+        "김종환",
+        "안극수",
+        "오종길",
+        "이군수",
+        "이상호",
+        "최옥희",
+        "최종성"
+      ],
+      "memberSource": "https://www.sncouncil.go.kr/committee/C085/main.do"
+    }
+  ]
+}
