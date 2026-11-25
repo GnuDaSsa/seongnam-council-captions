@@ -1,5 +1,7 @@
 # 10-minute public recording evaluation
 
+For the comparison of four committee excerpts and the production retry strategy, see the [2026-11-25 committee evaluation](20261125_comparison.md).
+
 Source: [official VOD and posted chapter transcripts](https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5467&position=591), 2026-09-07 plenary session, original 591–1191 seconds. The selected 600 seconds are saved outside this repository as 16 kHz mono PCM. Its first 388 seconds are chapter 3 and the remainder is chapter 4. Downloading the player HTML and HLS and extracting its audio requires access to the official public server. Do not submit audio or text to a remote transcription service.
 
 WAV SHA-256: `643ee7c02753fd16b592da87bf57ced52a138bed0bf905d2369cc2604424c0cb`.

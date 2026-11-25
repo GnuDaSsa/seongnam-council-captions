@@ -95,8 +95,9 @@ def cue_batch(segments, chunk_start, chunk_duration, origin, first_id):
             not math.isfinite(origin) or chunk_duration <= 0 or chunk_start < 0 or \
             chunk_start + chunk_duration > 86400:
         raise ValueError('invalid source audio chunk interval')
+    rounded_chunk_start = round(chunk_start, 3)
     chunk_end = round(chunk_start + chunk_duration, 3)
-    if chunk_end <= round(chunk_start, 3):
+    if chunk_end <= rounded_chunk_start:
         raise ValueError('source audio chunk interval is below timestamp precision')
 
     ordered = []
@@ -114,7 +115,7 @@ def cue_batch(segments, chunk_start, chunk_duration, origin, first_id):
                 reason = 'non_finite_time'
             elif start < 0 or end > chunk_duration or absolute_end > 86400:
                 reason = 'outside_source_chunk'
-            elif start >= end or absolute_start < chunk_start or absolute_end <= absolute_start:
+            elif start >= end or absolute_start < rounded_chunk_start or absolute_end <= absolute_start:
                 reason = 'non_positive_interval'
             elif len(raw) > 2000 or len(text) > 2000:
                 reason = 'text_too_long'
@@ -154,7 +155,7 @@ def cue_batch(segments, chunk_start, chunk_duration, origin, first_id):
         for raw, source_flags in groups:
             counter += 1
             flags = ['segment_review'] + list(dict.fromkeys(source_flags))[:11]
-            cues.append({'id': str(counter), 'start': round(chunk_start, 3), 'end': chunk_end,
+            cues.append({'id': str(counter), 'start': rounded_chunk_start, 'end': chunk_end,
                          'rawText': raw or '[original text unavailable]',
                          'observedAt': dt.datetime.fromtimestamp(origin + chunk_start, dt.timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z'),
                          'text': '[인식 구간 오류 · 원본 청크 전체 재확인 필요]',

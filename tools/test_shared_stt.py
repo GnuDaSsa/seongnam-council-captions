@@ -70,6 +70,15 @@ class ProducerTests(unittest.TestCase):
         self.assertEqual([(cue['start'], cue['end']) for cue in batch], [(10.2, 10.8), (11.5, 12.0)])
         self.assertTrue(all(0 <= cue['start'] < cue['end'] <= 13.0 for cue in batch))
 
+    def test_cue_batch_accepts_start_at_rounded_chunk_origin(self):
+        for chunk_start in (0.1 + 0.2, 10.0004):
+            batch, _, reasons = stt.cue_batch(
+                [self.segment('valid', 0.0, 1.0)], chunk_start, 3.0, 100.0, 0)
+            self.assertEqual(reasons, {})
+            self.assertEqual(len(batch), 1)
+            self.assertEqual(batch[0]['rawText'], 'valid')
+            self.assertEqual(batch[0]['start'], round(chunk_start, 3))
+
     def test_invalid_segment_times_become_chunk_review_without_dropping_text(self):
         segments = [
             self.segment('zero duration', 0.5, 0.5),
