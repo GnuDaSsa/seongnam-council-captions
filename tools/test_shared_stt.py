@@ -1,5 +1,6 @@
 import base64
 import io
+import math
 import tempfile
 import unittest
 from types import SimpleNamespace
@@ -53,6 +54,61 @@ class ProducerTests(unittest.TestCase):
         _, visible, flags = stt.quality_decision(SimpleNamespace(text='불확실한 발언', avg_logprob=-1.5, no_speech_prob=0.8))
         self.assertEqual(visible, '[음성 재확인]')
         self.assertIn('severe_uncertainty', flags)
+
+
+    @staticmethod
+    def segment(text, start, end):
+        return SimpleNamespace(text=text, start=start, end=end, avg_logprob=-0.2,
+                               no_speech_prob=0.1, compression_ratio=1.0)
+
+    def test_cue_batch_sorts_valid_segments_and_keeps_chunk_smoke_payload(self):
+        segments = [self.segment('later', 1.5, 2.0), self.segment('earlier', 0.2, 0.8)]
+        batch, counter, reasons = stt.cue_batch(segments, 10.0, 3.0, 100.0, 7)
+        self.assertEqual(reasons, {})
+        self.assertEqual(counter, 9)
+        self.assertEqual([cue['rawText'] for cue in batch], ['earlier', 'later'])
+        self.assertEqual([(cue['start'], cue['end']) for cue in batch], [(10.2, 10.8), (11.5, 12.0)])
+        self.assertTrue(all(0 <= cue['start'] < cue['end'] <= 13.0 for cue in batch))
+
+    def test_invalid_segment_times_become_chunk_review_without_dropping_text(self):
+        segments = [
+            self.segment('zero duration', 0.5, 0.5),
+            self.segment('reversed', 1.5, 1.0),
+            self.segment('not finite', math.nan, 1.2),
+            self.segment('negative', -0.1, 0.2),
+            self.segment('outside chunk', 2.5, 3.1),
+            self.segment('valid', 0.2, 0.8),
+        ]
+        batch, _, reasons = stt.cue_batch(segments, 10.0, 3.0, 100.0, 0)
+        self.assertEqual(reasons, {'non_finite_time': 1, 'non_positive_interval': 2,
+                                   'outside_source_chunk': 2})
+        self.assertEqual([cue['rawText'] for cue in batch if cue['rawText'] == 'valid'], ['valid'])
+        review = [cue for cue in batch if 'segment_review' in cue['flags']]
+        self.assertEqual(len(review), 1)
+        self.assertEqual((review[0]['start'], review[0]['end']), (10.0, 13.0))
+        self.assertEqual(set(review[0]['rawText'].splitlines()),
+                         {'zero duration', 'reversed', 'not finite', 'negative', 'outside chunk'})
+        self.assertEqual(review[0]['text'], '[인식 구간 오류 · 원본 청크 전체 재확인 필요]')
+        self.assertTrue(all(0 <= cue['start'] < cue['end'] <= 86400 for cue in batch))
+
+    def test_oversized_text_is_split_into_chunk_review_items(self):
+        raw = '가' * 4100
+        batch, _, reasons = stt.cue_batch([self.segment(raw, 0.2, 0.8)], 10.0, 3.0, 100.0, 0)
+        review = [cue for cue in batch if 'segment_review' in cue['flags']]
+        self.assertEqual(reasons, {'text_too_long': 1})
+        self.assertEqual(''.join(cue['rawText'].replace('\n', '') for cue in review), raw)
+        self.assertTrue(all(len(cue['rawText']) <= 2000 and cue['end'] == 13.0 for cue in review))
+
+    def test_chunk_review_preserves_severe_uncertainty_flags_for_raw_comparison(self):
+        uncertain = self.segment('불확실 발화', 1.0, 1.0)
+        uncertain.avg_logprob = -1.5
+        uncertain.no_speech_prob = 0.8
+        batch, _, _ = stt.cue_batch([uncertain], 10.0, 3.0, 100.0, 0)
+        review = batch[0]
+        self.assertIn('segment_review', review['flags'])
+        self.assertIn('severe_uncertainty', review['flags'])
+        self.assertEqual(review['rawText'], '불확실 발화')
+        self.assertNotEqual(review['text'], review['rawText'])
 
 
 if __name__ == '__main__': unittest.main()

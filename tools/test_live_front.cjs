@@ -26,7 +26,7 @@ const feed = (id,text,status='live') => ({meetingId:id,updatedAt:new Date().toIS
 const location = {href:'https://example.test/?live=invalid'};
 const context = {
   document:{getElementById:el,createElement:()=>new Element()},
-  window:{CouncilTabCapture:{stop(){}}}, URL, Date, Intl, console, location,
+  window:{CouncilTabCapture:{stop(){}},CouncilLiveMinutes:{select(){}}}, URL, Date, Intl, console, location,
   history:{replaceState(_a,_b,url){location.href=String(url)}},
   fetch(url) {
     calls.push(url);

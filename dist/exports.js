@@ -23,6 +23,14 @@
       m.agenda.forEach((item, index) => result.push((index + 1) + ". " + clean(item)));
     }
     const segments = Array.isArray(m.segments) ? m.segments : [];
+    if (Array.isArray(m.confirmedItems) && m.confirmedItems.length) {
+      result.push("", "담당자가 확인한 자료 제출 요청·의결");
+      const byId = new Map(segments.map(segment => [String(segment.id), segment]));
+      for (const item of m.confirmedItems) {
+        const cited = (item.cueIds || []).map(id => byId.get(String(id))).filter(Boolean);
+        if (cited.length) result.push("[" + clean(item.kind) + "] " + clean(item.text) + "  (근거 " + cited.map(s => timestamp(s.start)).join(", ") + ")");
+      }
+    }
     if (Array.isArray(m.draft?.items) && m.draft.items.length) {
       result.push("", "검토용 요약");
       const byId = new Map(segments.map(segment => [String(segment.id), segment]));

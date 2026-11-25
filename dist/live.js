@@ -1,10 +1,10 @@
-﻿(() => {
+(() => {
   'use strict';
   const el = id => document.getElementById(id);
   let meeting = null, meetingId = '', source = '', playlist = '', selection = 0, meetings = [];
   let pollTimer, scheduleTimer;
   const video = el('live-video'), frame = el('live-video-placeholder'), captions = el('live-captions');
-  let hls, retry, mode = '', started = 0, generation = 0, lastShared = null, localCues = [];
+  let hls, retry, mode = '', generation = 0, lastShared = null, localCues = [];
 
   function report(text) { el('caption-status').textContent = text; }
   function stopPlayer() { clearTimeout(retry); hls?.destroy(); hls = null; }
@@ -73,16 +73,16 @@
     const n = Math.max(0, Math.floor(Number(seconds) || 0));
     return `${String(Math.floor(n / 3600)).padStart(2,'0')}:${String(Math.floor(n / 60) % 60).padStart(2,'0')}:${String(n % 60).padStart(2,'0')}`;
   }
-  const flagNames = {number:'숫자 확인', name:'이름 확인', proceeding:'출석·표결 확인', repetition:'구절 반복', low_confidence:'인식 불확실', severe_uncertainty:'원음 대조 필요'};
+  const flagNames = {number:'숫자 확인', name:'이름 확인', proceeding:'출석·표결 확인', repetition:'구절 반복', low_confidence:'인식 불확실', severe_uncertainty:'원음 대조 필요', segment_review:'해당 구간 재확인'};
   function reviewFlags(cue) { return Array.isArray(cue.flags) ? cue.flags.map(flag => flagNames[flag] || '추가 확인') : []; }
   function rejected(cue) {
-    return !!cue.rejected || cue.flags?.includes('severe_uncertainty') || cue.flags?.includes('repetition') ||
+    return !!cue.rejected || cue.flags?.includes('severe_uncertainty') || cue.flags?.includes('segment_review') || cue.flags?.includes('repetition') ||
       (cue.flags?.includes('low_confidence') && cue.text === '[음성 재확인]') ||
       !!window.CouncilQuality?.repeated(cue.text) || !!window.CouncilQuality?.repeated(cue.rawText);
   }
   function safeText(cue) {
     if (!rejected(cue)) return String(cue.text || cue.rawText || '');
-    return cue.flags?.includes('low_confidence') ? '[음성 재확인 필요]' : '[음성 인식 반복 오류 · 해당 구간 재확인 필요]';
+    return cue.flags?.includes('low_confidence') || cue.flags?.includes('segment_review') ? '[음성 재확인 필요]' : '[음성 인식 반복 오류 · 해당 구간 재확인 필요]';
   }
   function render(cues) {
     const follow = captions.scrollHeight-captions.scrollTop-captions.clientHeight < 80;
@@ -146,7 +146,7 @@
     if (mode) return;
     if (which === 'player' && (meeting?.provider === 'youtube' || !video.readyState)) { report('영상을 재생한 뒤 개인 자막을 켜 주세요. 유튜브는 다른 탭 공유를 이용하세요.'); return; }
     const session = ++generation;
-    mode = which; controls(true); started = Date.now(); localCues = []; el('local-save').disabled = true; render(localCues);
+    mode = which; controls(true); localCues = []; el('local-save').disabled = true; el('local-save-txt').disabled = true; render(localCues);
     if (which === 'tab') stopPlayer();
     else { video.muted = false; video.play().catch(() => {}); }
     try {
@@ -154,7 +154,7 @@
       const handler = which === 'tab' ? recognizer.start : recognizer.startPlayer;
       await handler({video, onCue: cue => {
         if (session !== generation || !String(cue.text || '').trim()) return;
-        localCues.push({id:String(localCues.length+1),start:Number(cue.start),end:Number(cue.end),observedAt:started+Number(cue.start)*1000,text:cue.text,rawText:cue.rawText || cue.text,rejected:cue.rejected,flags:[]}); el('local-save').disabled = false; render(localCues);
+        localCues.push({id:String(localCues.length+1),start:Number(cue.start),end:Number(cue.end),observedAt:cue.observedAt,text:cue.text,rawText:cue.rawText || cue.text,rejected:cue.rejected,flags:[]}); el('local-save').disabled = false; el('local-save-txt').disabled = false; render(localCues);
       }, onStatus: text => { if (session === generation) report(`개인 자막 · ${text}`); },
       onEnd: () => { if (session !== generation) return; mode=''; controls(false); if (lastShared) { render(lastShared.cues); report(sharedStatus(lastShared)); } else { render([]); report('공유 자막을 확인하는 중입니다.'); } if (which === 'tab') openBroadcast(); }});
     } catch (error) {
@@ -167,15 +167,17 @@
   el('player-captions').onclick = () => start('player');
   el('capture-start').onclick = () => start('tab');
   el('capture-stop').onclick = () => { window.CouncilTabCapture.stop(); };
-  function saveCues(cues, personal) {
+  function saveCues(cues, personal, textOnly = false) {
     if (!cues.length) return;
     const segments = cues.map(cue => ({id:cue.id,start:cue.start,end:cue.end,speaker:'',text:[cue.observedAt ? `수집 시각: ${new Date(cue.observedAt).toLocaleString('ko-KR', {timeZone:'Asia/Seoul'})}` : '', safeText(cue), !rejected(cue) && cue.rawText && cue.rawText !== cue.text ? `인식 원문: ${cue.rawText}` : '', reviewFlags(cue).length ? `검토 필요: ${reviewFlags(cue).join(', ')}` : ''].filter(Boolean).join('\n'),status:rejected(cue) ? '인식 오류 · 재확인 필요' : 'AI 전사 · 미검토'}));
-    const blob=CouncilExports.minutesHwpx({title:`${meeting.title} ${meeting.label}`,date:meeting.scheduledAt?.slice(0,10) || '',body:`성남시의회 ${meeting.title}`,sourceUrl:source,coverage:personal ? '이 브라우저에서 수집한 자동 자막.' : '저장 시 표시된 공유 자동 자막.',segments});
+    const doc={title:`${meeting.title} ${meeting.label}`,date:meeting.scheduledAt?.slice(0,10) || '',body:`성남시의회 ${meeting.title}`,sourceUrl:source,coverage:personal ? '이 브라우저에서 수집한 자동 자막.' : '저장 시 표시된 공유 자동 자막.',segments};
+    const blob = textOnly ? new Blob([CouncilExports.minutesText(doc)], {type:'text/plain;charset=utf-8'}) : CouncilExports.minutesHwpx(doc);
     const url=URL.createObjectURL(blob), a=document.createElement('a');
-    a.href=url; a.download=`${meeting.title}_${meeting.label}_자막초안.hwpx`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),3000);
+    a.href=url; a.download=`${meeting.title}_${meeting.label}_자막초안.${textOnly ? "txt" : "hwpx"}`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),3000);
   }
   el('live-save').onclick = () => saveCues(mode ? localCues : (lastShared?.cues || []), !!mode);
   el('local-save').onclick = () => saveCues(localCues, true);
+  el('local-save-txt').onclick = () => saveCues(localCues, true, true);
   video.muted=true;
   report('공유 자막을 확인하는 중입니다.');
   function selectMeeting(id) {
@@ -186,8 +188,9 @@
     stopPlayer(); video.pause(); video.srcObject = null; video.removeAttribute('src'); video.load(); video.muted = true;
     frame.hidden = false; frame.querySelector('p').textContent = '공유 자막을 확인하는 중입니다.';
     meeting = chosen; meetingId = String(chosen.id); source = chosen.source; playlist = chosen.playlist;
+    window.CouncilLiveMinutes.select(chosen);
     el('live-inline-frame').hidden = true; el('live-inline-frame').removeAttribute('src');
-    lastShared = null; localCues = []; el('local-save').disabled = true; render([]);
+    lastShared = null; localCues = []; el('local-save').disabled = true; el('local-save-txt').disabled = true; render([]);
     el('live-meeting-select').value = meetingId;
     el('live-title').textContent = `${chosen.title} ${chosen.label}`;
     const when = chosen.scheduledAt ? new Intl.DateTimeFormat('ko-KR', {timeZone:'Asia/Seoul',month:'numeric',day:'numeric',weekday:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(chosen.scheduledAt)) : '';

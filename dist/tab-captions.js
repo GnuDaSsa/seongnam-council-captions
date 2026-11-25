@@ -53,7 +53,7 @@
           stop();
         }
       }, 120000);
-      let blocks = [], length = 0, position = 0;
+      let blocks = [], length = 0, position = 0, firstFrameWallTime = null;
       const rate = s.context.sampleRate, chunkSamples = Math.round(rate * 8);
       function dispatch(chunk) {
         s.busy = true;
@@ -71,7 +71,7 @@
           if (s.pending) { const next=s.pending; s.pending=null; dispatch(next); }
         } else if (data.type === 'result') {
           s.busy = false;
-          if (data.text.trim()) onCue({text:data.text.trim(), rawText:data.text.trim(), rejected:!!data.rejected, start:data.start, end:data.end});
+          if (data.text.trim()) onCue({text:data.text.trim(), rawText:data.text.trim(), rejected:!!data.rejected, start:data.start, end:data.end, observedAt:firstFrameWallTime === null ? null : firstFrameWallTime + Number(data.start) * 1000});
           if (s.pending) { const next=s.pending; s.pending=null; dispatch(next); }
         } else if (data.type === 'error') {
           onStatus('음성 인식 오류: ' + data.message); stop();
@@ -80,6 +80,8 @@
       s.worker.onerror = e => { onStatus('음성 인식 모듈 오류: ' + e.message); stop(); };
       s.processor.onaudioprocess = e => {
         const input = e.inputBuffer.getChannelData(0);
+        // The callback receives a completed input block; anchor its first sample, then use the sample clock.
+        if (firstFrameWallTime === null) firstFrameWallTime = Date.now() - input.length / rate * 1000;
         blocks.push(new Float32Array(input)); length += input.length;
         if (length < chunkSamples) return;
         const joined = new Float32Array(length); let off=0;

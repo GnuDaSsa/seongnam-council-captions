@@ -3,6 +3,7 @@ import argparse
 import base64
 import datetime as dt
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -27,9 +28,9 @@ def load_model():
     return WhisperModel(str(MODEL), device='cpu', compute_type='int8', cpu_threads=2, num_workers=1, local_files_only=True)
 
 
-def transcribe_audio(model, audio, previous_text='', hints=''):
+def transcribe_audio(model, audio, previous_text='', hints='', *, beam_size=2):
     duration = len(audio) / 16000 if not isinstance(audio, (str, Path)) else 20
-    segments, _ = model.transcribe(audio, language='ko', beam_size=2, temperature=0.0,
+    segments, _ = model.transcribe(audio, language='ko', beam_size=beam_size, temperature=0.0,
         max_new_tokens=max(32, min(160, int(duration * 8))), vad_filter=True,
         vad_parameters={'min_silence_duration_ms': 500, 'speech_pad_ms': 300},
         condition_on_previous_text=True, initial_prompt=(PROMPT + ' ' + hints[:500] + ' ' + previous_text[-300:]))
@@ -63,6 +64,103 @@ def quality_decision(segment):
         flags.append('severe_uncertainty')
     text = '[음성 재확인]' if 'repetition' in flags or severe else raw
     return raw, text, flags
+
+
+def transcribe_live(model, audio, previous_text='', hints=''):
+    """Retry one suspect chunk from its audio before exposing a review marker."""
+    def suspect(segments):
+        return any(
+            {'repetition', 'severe_uncertainty'}.intersection(quality_decision(seg)[2])
+            for seg in segments
+        )
+
+    first = transcribe_audio(model, audio, previous_text, hints)
+    if not suspect(first):
+        return first
+    second = transcribe_audio(model, audio, previous_text, hints, beam_size=5)
+    usable = [seg for seg in second if seg.text.strip()]
+    if not usable or suspect(usable):
+        return first
+    # A short alternative can omit a different, otherwise usable utterance.
+    for segment in first:
+        if segment.text.strip() and not suspect([segment]) and segment.end > segment.start:
+            if not any(other.end > segment.start and other.start < segment.end for other in usable):
+                return first
+    return second
+
+
+def cue_batch(segments, chunk_start, chunk_duration, origin, first_id):
+    """Build publishable cues; retain unplaceable recognition text for chunk review."""
+    if not math.isfinite(chunk_start) or not math.isfinite(chunk_duration) or \
+            not math.isfinite(origin) or chunk_duration <= 0 or chunk_start < 0 or \
+            chunk_start + chunk_duration > 86400:
+        raise ValueError('invalid source audio chunk interval')
+    chunk_end = round(chunk_start + chunk_duration, 3)
+    if chunk_end <= round(chunk_start, 3):
+        raise ValueError('source audio chunk interval is below timestamp precision')
+
+    ordered = []
+    invalid = []
+    invalid_reasons = {}
+    for index, segment in enumerate(segments):
+        raw, text, flags = quality_decision(segment)
+        if not raw:
+            continue
+        reason = None
+        try:
+            start, end = float(segment.start), float(segment.end)
+            absolute_start, absolute_end = round(chunk_start + start, 3), round(chunk_start + end, 3)
+            if not math.isfinite(start) or not math.isfinite(end):
+                reason = 'non_finite_time'
+            elif start < 0 or end > chunk_duration or absolute_end > 86400:
+                reason = 'outside_source_chunk'
+            elif start >= end or absolute_start < chunk_start or absolute_end <= absolute_start:
+                reason = 'non_positive_interval'
+            elif len(raw) > 2000 or len(text) > 2000:
+                reason = 'text_too_long'
+        except (AttributeError, TypeError, ValueError, OverflowError):
+            reason = 'invalid_time_value'
+        if reason is None:
+            ordered.append((absolute_start, index, absolute_end, raw, text, flags))
+        else:
+            invalid.append((raw, flags))
+            invalid_reasons[reason] = invalid_reasons.get(reason, 0) + 1
+
+    ordered.sort(key=lambda item: (item[0], item[1]))
+    cues = []
+    counter = first_id
+    for start, _, end, raw, text, flags in ordered:
+        counter += 1
+        cues.append({'id': str(counter), 'start': start, 'end': end, 'rawText': raw,
+                     'observedAt': dt.datetime.fromtimestamp(origin + start, dt.timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z'),
+                     'text': text, 'flags': flags})
+
+    # Do not discard text whose timestamps cannot be trusted. Chunk-level timing
+    # keeps each item inside the source audio window without inventing a segment time.
+    if invalid:
+        pieces = []
+        for raw, flags in invalid:
+            while raw:
+                part, raw = raw[:1800], raw[1800:]
+                pieces.append((part, flags))
+        groups = []
+        for part, source_flags in pieces:
+            if groups and len(groups[-1][0]) + 1 + len(part) <= 2000 and \
+                    len(set(groups[-1][1]).union(source_flags, {'segment_review'})) <= 12:
+                groups[-1][0] += '\n' + part
+                groups[-1][1].extend(source_flags)
+            else:
+                groups.append([part, list(source_flags)])
+        for raw, source_flags in groups:
+            counter += 1
+            flags = ['segment_review'] + list(dict.fromkeys(source_flags))[:11]
+            cues.append({'id': str(counter), 'start': round(chunk_start, 3), 'end': chunk_end,
+                         'rawText': raw or '[original text unavailable]',
+                         'observedAt': dt.datetime.fromtimestamp(origin + chunk_start, dt.timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z'),
+                         'text': '[인식 구간 오류 · 원본 청크 전체 재확인 필요]',
+                         'flags': flags})
+        cues.sort(key=lambda cue: cue['start'])
+    return cues, counter, invalid_reasons
 
 
 def utc_now():
@@ -230,17 +328,15 @@ def run(endpoint, end_at, meeting_id, model, decode):
                     raise RuntimeError('transcription result is stale')
             else:
                 segments = []
-            for seg in segments:
-                raw, text, flags = quality_decision(seg)
-                if not raw:
-                    continue
-                counter += 1
-                cues.append({'id': str(counter), 'start': round(start + seg.start, 3),
-                             'end': round(start + seg.end, 3), 'rawText': raw,
-                             'observedAt': dt.datetime.fromtimestamp(origin + start + seg.start, dt.timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z'),
-                             'text': text, 'flags': flags})
-                if text == raw:
-                    previous = (previous + ' ' + raw)[-300:]
+            batch, counter, invalid_reasons = cue_batch(segments, start, len(data) / 32000, origin, counter)
+            if invalid_reasons:
+                print('{} meeting={} cue_interval_review count={} reasons={}'.format(
+                    utc_now(), meeting_id, sum(invalid_reasons.values()),
+                    ','.join('{}:{}'.format(name, count) for name, count in sorted(invalid_reasons.items()))), flush=True)
+            cues.extend(batch)
+            for cue in batch:
+                if cue['text'] == cue['rawText']:
+                    previous = (previous + ' ' + cue['rawText'])[-300:]
             cues[:] = cues[-100:]
             publish('live' if cues and cues[-1]['end'] >= start else 'listening')
             position_path.write_text(json.dumps({'lastEnd': max((c['end'] for c in cues), default=base_position)}), encoding='utf-8')
@@ -281,7 +377,7 @@ def main():
                 started = time.monotonic()
                 print('{} decode_start meeting={} audio_seconds={:.2f} queue={} lag={:.2f}'.format(
                     utc_now(), job['mid'], len(job['audio']) / 16000, jobs.qsize(), job['lag']()), flush=True)
-                job['result'] = transcribe_audio(model, job['audio'], job['previous'], job['hints'])
+                job['result'] = transcribe_live(model, job['audio'], job['previous'], job['hints'])
                 print('{} decode_end meeting={} wall_seconds={:.2f} segments={}'.format(
                     utc_now(), job['mid'], time.monotonic() - started, len(job['result'])), flush=True)
             except Exception as error:

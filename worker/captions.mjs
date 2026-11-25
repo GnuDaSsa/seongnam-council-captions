@@ -40,18 +40,89 @@ function validate(data, meeting, now) {
   return true;
 }
 
+const pageSize = 100;
+const jsonBody = async object => object ? new Response(object.body).json() : null;
+function combine(...groups) {
+  const cues = new Map();
+  for (const group of groups) for (const cue of group || []) cues.set(cue.id, cue);
+  return [...cues.values()].sort((a,b) => a.start - b.start || a.end - b.end || a.id.localeCompare(b.id));
+}
+function condition(previous) {
+  return previous ? {etagMatches:previous.etag} : new Headers({'If-None-Match':'*'});
+}
+function snapshot(data, cues) {
+  return {meetingId:data.meetingId, updatedAt:data.updatedAt, status:data.status, cues};
+}
+async function sealPage(bucket, id, cues) {
+  const body = JSON.stringify(cues);
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(body)));
+  const key = 'council-pages/' + id + '/' + Array.from(digest, byte => byte.toString(16).padStart(2,'0')).join('');
+  await bucket.put(key, body, {onlyIf:new Headers({'If-None-Match':'*'})});
+  return key;
+}
+async function writeSnapshot(bucket, key, previous, data) {
+  const old = await jsonBody(previous);
+  const pages = [...(old?.pages || [])], gaps = [...(old?.gaps || [])];
+  // The producer repeats the tail on every heartbeat. Sealed pages always end
+  // before the oldest of the most recent 100 cues, including on restart.
+  let tail = combine(old?.cues, data.cues);
+  if (old?.sealedThrough != null) tail = tail.filter(c => c.start >= old.sealedThrough);
+  let sealedThrough = old?.sealedThrough ?? null;
+  while (tail.length >= pageSize * 2) {
+    let cut = pageSize;
+    while (cut < tail.length - pageSize && tail[cut - 1].start === tail[cut].start) cut++;
+    if (tail[cut - 1].start === tail[cut].start) break;
+    pages.push(await sealPage(bucket, data.meetingId, tail.slice(0,cut)));
+    tail = tail.slice(cut);
+    sealedThrough = tail[0].start;
+  }
+  if (old && old.status !== 'interrupted' && data.status === 'interrupted') {
+    gaps.push({start:old.updatedAt, end:null, reason:'interrupted'});
+  } else if (old && old.status === 'interrupted' && data.status !== 'interrupted') {
+    if (gaps.length && !gaps.at(-1).end) gaps.at(-1).end = data.updatedAt;
+    else gaps.push({start:old.updatedAt, end:data.updatedAt, reason:'interrupted'});
+  } else if (old && old.status !== 'interrupted' && Date.parse(data.updatedAt) - Date.parse(old.updatedAt) > 120000) {
+    gaps.push({start:old.updatedAt, end:data.updatedAt, reason:'updates_missing'});
+  }
+  const state = {...snapshot(data,tail),pages,sealedThrough,gaps};
+  return bucket.put(key, JSON.stringify(state), {onlyIf:condition(previous), customMetadata:{updatedAt:data.updatedAt}, httpMetadata:{contentType:jsonHeaders['Content-Type']}});
+}
+async function minutes(bucket, state, id) {
+  const pages = [];
+  for (const key of state?.pages || []) {
+    const part = await jsonBody(await bucket.get(key));
+    if (!part) return error(503,'A minutes page is unavailable');
+    pages.push(part);
+  }
+  const initial = await jsonBody(await bucket.get('council-recovered/' + id));
+  const cues = combine(initial?.cues,...pages,state?.cues);
+  if (!state && !initial) return error(404,'Minutes have not started');
+  const gapMap = new Map();
+  for (const gap of [...(initial?.gaps || []),...(state?.gaps || [])]) gapMap.set(gap.start, gap);
+  const data = snapshot(state || {meetingId:id,updatedAt:initial.updatedAt,status:'interrupted'},cues);
+  return Response.json({...data,coverageStart:cues[0]?.observedAt || null,gaps:[...gapMap.values()].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start))},{headers:jsonHeaders});
+}
+
 export function createSite({assets, meetings, publicKey}, clock = Date.now) {
   let verifier;
   async function captions(request, bucket, url) {
     const id = url.searchParams.get('meetingId') ?? meetings[0]?.id;
     const meeting = meetings.find(item => item.id === id);
-    if (!meeting) return error(404, 'Unknown meeting');
+    const isMinutes = url.pathname === '/api/live/minutes';
+    const isRecovery = url.pathname === '/api/live/minutes/recover';
+    if (!meeting && !(isMinutes && request.method === 'GET' && /^\d{1,12}$/.test(id))) return error(404, 'Unknown meeting');
     if (!bucket) return error(503, 'Captions storage unavailable');
     const storageKey = 'council-captions/' + id + '.json';
-    if (request.method === 'GET' || request.method === 'HEAD') {
+    if (isMinutes) {
+      if (request.method !== 'GET') return error(405,'Read only');
+      return minutes(bucket, await jsonBody(await bucket.get(storageKey)), id);
+    }
+    if (!isRecovery && (request.method === 'GET' || request.method === 'HEAD')) {
       const object = await bucket.get(storageKey);
       if (!object) return error(404, 'Captions have not started');
-      return new Response(request.method === 'HEAD' ? null : object.body, {headers: jsonHeaders});
+      if (request.method === 'HEAD') return new Response(null,{headers:jsonHeaders});
+      const current = await jsonBody(object);
+      return Response.json(snapshot(current,current.cues.slice(-pageSize)),{headers:jsonHeaders});
     }
     if (request.method !== 'PUT') return new Response(null, {status:405, headers:{...headers, Allow:'GET, HEAD, PUT'}});
     const signature = request.headers.get('X-Council-Signature') || '';
@@ -63,16 +134,26 @@ export function createSite({assets, meetings, publicKey}, clock = Date.now) {
     let data;
     try { data = JSON.parse(new TextDecoder('utf-8', {fatal:true}).decode(bytes)); }
     catch { return error(400, 'Invalid JSON'); }
-    if (!validate(data, meeting, clock())) return error(400, 'Invalid captions');
-    const previous = await bucket.head(storageKey);
+    if (isRecovery) {
+      if (data?.purpose !== 'restore-captured-cues' || !validate(data,meeting,clock())) return error(400,'Invalid recovery');
+      if (!Array.isArray(data.gaps) || data.gaps.some(g => !g || !['interrupted','updates_missing'].includes(g.reason) || !Number.isFinite(Date.parse(g.start)) || !Number.isFinite(Date.parse(g.end)) || Date.parse(g.start)>Date.parse(g.end) || Date.parse(g.start)<Date.parse(meeting.scheduledAt) || Date.parse(g.end)>Date.parse(meeting.endsAt))) return error(400,'Invalid gaps');
+      const key = 'council-recovered/' + id;
+      const previous = await bucket.get(key);
+      const old = await jsonBody(previous);
+      const gapMap = new Map([...(old?.gaps || []), ...data.gaps].map(g => [g.start,g]));
+      const value = {updatedAt:data.updatedAt, cues:combine(old?.cues,data.cues), gaps:[...gapMap.values()]};
+      const saved = await bucket.put(key,JSON.stringify(value),{onlyIf:condition(previous), httpMetadata:{contentType:jsonHeaders['Content-Type']}});
+      return saved ? new Response(null,{status:204,headers}) : error(409,'Concurrent recovery');
+    }
+    if (data?.purpose || !validate(data, meeting, clock())) return error(400, 'Invalid captions');
+    const previous = await bucket.get(storageKey);
     if (previous && Date.parse(previous.customMetadata.updatedAt) >= Date.parse(data.updatedAt)) return error(409, 'A newer snapshot is available');
-    const onlyIf = previous ? {etagMatches:previous.etag} : new Headers({'If-None-Match':'*'});
-    const saved = await bucket.put(storageKey, bytes, {onlyIf, customMetadata:{updatedAt:data.updatedAt}, httpMetadata:{contentType:jsonHeaders['Content-Type']}});
+    const saved = await writeSnapshot(bucket, storageKey, previous, data);
     return saved ? new Response(null, {status:204, headers}) : error(409, 'Concurrent update');
   }
   return {async fetch(request, env) {
     const url = new URL(request.url);
-    if (url.pathname === '/api/live/captions') return captions(request, env.BUCKET, url);
+    if (['/api/live/captions','/api/live/minutes','/api/live/minutes/recover'].includes(url.pathname)) return captions(request, env.BUCKET, url);
     if (!['HEAD', 'GET'].includes(request.method)) return error(405, 'Method not allowed');
     const path = url.pathname === '/' ? '/index.html' : url.pathname;
     if (!Object.hasOwn(assets, path)) return error(404, 'Not found');

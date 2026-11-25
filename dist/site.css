@@ -14,3 +14,15 @@
 .page-heading label[for="live-meeting-select"] { color:#42566e; font-size:.88rem; font-weight:650; margin-right:.5rem; }
 #live-meeting-select { appearance:none; font:inherit; font-weight:650; color:#19334e; padding:.55rem 2rem .55rem .75rem; border:1px solid #a6b6c7; border-radius:.4rem; background:white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%23475f76' stroke-width='1.5'/%3E%3C/svg%3E") right .65rem center / .7rem auto no-repeat; cursor:pointer; margin-bottom:.9rem; }
 @media(max-width:600px) { #live-panel .page-heading { display:block; } #live-status { margin-top:.6rem; } }
+.live-minutes { margin: 24px 0; padding: 24px; border: 1px solid #d7dfe5; border-radius: 12px; background: #fff; }
+.minutes-head { display: flex; justify-content: space-between; gap: 16px; align-items: start; flex-wrap: wrap; }
+.minutes-head h2, .minutes-head p { margin: 0 0 8px; }
+#minutes-status { line-height: 1.6; color: #48596a; }
+.minutes-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.minutes-actions span { color: #566577; font-size: .9rem; }
+.minutes-cue { border-top: 1px solid #e2e7eb; padding: 12px 0; }
+.minutes-cue label { display: block; font-weight: 600; }
+.minutes-cue textarea { display: block; box-sizing: border-box; width: 100%; margin: 8px 0; padding: 8px; font: inherit; font-weight: normal; resize: vertical; }
+.minutes-cue details { font-size: .9rem; }
+.minutes-cue pre, .minutes-preview { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.6; }
+.minutes-preview { background: #f7f9fa; border: 1px solid #e0e6ea; padding: 18px; max-height: 60vh; overflow: auto; }
