@@ -25,15 +25,28 @@ with serve_dist() as base_url, sync_playwright() as p:
  cue={'id':'1','start':0,'end':8,'observedAt':'2026-11-25T04:00:00Z','text':'original statement','rawText':'original statement','flags':['low_confidence','number','name']}
  def route(r):
   u=r.request.url
-  if '/api/live/minutes?' in u: r.fulfill(json={'meetingId':'2853','cues':[cue,{'id':'2','start':8,'end':16,'text':'bad segment secret','rawText':'bad segment secret','flags':['segment_review']},{'id':'3','start':17,'end':20,'text':'placeholder','rawText':'user retained source','flags':['segment_review']}],'status':'live','updatedAt':'2026-11-25T04:00:00Z','gaps':[{'start':'2026-11-25T04:00:00Z','end':None,'reason':'interrupted'}]})
+  if '/api/live/minutes?' in u: r.fulfill(json={'meetingId':u.split('meetingId=')[1].split('&')[0],'cues':[cue,{'id':'2','start':8,'end':16,'text':'bad segment secret','rawText':'bad segment secret','flags':['segment_review']},{'id':'3','start':17,'end':20,'text':'placeholder','rawText':'user retained source','flags':['segment_review']}],'status':'live','updatedAt':'2026-11-25T04:00:00Z','gaps':[{'start':'2026-11-25T04:00:00Z','end':None,'reason':'interrupted'}]})
   elif '/api/live/captions?' in u: r.fulfill(status=404,body='')
   elif 'cast.sncouncil.go.kr' in u or 'youtube.com' in u: r.abort()
   else: r.continue_()
  page.add_init_script("localStorage.setItem('council-live-minutes:2853:2', '[음성 인식 오류 · 원음 재확인 필요]'); localStorage.setItem('council-live-minutes:2853:3', '[음성 인식 오류 · 원음 재확인 필요]'); localStorage.setItem('council-live-minutes:2853:3:explicit', '1');")
  page.route('**/*',route); page.goto(base_url,wait_until='domcontentloaded')
  page.wait_for_selector('#live-meeting-select option',state='attached')
- page.evaluate("() => { window.CouncilCommitteeTerms = {suggestions: () => [{heard:'original',official:'corrected',source:'https://example.test/'}]}; window.CouncilSpeakerReview = {guesses: () => ({'1':{name:'Candidate',role:'Chair',evidence:['1']}})}; }")
+ page.evaluate("() => { window.CouncilCommitteeTerms = {suggestions: () => [{heard:'original',official:'corrected',source:'https://example.test/'}]}; window.CouncilSpeakerReview = {guesses: m => String(m.id) === '2853' ? ({'1':{name:'Candidate',role:'Chair',evidence:['1']}}) : ({})}; }")
  page.locator('#minutes-open').click(); page.locator('#minutes-edit > summary').click(); page.wait_for_selector('.minutes-cue', state='visible')
+ assert not page.locator('#minutes-speaker-filter').is_checked()
+ assert '1' in page.locator('#minutes-speaker-filter-label').inner_text()
+ assert page.locator('.minutes-cue:visible').count() == 3
+ full_preview = page.locator('#minutes-preview').inner_text()
+ page.locator('#minutes-speaker-filter').check()
+ assert page.locator('.minutes-cue:visible').count() == 1
+ assert page.locator('#minutes-preview').inner_text() == full_preview
+ with page.expect_download() as d: page.locator('#minutes-txt').click()
+ assert open(d.value.path(),encoding='utf-8').read() == full_preview
+ with page.expect_download() as d: page.locator('#minutes-hwpx').click()
+ assert zipfile.ZipFile(d.value.path()).read('Preview/PrvText.txt').decode() == full_preview
+ page.locator('#minutes-speaker-filter').uncheck()
+ assert page.locator('.minutes-cue:visible').count() == 3
  assert '1970' not in page.locator('#minutes-status').inner_text()
  assert page.locator('.minutes-cue').nth(1).locator('textarea').input_value() == 'bad segment secret'
  assert page.locator('.minutes-cue').nth(2).locator('textarea').input_value() == '[음성 인식 오류 · 원음 재확인 필요]'
@@ -68,9 +81,26 @@ with serve_dist() as base_url, sync_playwright() as p:
  assert 'original statement' in first_card.locator('details[open]').inner_text()
  first_card.get_by_text('수집 원문·정리 결과·편집 이력',exact=True).click()
  assert 'original statement' in first_card.locator('details').last.inner_text()
- page.reload(wait_until='domcontentloaded'); page.locator('#minutes-open').click(); page.locator('#minutes-edit > summary').click()
+ page.reload(wait_until='domcontentloaded'); page.evaluate("() => { window.CouncilSpeakerReview = {guesses: m => String(m.id) === '2853' ? ({'1':{name:'Candidate',role:'Chair',evidence:['1']}}) : ({})}; }"); page.locator('#minutes-open').click(); page.locator('#minutes-edit > summary').click()
  assert page.locator('.minutes-cue').first.locator('input[aria-label]').input_value() == 'Test Person'
  assert page.locator('.minutes-cue').first.locator('input[type=checkbox]').is_checked()
+ page.locator('#minutes-speaker-filter').check()
+ page.locator('#minutes-refresh').click()
+ page.wait_for_function("!document.querySelector('#minutes-content').hidden && !document.querySelector('#minutes-speaker-filter').checked")
+ assert page.locator('.minutes-cue:visible').count() == 3
+ page.locator('#minutes-speaker-filter').check()
+ page.select_option('#live-meeting-select',value='2852')
+ page.wait_for_function("!document.querySelector('#minutes-content').hidden && document.querySelector('#minutes-speaker-filter-label').textContent.includes('(0')")
+ assert not page.locator('#minutes-speaker-filter').is_checked()
+ assert page.locator('#minutes-speaker-empty').is_visible()
+ assert page.locator('.minutes-cue:visible').count() == 3
+ page.locator('#minutes-speaker-filter').check()
+ assert page.locator('.minutes-cue:visible').count() == 0
+ assert page.locator('#minutes-speaker-empty').is_visible()
+ page.select_option('#live-meeting-select',value='2853')
+ page.wait_for_function("!document.querySelector('#minutes-content').hidden && document.querySelector('#minutes-speaker-filter-label').textContent.includes('(1')")
+ assert not page.locator('#minutes-speaker-filter').is_checked()
+ assert page.locator('.minutes-cue').first.locator('input[aria-label]').input_value() == 'Test Person'
  page.evaluate("() => { Storage.prototype.setItem = function() { throw new Error('quota'); }; }")
  page.locator('.minutes-cue').first.locator('textarea').fill('quota edit')
  assert 'quota edit' in page.locator('#minutes-preview').inner_text()

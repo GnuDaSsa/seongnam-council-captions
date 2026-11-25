@@ -52,6 +52,10 @@
   function render() {
     const container = el('minutes-cues'); container.replaceChildren();
     const guesses = window.CouncilSpeakerReview?.guesses(meeting, archive.cues) || {};
+    const candidateCount = archive.cues.filter(cue => !!guesses[String(cue.id)]).length;
+    el('minutes-speaker-filter').checked = false;
+    el('minutes-speaker-filter-label').textContent = `발언자 후보만 보기 (${candidateCount}건)`;
+    el('minutes-speaker-empty').hidden = candidateCount > 0;
     const evidenceById = new Map(archive.cues.map(cue => [String(cue.id), cue]));
     for (const cue of archive.cues) {
       const card = document.createElement('div'); card.className = 'minutes-cue';
@@ -73,6 +77,7 @@
       function updateMeta() { saveMeta(cue,{speaker:speaker.value,kind:kind.value,confirmed:confirmed.checked}); showSpeaker(speaker.value); preview(); }
       speaker.addEventListener('input',updateMeta); kind.addEventListener('change',updateMeta); confirmed.addEventListener('change',updateMeta); metaBox.append(speaker,kind,confirmLabel);
       const guess = guesses[String(cue.id)];
+      card.dataset.speakerCandidate = guess ? 'yes' : 'no';
       if (guess) {
         const hint = document.createElement('div'), accept = document.createElement('button');
         hint.textContent = '발언자 후보 (미확인)　' + [guess.role, guess.name].filter(Boolean).join(' ');
@@ -122,6 +127,11 @@
     preview(); el('minutes-content').hidden = false;
     el('minutes-status').textContent = coverage();
   }
+  el('minutes-speaker-filter').addEventListener('change', event => {
+    for (const card of el('minutes-cues').children) {
+      card.hidden = event.target.checked && card.dataset.speakerCandidate !== 'yes';
+    }
+  });
   async function load() {
     if (!meeting) return;
     const token = ++version, id = String(meeting.id);

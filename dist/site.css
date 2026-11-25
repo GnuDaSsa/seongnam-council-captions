@@ -26,3 +26,6 @@
 .minutes-cue details { font-size: .9rem; }
 .minutes-cue pre, .minutes-preview { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.6; }
 .minutes-preview { background: #f7f9fa; border: 1px solid #e0e6ea; padding: 18px; max-height: 60vh; overflow: auto; }
+.minutes-filter { margin: 12px 0; padding: 10px 12px; background: #f7f9fa; border-radius: 6px; }
+.minutes-filter label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.minutes-filter p { margin: 8px 0 0; color: #566577; font-size: .9rem; }
