@@ -6,6 +6,15 @@
   const video = el('live-video'), frame = el('live-video-placeholder'), captions = el('live-captions');
   let hls, retry, mode = '', generation = 0, lastShared = null, localCues = [];
   let historyGeneration = 0, historyScrollPending = false;
+  let citationCues = new Map();
+  // 자막 글을 긁어 복사하면 발언자·회의·시각·검수 상태·장면 링크를 함께 붙인다.
+  window.CouncilCitation?.attachCopy(captions, line => {
+    const cue = citationCues.get(line.dataset.cueId);
+    if (!cue || !meeting) return null;
+    const at = cue.observedAt ? window.CouncilCitation.kst(cue.observedAt).slice(11) || stamp(cue.start) : stamp(cue.start);
+    return {speaker:speakerLabel(cue) === '발언자 미확인' ? '' : speakerLabel(cue), meeting:`${meeting.title} ${meeting.label || ''}`.trim(), time:at,
+      review:'음성인식 자막 · 검수 전', url:window.CouncilCitation.liveLink(location.href, meetingId, cue.id)};
+  });
 
   function report(text) { el('caption-status').textContent = text; }
   function stopPlayer() { clearTimeout(retry); hls?.destroy(); hls = null; }
@@ -84,7 +93,10 @@
   function safeText(cue) {
     if (!rejected(cue)) {
       const value = String((cue.flags?.includes('segment_review') && cue.rawText) || cue.text || '');
-      return window.CouncilKoreanCorrections ? window.CouncilKoreanCorrections.correct(value).text : value;
+      const spelled = window.CouncilKoreanCorrections ? window.CouncilKoreanCorrections.correct(value).text : value;
+      // 의원 이름은 위원회 명단으로, 표결 인원은 숫자로 표시한다. 원문은 cue.rawText에 그대로 남는다.
+      const named = window.CouncilNameCorrection ? window.CouncilNameCorrection.correct(spelled, meeting?.members || []).text : spelled;
+      return window.CouncilCaptionChecks ? window.CouncilCaptionChecks.voteNumbers(named).text : named;
     }
     return cue.flags?.includes('low_confidence') || cue.flags?.includes('segment_review') ? '[음성 재확인 필요]' : '[음성 인식 반복 오류 · 해당 구간 재확인 필요]';
   }
@@ -188,6 +200,7 @@
     if (filtered && !shown.length) {
       const empty = document.createElement('p'); empty.className = 'cue-speaker-empty'; empty.textContent = '이름이나 직책이 표시된 발언이 없습니다.'; captions.append(empty);
     }
+    citationCues = new Map();
     for (const cue of shown) {
       const line = document.createElement('p'), time = document.createElement('time'), content = document.createElement('span');
       const interval = `수집 구간 ${stamp(cue.start)} ~ ${stamp(cue.end)}`;
@@ -209,6 +222,11 @@
       if (Array.isArray(cue.flags) && cue.flags.length) {
         const flag = document.createElement('small'); flag.className = 'cue-review'; flag.textContent = `검토 필요: ${reviewFlags(cue).join(', ')}`; content.append(flag);
       }
+      for (const check of rejected(cue) ? [] : window.CouncilCaptionChecks?.review(safeText(cue)).checks || []) {
+        const flag = document.createElement('small'); flag.className = 'cue-review';
+        flag.textContent = `${check.kind === 'number_check' ? '숫자 확인' : '낱말 확인'}: ${check.reason}`; content.append(flag);
+      }
+      line.dataset.cueId = String(cue.id); citationCues.set(String(cue.id), cue);
       if (rejected(cue)) {
         const details = document.createElement('details'), summary = document.createElement('summary'), raw = document.createElement('small');
         details.dataset.cue = cue.id;
@@ -385,7 +403,7 @@
   function saveCues(cues, personal, textOnly = false) {
     if (!cues.length) return;
     const segments = cues.map(cue => ({id:cue.id,start:cue.start,end:cue.end,speaker:speakerLabel(cue),text:[cue.observedAt ? `수집 시각: ${new Date(cue.observedAt).toLocaleString('ko-KR', {timeZone:'Asia/Seoul'})}` : '', safeText(cue), !rejected(cue) && safeText(cue) !== String((cue.flags?.includes('segment_review') && cue.rawText) || cue.text || '') ? '문맥 교정됨' : '', !rejected(cue) && (cue.rawText || cue.text) && ((cue.rawText && cue.rawText !== cue.text) || safeText(cue) !== String(cue.text || '')) ? `인식 원문: ${cue.rawText || cue.text}` : '', reviewFlags(cue).length ? `검토 필요: ${reviewFlags(cue).join(', ')}` : ''].filter(Boolean).join('\n'),status:rejected(cue) ? '인식 오류 · 재확인 필요' : 'AI 전사 · 미검토'}));
-    const doc={title:`${meeting.title} ${meeting.label}`,date:meeting.scheduledAt?.slice(0,10) || '',body:`성남시의회 ${meeting.title}`,sourceUrl:source,coverage:personal ? '이 브라우저에서 수집한 자동 자막.' : '저장 시 표시된 공유 자동 자막.',segments};
+    const doc={title:`${meeting.title} ${meeting.label}`,date:meeting.scheduledAt?.slice(0,10) || '',body:`성남시의회 ${meeting.title}`,sourceUrl:source,downloadUrl:window.CouncilCitation?.liveLink(location.href, meetingId),downloadedAt:new Date(),coverage:personal ? '이 브라우저에서 수집한 자동 자막.' : '저장 시 표시된 공유 자동 자막.',segments};
     const blob = textOnly ? new Blob([CouncilExports.minutesText(doc)], {type:'text/plain;charset=utf-8'}) : CouncilExports.minutesHwpx(doc);
     const url=URL.createObjectURL(blob), a=document.createElement('a');
     a.href=url; a.download=`${meeting.title}_${meeting.label}_자막초안.${textOnly ? "txt" : "hwpx"}`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),3000);

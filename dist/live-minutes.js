@@ -228,7 +228,11 @@
   }
   function save(hwpx) {
     if (!archive || !meeting) return;
-    const m = model(), blob = hwpx ? CouncilExports.minutesHwpx(m) : new Blob([CouncilExports.minutesText(m)],{type:'text/plain;charset=utf-8'});
+    const m = model();
+    // 내려받는 문서 맨 위(제목 두 줄 다음)에 출처 주소와 내려받은 때를 넣는다
+    const header = window.CouncilCitation ? window.CouncilCitation.downloadHeader(window.CouncilCitation.liveLink(location.href, meeting.id), new Date()) : [];
+    if (Array.isArray(m.minutesLines)) m.minutesLines = [...m.minutesLines.slice(0, 2), ...header, ...m.minutesLines.slice(2)];
+    const blob = hwpx ? CouncilExports.minutesHwpx(m) : new Blob([CouncilExports.minutesText(m)],{type:'text/plain;charset=utf-8'});
     const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = `${meeting.title}_회의록초안.${hwpx ? 'hwpx' : 'txt'}`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 3000);
   }
   el('minutes-open').onclick = () => { el('live-minutes').hidden = false; load(); el('live-minutes').scrollIntoView({behavior:'smooth',block:'start'}); };
