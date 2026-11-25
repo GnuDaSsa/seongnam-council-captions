@@ -1,0 +1,119 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+const {attribute}=require('../dist/live-speaker.js');
+const members=['\uC548\uAD11\uD658','\uC7A5\uC77C\uB0A8','\uAE40\uC625\uC218','\uC11C\uC740\uACBD','\uC815\uBD09\uADDC','\uC815\uC5F0\uD654','\uC870\uC6B0\uD604'];
+const meeting={id:'2853',members};
+const cue=(id,text,start,end,flags=[],observedAt)=>({id,text,start,end,flags,observedAt});
+
+const browserWindow={CouncilSpeakerReview:require('../dist/speaker-review.js'),CouncilNameplateReview:require('../dist/nameplate-review.js')};
+vm.runInNewContext(fs.readFileSync(require.resolve('../dist/live-speaker.js'),'utf8'),{window:browserWindow});
+assert.equal(typeof browserWindow.CouncilLiveSpeaker.attribute,'function','browser UMD consumes injected globals');
+
+// Actual 2853 live sample: the called member confirms their name in the next cue.
+const called=cue('1795587268650154061','\uC870\uC6B0\uD604 \uC758\uC6D0\uB2D8 \uC9C8\uC758\uD574 \uC8FC\uC2ED\uC2DC\uC624.',995.617,999.257);
+const intro=cue('1795587268650154062','\uC870\uC6B0\uD604 \uC758\uC6D0\uC785\uB2C8\uB2E4. \uACFC\uC7A5\uB2D8 ...',999.257,1004.1);
+let result=attribute(meeting,[called,intro]);
+assert.equal(result[called.id],undefined,'do not assign the chair calling the next member');
+assert.equal(result[intro.id].name,'\uC870\uC6B0\uD604');
+assert.deepEqual(result[intro.id].evidence,[called.id,intro.id]);
+assert.equal(result[intro.id].confidence,'medium');
+
+// Actual 2853 short response after a direct call; a narrow immediate response can be reviewed.
+const call=cue('1795584783050047742','\uC870 \uC758\uC6D0\uB2D8 \uC218\uACE0\uD558\uC168\uC2B5\uB2C8\uB2E4. \uB610 \uC9C8\uC758\uD558\uC2E4 \uC758\uC6D0\uB2D8. \uC815\uC5F0\uD654 \uC758\uC6D0\uB2D8 \uC9C8\uC758\uD574 \uC8FC\uC2DC\uACE0.',617.131,622.231);
+const ack=cue('1795584783050047743','\uB124, \uACFC\uC7A5\uB2D8.',622.231,624.231);
+result=attribute(meeting,[call,ack]);
+assert.equal(result[ack.id]?.name,'\uC815\uC5F0\uD654');
+assert.deepEqual(result[ack.id]?.evidence,[call.id,ack.id]);
+
+// Do not transfer a named questioner's identity to a staff answer.
+const answerCall=cue('answer-call','\uC7A5\uC77C\uB0A8 \uC758\uC6D0\uB2D8 \uC9C8\uC758\uC5D0 \uB300\uD574 \uACFC\uC7A5\uB2D8 \uB2F5\uBCC0\uD574 \uC8FC\uC2ED\uC2DC\uC624.',10,14);
+const answer=cue('answer','\uC608\uC0B0 \uD3B8\uC131 \uB0B4\uC5ED\uC744 \uD655\uC778\uD558\uACA0\uC2B5\uB2C8\uB2E4.',14,19);
+assert.equal(attribute(meeting,[answerCall,answer])[answer.id],undefined);
+
+// A named staff role is offered only on its own explicit self-introduction cue.
+const staff=cue('staff','\uD658\uACBD\uC815\uCC45 \uACFC\uC7A5\uC785\uB2C8\uB2E4.',1,3);
+const question=cue('question','\uD658\uACBD\uC815\uCC45 \uACFC\uC7A5\uC774 \uB4E4\uC5B4\uAC00\uC694?',3,5);
+result=attribute(meeting,[staff,question]);
+assert.equal(result.staff.name,''); assert.ok(result.staff.role); assert.equal(result.staff.confidence,'medium'); assert.ok(result.staff.method); assert.deepEqual(result.staff.evidence,['staff']);
+assert.equal(result.question,undefined,'do not carry a role-only self-introduction into the next question');
+const namedStaff=cue('named-staff','\uC800\uB294 \uD658\uACBD\uBCF4\uAC74\uAD6D\uC7A5 \uD64D\uAE38\uB3D9\uC785\uB2C8\uB2E4.',6,10);
+result=attribute(meeting,[namedStaff]);
+assert.equal(result[namedStaff.id]?.name,'\uD64D\uAE38\uB3D9');
+assert.equal(result[namedStaff.id]?.role,'\uC9D1\uD589\uBD80(\uC9C1\uC704 \uD655\uC778 \uD544\uC694)');
+
+// Proceedings role can be suggested without borrowing a member name.
+const chair=cue('chair','\uC131\uC6D0\uC774 \uB418\uC5C8\uC73C\uBBC0\uB85C \uD68C\uC758\uB97C \uAC1C\uD68C\uD558\uACA0\uC2B5\uB2C8\uB2E4.',20,27);
+result=attribute({id:'x',members:[]},[chair]);
+assert.equal(result.chair?.role,'\uC758\uC0AC\uC9C4\uD589\uC790');
+assert.equal(result.chair?.name,'');
+
+// Review flags, gaps, or an OCR-only name never create attribution.
+for (const flag of ['severe_uncertainty','repetition','segment_review','low_confidence']) {
+  assert.equal(attribute(meeting,[call,{...ack,flags:[flag]}])[ack.id],undefined,flag);
+}
+const observedCall={...call,observedAt:'2026-11-25T07:00:00.000Z'};
+const observedAck={...ack,observedAt:'2026-11-25T07:00:05.100Z'};
+assert.equal(attribute(meeting,[observedCall,observedAck],[],[{start:'2026-11-25T07:00:02.000Z',end:'2026-11-25T07:00:04.000Z'}])[ack.id],undefined);
+assert.deepEqual(attribute(meeting,[cue('ocr-only','\uC608\uC0B0 \uD3B8\uC131 \uB0B4\uC5ED\uC744 \uD655\uC778\uD558\uACA0\uC2B5\uB2C8\uB2E4.',1,5)],
+  [{capturedAt:'2026-11-25T07:00:02.000Z',matchedMembers:['\uC815\uC5F0\uD654']}]),{});
+
+// If textual cues independently point to a name, a uniquely aligned nameplate may corroborate it.
+const observedIntro={...intro,observedAt:'2026-11-25T07:00:00.000Z'};
+const obs=[{capturedAt:'2026-11-25T07:00:02.000Z',matchedMembers:['\uC870\uC6B0\uD604']}];
+result=attribute(meeting,[called,observedIntro],obs);
+assert.equal(result[observedIntro.id].confidence,'medium');
+assert.ok(result[observedIntro.id].method);
+assert.deepEqual(result[observedIntro.id].evidence,[called.id,observedIntro.id]);
+
+// Specific direct-address questions and their immediate answer support role-only attribution.
+const qRole=cue('1795587268650154168','\uACFC\uC7A5\uB2D8 \uC544\uC2DC\uACA0\uC5B4\uC694? \uB300\uB2F5\uC744 \uC548 \uD558\uC2DC\uB124.',0,3.64);
+const aRole=cue('1795587268650154169','\uC774 \uBD80\uBD84\uC5D0 \uC880 \uC81C\uAC00 \uB300\uB2F5\uB4DC\uB9AC\uAE30\uAC00 \uC5B4\uB824\uC6B4 \uBD80\uBD84\uC774 \uC0AC\uC2E4\uC740 \uC758\uC6D0\uB2D8\uAED8\uC11C \uB9D0\uC500\uD558\uC2E0 \uB73B\uC740 \uC81C\uAC00 \uCDA9\uBD84\uD788 \uC54C\uC544\uB4E4\uC5C8\uB294\uB370\uC694.',3.64,8.64,['name']);
+result=attribute(meeting,[qRole,aRole]);
+assert.deepEqual(result[qRole.id],{name:'',role:'\uC9C8\uC758\uC790',confidence:'low',method:result[qRole.id].method,evidence:[qRole.id]});
+assert.equal(result[aRole.id].name,'');
+assert.equal(result[aRole.id].role,'\uACFC\uC7A5');
+assert.equal(result[aRole.id].confidence,'low');
+assert.deepEqual(result[aRole.id].evidence,[qRole.id,aRole.id]);
+const standaloneAnswer=cue('answer-only','\uC758\uC6D0\uB2D8\uAED8\uC11C \uB9D0\uC500\uD558\uC2E0 \uB73B\uC740 \uC81C\uAC00 \uCDA9\uBD84\uD788 \uC54C\uC544\uB4E4\uC5C8\uACE0 \uC81C\uAC00 \uB2F5\uBCC0\uB4DC\uB9AC\uACA0\uC2B5\uB2C8\uB2E4.',12,17);
+assert.equal(attribute(meeting,[standaloneAnswer])[standaloneAnswer.id]?.role,'\uB2F5\uBCC0\uC790');
+const staleQuestion=cue('stale-q','\uACFC\uC7A5\uB2D8 \uC544\uC2DC\uACA0\uC5B4\uC694? \uB300\uB2F5\uC744 \uC548 \uD558\uC2DC\uB124.',0,2);
+const intervening=cue('intervening','\uC774\uC81C \uB2E4\uC74C \uC548\uAC74\uC73C\uB85C \uB118\uC5B4\uAC00\uACA0\uC2B5\uB2C8\uB2E4.',2,5);
+const lateAnswer=cue('late-answer','\uC758\uC6D0\uB2D8\uAED8\uC11C \uB9D0\uC500\uD558\uC2E0 \uB73B\uC740 \uC81C\uAC00 \uB2F5\uBCC0\uB4DC\uB9AC\uACA0\uC2B5\uB2C8\uB2E4.',5,9);
+assert.equal(attribute(meeting,[staleQuestion,intervening,lateAnswer])[lateAnswer.id].role,'\uB2F5\uBCC0\uC790');
+
+const staleCaller={...called,id:'stale-caller',start:20,end:24};
+const staleIntro={...intro,id:'stale-intro',start:40,end:45};
+result=attribute(meeting,[staleCaller,staleIntro]);
+assert.equal(result[staleIntro.id]?.name,'\uC870\uC6B0\uD604');
+assert.deepEqual(result[staleIntro.id]?.evidence,[staleIntro.id],'a stale call cannot upgrade a self-introduction');
+const gapCaller={...called,id:'gap-caller',start:0,end:4,observedAt:'2026-11-25T05:30:00.000Z'};
+const gapIntro={...intro,id:'gap-intro',start:4,end:8,observedAt:'2026-11-25T05:30:05.000Z'};
+result=attribute(meeting,[gapCaller,gapIntro],[],[{start:'2026-11-25T05:30:04.100Z',end:'2026-11-25T05:30:04.900Z'}]);
+assert.deepEqual(result[gapIntro.id]?.evidence,[gapIntro.id],'a cross-gap call is not corroborating evidence');
+assert.equal(attribute(meeting,[{...staff,flags:['severe_uncertainty']}]).staff,undefined,'unreliable staff self-introduction is withheld');
+
+const baseCall=cue('continuation-call','\uC815\uC5F0\uD654 \uC758\uC6D0\uB2D8 \uC9C8\uC758\uD574 \uC8FC\uC2DC\uAE30 \uBC14\uB78D\uB2C8\uB2E4.',0,2);
+const baseAnswer=cue('continuation-base','\uC800\uB294 \uD658\uACBD\uC815\uCC45\uC5D0 \uB300\uD574 \uB9D0\uC500\uB4DC\uB9AC\uACA0\uC2B5\uB2C8\uB2E4',2,4);
+const oneExtension=cue('continuation-one','\uADF8\uB9AC\uACE0 \uC81C\uAC00 \uC0DD\uAC01\uD558\uB294 \uC810\uC740 \uB2E4\uB985\uB2C8\uB2E4',4,5);
+const chainedExtension=cue('continuation-two','\uADF8\uB9AC\uACE0 \uC800\uB294 \uCD94\uAC00 \uC758\uACAC\uC774 \uC788\uC2B5\uB2C8\uB2E4',5,6);
+result=attribute(meeting,[baseCall,baseAnswer,oneExtension,chainedExtension]);
+assert.equal(result[oneExtension.id]?.name,'\uC815\uC5F0\uD654');
+assert.equal(result[chainedExtension.id],undefined,'speaker is not carried through repeated continuation cues');
+
+// Names cited from someone else's earlier remarks, an answer, or a corrupted call remain withheld.
+const citeCall=cue('cite-call','\uC815\uBD09\uADDC \uC758\uC6D0\uB2D8, \uC9C0\uB9AC\uD558\uC2DC\uB7EC.',1067.771,1069.771);
+const cite=cue('cite','\uC544\uAE4C \uC55E\uC11C \uC7A5\uC77C\uB0A8 \uC758\uC6D0\uB2D8 \uB9D0\uC500\uD558\uC168\uB358 \uC0AC\uC548\uC740 ...',1069.771,1074.771);
+assert.equal(attribute(meeting,[citeCall,cite])[cite.id]?.name,'\uC815\uBD09\uADDC');
+const badCall=cue('bad-call','\uC815\uC5F0\uD654 \uC758\uC6D0\uB2D8 \uC9C8\uC758\uD558\uC2DC\uB7EC.',1548.231,1553.561,['name']);
+const badAck=cue('bad-ack','\uACFC\uC7A5\uB2D8 \uACE0\uC0DD \uB9CE\uC73C\uC2ED\uB2C8\uB2E4.',1554.821,1557.331);
+assert.equal(attribute(meeting,[badCall,badAck])[badAck.id],undefined);
+const corruptedCall=cue('1795584783050047937','\uB124. \uC218\uACE0\uD558\uC168\uC2B5\uB2C8\uB2E4. \uB610 \uC9C0\uB9AC\uD558\uC2DC\uB77C\uC694. \uC11C\uC740\uACBD\uC774 \uD615\uB2D8.',1548.231,1553.561);
+const corruptedAck=cue('1795584783050047938','\uACFC\uC7A5\uB2D8 \uACE0\uC0DD \uB9CE\uC73C\uC2ED\uB2C8\uB2E4.',1554.821,1557.331);
+assert.equal(attribute(meeting,[corruptedCall,corruptedAck])[corruptedAck.id],undefined,'a corrupted name call is not repaired into an identity');
+assert.equal(attribute(meeting,[observedCall,observedAck],[],[{start:'2026-11-25T07:00:02.000Z',end:'2026-11-25T07:00:04.000Z'}])[observedAck.id],undefined,'unknown cue timestamps with archive gaps must abstain');
+
+// The exported result is an ordinary object; values have only the public contract fields.
+assert.equal(Object.getPrototypeOf(result),Object.prototype);
+for (const value of Object.values(result)) assert.deepEqual(Object.keys(value).sort(),['confidence','evidence','method','name','role']);
+console.log('PASS live speaker attribution: actual 2853 turns, self-intros, staff/proceedings roles, gaps, flags, and OCR corroboration');

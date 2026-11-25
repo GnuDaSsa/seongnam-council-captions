@@ -36,3 +36,18 @@
 #nameplate-list details button { display: block; text-align: start; margin: .35rem 0; }
 .cue-nameplate { margin-block: .65rem; padding-inline-start: .75rem; border-inline-start: 3px solid #a6bdd6; }
 .cue-nameplate p { margin-block: .4rem; }
+.cue-speaker { display: block; font-size: .8rem; color: #345a84; font-weight: 700; line-height: 1.4; }
+.cue-content { display: block; }
+.cue-speaker-evidence { margin: .15rem 0 .35rem; font-size: .78rem; color: #566577; }
+.cue-speaker-evidence summary { cursor: pointer; }
+.cue-speaker-evidence small { display: block; white-space: pre-wrap; overflow-wrap: anywhere; }
+.vod-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 16px 0 22px; }
+.vod-picker select { max-width: 100%; padding: 7px; }
+.vod-caption-now { padding: 12px; margin-bottom: 8px; background: #edf4fc; color: #1b3e64; line-height: 1.6; border-radius: 6px; }
+.vod-captions { flex: 1; min-height: 200px; max-height: 390px; overflow: auto; }
+.vod-cue { display: block; width: 100%; text-align: left; border: 0; border-bottom: 1px solid #e6ebf0; background: transparent; padding: .7rem; line-height: 1.5; color: #34465a; }
+.vod-cue[aria-current="true"] { background: #e7f0ff; color: #174d9b; font-weight: 700; }
+.vod-resolve { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 20px; }
+.vod-resolve input { flex: 1 1 240px; min-width: 0; max-width: 460px; padding: 7px; }
+.vod-resolve p { flex-basis: 100%; margin: 0; color: #566577; font-size: .9rem; }
+.vod-caption-now { white-space: pre-line; }

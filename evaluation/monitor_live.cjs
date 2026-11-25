@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {createHash} = require('node:crypto');
 const {correct} = require('../dist/korean-corrections.js');
-const {guesses} = require('../dist/speaker-review.js');
+const {attribute} = require('../dist/live-speaker.js');
 const {bad} = require('../dist/minutes-format.js');
 const committeeTerms = require('../dist/committee-terms.js');
 
@@ -12,18 +12,18 @@ const origin = 'https://seongnam-council-desk.gnudas0923.chatgpt.site';
 function observations(meeting, archive, previous = []) {
   if (archive?.meetingId !== meeting.id || !Array.isArray(archive.cues)) throw Error('Invalid meeting archive');
   const byId = new Map(previous.map(row => [row.id, row]));
-  const speakers = guesses(meeting, archive.cues);
+  const speakers = attribute(meeting, archive.cues, [], archive.gaps || []);
   for (const cue of archive.cues) {
     if (typeof cue.id !== 'string' || !Number.isFinite(cue.start)) throw Error('Invalid cue');
     const source = cue.rawText || cue.text || '';
     const row = {id:cue.id, start:cue.start};
-    if (source.includes('가름')) {
+    if (/가름|중\s*공|관원\s+질의|관원\s*질(?:이|을)/u.test(source)) {
       if (bad(cue)) row.spelling = 'audio_review';
       else row.spelling = correct(source).changed ? 'corrected_in_context' : 'unchanged';
     }
     const vocabulary = committeeTerms.suggestions(meeting, source);
     if (!bad(cue) && vocabulary.length) row.terms = vocabulary.map(term => term.official);
-    const candidate = speakers[cue.id];
+    const candidate = cue.speaker || speakers[cue.id];
     if (candidate) {
       row.speaker = {status:'candidate', method:candidate.method, evidence:candidate.evidence};
     } else if (/(?:의원|위원)(?:장)?님/.test(source) && /질의|지리하시|발언해/.test(source) &&

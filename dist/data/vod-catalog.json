@@ -1,0 +1,577 @@
+{
+  "meetings": [
+    {
+      "id": "5483",
+      "title": "제313회 제1차 경제환경위원회",
+      "date": "2026-10-07",
+      "officialPage": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5483",
+      "playlist": "https://cast.sncouncil.go.kr:4443/vod/_definst_/mp4:A0004/20261008191019999.mp4/playlist.m3u8",
+      "members": [],
+      "cues": [
+        {
+          "id": "5483-asr-0",
+          "start": 1.75,
+          "end": 4.91,
+          "text": "의석을 정돈해 주시기 바랍니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5483-asr-1",
+          "start": 4.91,
+          "end": 9.45,
+          "text": "성원이 되었음으로 제 313회 성남시의회",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5483-asr-2",
+          "start": 9.45,
+          "end": 14.71,
+          "text": "제1자 정례회의 제1자 경제환경위원회를",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5483-asr-3",
+          "start": 14.71,
+          "end": 16.71,
+          "text": "개회하겠습니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5483-asr-4",
+          "start": 20.44,
+          "end": 29.22,
+          "text": "회의 진행 중에 앞서 상임위 담당 직원으로부터 보고를 들은 후 의사 일정에 따라 회의를 진행하도록 하겠습니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5483-asr-5",
+          "start": 29.22,
+          "end": 32.04,
+          "text": "상임위 담당 직원 보고해 주시기 바랍니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5483-asr-6",
+          "start": 40,
+          "end": 52.16,
+          "text": "안녕하십니까. 의회 사무구 경제환경위원회 담당 채민수 주무관입니다. 제 313회 성남시의회 제1자 정례회 경제환경위원회 소집에 관하여 보고 드리겠습니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5483-asr-7",
+          "start": 52.16,
+          "end": 60.0,
+          "text": "성남시의회 회의 규칙 제20조 규정의 의회에 의장으로부터 우리위원회 해보된 2027년도 경기도 중석위",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5483-asr-8",
+          "start": 60,
+          "end": 74.54,
+          "text": "업 육성기금 출연원 등 총 8건의 조례한 및 일반의원 심사와 2026년도 제4회의 추가 경정 예산한 예비 심사, 2025 회개년도 결산 승인한 예비 심사를 위하여 본위원회가 소집되었습니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5483-asr-9",
+          "start": 74.54,
+          "end": 80.0,
+          "text": "이번 회기의 위원님들께서 심사하시게 될 안건과 일정은 배부에 들인 의사 일정에",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5483-asr-10",
+          "start": 80,
+          "end": 83.44,
+          "text": "정례한 경제환경위원회에 의장을 참고해 주시기 바랍니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5483-asr-11",
+          "start": 83.44,
+          "end": 91.5,
+          "text": "이상 보호를 마치겠습니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5483-asr-12",
+          "start": 100,
+          "end": 105.78,
+          "text": "의사 일정을 참고해 주시기 바라며 다른 의견 없으십니까?",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5483-asr-13",
+          "start": 105.78,
+          "end": 112.82,
+          "text": "없으시면 금일 의사 일정에 따라 조례한 등 일반 의안 심사를 시작하겠습니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5483-asr-14",
+          "start": 112.82,
+          "end": 118.82,
+          "text": "먼저 AI국 혁신국 소관 안건을 심사하겠습니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5483-asr-15",
+          "start": 118.82,
+          "end": 119.62,
+          "text": "먼저",
+          "source": "asr",
+          "rejected": false
+        }
+      ]
+    },
+    {
+      "id": "5481",
+      "title": "제313회 제1차 행정교육위원회",
+      "date": "2026-10-07",
+      "officialPage": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5481",
+      "playlist": "https://cast.sncouncil.go.kr:4443/vod/_definst_/mp4:A0003/20261007192717020.mp4/playlist.m3u8",
+      "members": [],
+      "cues": [
+        {
+          "id": "5481-asr-0",
+          "start": 0.53,
+          "end": 11.21,
+          "text": "자작을 정돈하여 주시기 바랍니다. 성원이 되었으므로 제 313회 성남시의회 제1차 정례회 제1차 행정교육위원회를 개회하겠습니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5481-asr-1",
+          "start": 11.21,
+          "end": 20.0,
+          "text": "존경하는 동료위원 여러분 그리고 이 자리에 참석해주신 관계 공무원 여러분 안녕하십니까?",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5481-asr-2",
+          "start": 20,
+          "end": 25.44,
+          "text": "성남시의회 제1차 정례회를 맞아 건강한 모습으로 다시 뵙게 되어 반갑습니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5481-asr-3",
+          "start": 25.44,
+          "end": 32.16,
+          "text": "이번 정례회에서는 우리 행정교육위원회 소관 주요 안건과 시정 현안에 대한 심사가 예정되어 있습니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5481-asr-4",
+          "start": 32.16,
+          "end": 40.0,
+          "text": "위원님들께서는 시민의 입장에서 각 안건을 몇몇이 살펴주시고 관계 공무원 여러분께서도 성실하고 적극적인 자세로 심사위원회에",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5481-asr-5",
+          "start": 40,
+          "end": 44.46,
+          "text": "임해 주시기를 당부드립니다. 이번 회기에도 위원님들과 관계 공무원",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5481-asr-6",
+          "start": 44.46,
+          "end": 49.16,
+          "text": "여러분의 협조 속에서 합리적이고 내실 있는 심사가 이루어질 수 있도록",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5481-asr-7",
+          "start": 49.16,
+          "end": 52.88,
+          "text": "함께해 주시기 바랍니다. 그러면 의회 사무국 직원으로부터 우리",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5481-asr-8",
+          "start": 52.88,
+          "end": 56.68,
+          "text": "위원회 소집에 관한 보고를 듣고 의사 일정에 따라 회의를 진행하도록",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5481-asr-9",
+          "start": 56.68,
+          "end": 59.76,
+          "text": "하겠습니다. 의회 사무국 직원은 보고해 주시기 바랍니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5481-asr-10",
+          "start": 67.54,
+          "end": 71.64,
+          "text": "안녕하십니까. 행정교육위원회 담당 주무관 구 본혁입니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5481-asr-11",
+          "start": 71.64,
+          "end": 78.34,
+          "text": "제313회 성남시 이후에 제1차 정례에 관련 행정교육위원회 소집에 관하여 보고 드리겠습니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5481-asr-12",
+          "start": 80,
+          "end": 100.0,
+          "text": "제20조회 규정에 의하여 의장으로부터 우리 위원회에 회부된 성남시 공무원 후생복지에 관한 조례, 일부 개정 조례한 등 총 3권의 일반 의안심사와 2026년도 제4회 추가경정 예산한 예비심사, 2025회계현도 세입세출 및 기금결상 승인한 예비심사를 위하여 본위원회가",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5481-asr-13",
+          "start": 100,
+          "end": 105.08,
+          "text": "소집되었습니다. 금번 회기의 위원님들께서 심사실 안권과 일정은 배부에",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5481-asr-14",
+          "start": 105.08,
+          "end": 109.88,
+          "text": "드린 유인물을 참고해 주시기 바라며 이상 보고를 마치겠습니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5481-asr-15",
+          "start": 109.88,
+          "end": 114.14,
+          "text": "수고하셨습니다. 다음은 행정교육위원회 의사 일정을 협의하도록 하겠습니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5481-asr-16",
+          "start": 114.14,
+          "end": 117.98,
+          "text": "위원님들께 배부에 드린 의사 일정안을 참고해 주시기 바랍니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5481-asr-17",
+          "start": 117.98,
+          "end": 119.9,
+          "text": "먼저 이번 회기 우리 위원회에 회부된",
+          "source": "asr",
+          "rejected": false
+        }
+      ]
+    },
+    {
+      "id": "5544",
+      "title": "제315회 제2차 정례회 개회식 및 제1차 본회의",
+      "date": "2026-11-20",
+      "officialPage": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5544",
+      "playlist": "https://cast.sncouncil.go.kr:4443/vod/_definst_/mp4:A0001/20261120131457084.mp4/playlist.m3u8",
+      "members": [],
+      "cues": [
+        {
+          "id": "5544-asr-0",
+          "start": 0.28,
+          "end": 8.28,
+          "text": "의석을 정돈해 주시기 바랍니다. 지금부터 제315회 성남시의 제2차 정례회 계회식을 시작하겠습니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5544-asr-1",
+          "start": 8.28,
+          "end": 14.05,
+          "text": "먼저 국민의례를 하겠습니다. 모두 단성의 국계를 향해 서주시기 바랍니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5544-asr-2",
+          "start": 14.05,
+          "end": 20.0,
+          "text": "국계대회 경례",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5544-asr-3",
+          "start": 20,
+          "end": 39.19,
+          "text": "자랑스러운 태국기압회",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5544-asr-4",
+          "start": 40,
+          "end": 45.07,
+          "text": "자유롭고 징이로운 대한민국의 로봇한 영광을 위하여",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5544-asr-5",
+          "start": 45.07,
+          "end": 50.07,
+          "text": "충성을 다할 것을 굳게 다짐합니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5544-asr-6",
+          "start": 60.6,
+          "end": 69.18,
+          "text": "바로 다음은 애국가 재창을 하겠습니다. 방송 주학에 맞추어 1절을 불러주시기 바랍니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5544-1",
+          "start": 700.7,
+          "end": 701.9,
+          "text": "했습니다.",
+          "source": "asr"
+        },
+        {
+          "id": "5544-2",
+          "start": 701.9,
+          "end": 707.94,
+          "text": "지하철파로선 판교의 현장은 예비탄성 조사 대상에 선정비여서",
+          "source": "asr"
+        },
+        {
+          "id": "5544-3",
+          "start": 707.94,
+          "end": 712.74,
+          "text": "철도망 확충에 한 걸음 또 다가왔습니다.",
+          "source": "asr"
+        },
+        {
+          "id": "5544-4",
+          "start": 712.74,
+          "end": 716.14,
+          "text": "분양보호소 신축공사는 원활하게 추진되고 있으며",
+          "source": "asr"
+        },
+        {
+          "id": "5544-5",
+          "start": 716.14,
+          "end": 720.724,
+          "text": "성남시 의료원은 분당소리대병은 명이 13명이 혀빈",
+          "source": "asr"
+        }
+      ]
+    },
+    {
+      "id": "5467",
+      "title": "제312회 임시회 제2차 본회의",
+      "date": "2026-09-07",
+      "officialPage": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5467",
+      "playlist": "https://cast.sncouncil.go.kr:4443/vod/_definst_/mp4:A0001/20260907134808793.mp4/playlist.m3u8",
+      "members": [],
+      "cues": [
+        {
+          "id": "5467-asr-0",
+          "start": 0,
+          "end": 2.48,
+          "text": "의속을 정돈해 주시기 바랍니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5467-asr-1",
+          "start": 2.48,
+          "end": 5.1,
+          "text": "송원이 되었습니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5467-asr-2",
+          "start": 5.1,
+          "end": 10.33,
+          "text": "제312의 성남시의회의 제2차 폰 회의를 개의하겠습니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5467-asr-3",
+          "start": 10.33,
+          "end": 18.06,
+          "text": "회의를 시작하기에 앞서 양해의 말씀을 드립니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5467-asr-4",
+          "start": 18.06,
+          "end": 20.0,
+          "text": "강현아 수정고",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5467-asr-5",
+          "start": 20,
+          "end": 34.68,
+          "text": "수정구 보건소장과 구성수 분당구 보건소장은 교육참석으로 김혜진, 중원구 보건소장은 병가로 오늘 회의의 불참함을 알려드립니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5467-asr-6",
+          "start": 34.68,
+          "end": 40.0,
+          "text": "그러면 의사팀장으로 또 보고를 들은 후 의사 일생에 따라 회의를 진행하겠습니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5467-asr-7",
+          "start": 40,
+          "end": 50.0,
+          "text": "의사팀장 보고해 주시기 바랍니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5467-asr-8",
+          "start": 60.15,
+          "end": 78.15,
+          "text": "의사팀장 홍송입니다. 먼저 제1차 본회 이후 윤해선 의원께서 대표 발휘하신 성남시 장애인 복지시설 안전 및 인권 실태에 대한 행정사무 조사 요구의권과 행정사무 조사 특별위원회 구성의권이 접수되어 의원님들께 귀 배부해 드렸음을 알려드립니다.",
+          "source": "asr",
+          "rejected": false
+        }
+      ]
+    },
+    {
+      "id": "5411",
+      "title": "제311회 임시회 제3차 본회의",
+      "date": "2026-07-08",
+      "officialPage": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5411",
+      "playlist": "https://cast.sncouncil.go.kr:4443/vod/_definst_/mp4:A0001/20260708170749398.mp4/playlist.m3u8",
+      "members": [],
+      "cues": [
+        {
+          "id": "5411-asr-0",
+          "start": 0.44,
+          "end": 3.18,
+          "text": "의석을 종돈해주시기 바랍니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5411-asr-1",
+          "start": 3.18,
+          "end": 5.02,
+          "text": "소원이 되었습니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5411-asr-2",
+          "start": 5.02,
+          "end": 14.05,
+          "text": "3차 본회의를 개회하겠습니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5411-asr-3",
+          "start": 14.05,
+          "end": 18.02,
+          "text": "각 상임위원회 및 특별위원회의 운영사항에 대하여",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5411-asr-4",
+          "start": 18.02,
+          "end": 20.0,
+          "text": "의사팀장의 보고를 듣도록",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5411-asr-5",
+          "start": 20,
+          "end": 23.01,
+          "text": "하겠습니다. 의사팀장, 보고해주시기 바랍니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5411-asr-6",
+          "start": 40.34,
+          "end": 46.61,
+          "text": "의사팀장, 이상준입니다. 각 상임위원회 및 특별위원회 및 운영사항을 보고 드리겠습니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5411-asr-7",
+          "start": 46.61,
+          "end": 53.61,
+          "text": "성남시의 교습단체미위원회 구성과 운영에 관한 졸의 제11주의 기정에 따라 각 위원회에서 호선된 부위원장은",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5411-asr-8",
+          "start": 53.61,
+          "end": 60.0,
+          "text": "의회 운영위원회 오정길 의원님, 행정교육위원회 이종목 의원님, 경제환경위원회 장...",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5411-asr-9",
+          "start": 60,
+          "end": 75.41,
+          "text": "강일람 의원님, 문화복지체육위원회 백진규 의원님, 도시건설위원회 이종아 의원님, 예산결산특별료원회 김건우 의원님, 윤리특별료원회 최오키 의원님을 부위원장으로 선임하였습니다.",
+          "source": "asr",
+          "rejected": false
+        },
+        {
+          "id": "5411-asr-10",
+          "start": 75.41,
+          "end": 80.0,
+          "text": "또한 각 위원회 별로 의석 배치의권을 의결하였음을 보고 드리겠습니다.",
+          "source": "asr",
+          "rejected": false
+        }
+      ]
+    }
+  ]
+}

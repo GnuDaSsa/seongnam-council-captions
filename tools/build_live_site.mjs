@@ -22,6 +22,15 @@ const catalog = JSON.parse(await readFile(join(dist, 'data/live-meetings.json'),
 const publicKey = (await readFile(join(root, 'worker/publisher.pub'), 'utf8')).trim();
 if (!/^[A-Za-z0-9_-]{43}$/.test(publicKey)) throw Error('Invalid Ed25519 public key');
 const worker = await readFile(join(root, 'worker/captions.mjs'), 'utf8');
+const vodResolver = await readFile(join(root,'worker/vod.mjs'),'utf8');
+// The portable Sites artifact is a single Worker ES module. Register the same
+// plain scripts the live player uses in a private namespace at build time.
+const speakerSources = await Promise.all(['speaker-review.js','nameplate-review.js','live-speaker.js']
+  .map(file => readFile(join(dist,file),'utf8')));
+const speakerRegistry = 'const speakerModel = (() => { const window = {}, module = undefined;\n' +
+  speakerSources.join('\n') + '\nreturn window.CouncilLiveSpeaker; })();\n';
+const siteConfig = JSON.stringify({assets, meetings:catalog.meetings, publicKey});
 await mkdir(join(dist, 'server'), {recursive:true});
-await writeFile(join(dist, 'server/index.js'), worker + '\nexport default createSite(' + JSON.stringify({assets, meetings:catalog.meetings, publicKey}) + ');\n');
+await writeFile(join(dist, 'server/index.js'), worker + '\n' + vodResolver + '\n' + speakerRegistry +
+  'export default createSite({...'+ siteConfig +', attributeSpeakers:speakerModel.attribute, resolveArchiveVideo:resolveVod});\n');
 console.log('Packaged', Object.keys(assets).length, 'assets and', catalog.meetings.length, 'meetings');

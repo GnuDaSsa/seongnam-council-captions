@@ -8,6 +8,7 @@
     session = null;
     s.stopped = true;
     clearTimeout(s.loadTimer);
+    s.removeMediaEvents?.();
     s.worker?.terminate();
     if (s.processor) { s.processor.onaudioprocess = null; s.processor.disconnect(); }
     s.source?.disconnect();
@@ -17,9 +18,9 @@
     if (s.video && s.video.srcObject === s.stream) { s.video.pause(); s.video.srcObject = null; }
     s.onEnd?.();
   }
-  async function start({video, onCue = () => {}, onStatus = () => {}, onEnd = () => {}, playerMode = false}) {
+  async function start({video, onCue = () => {}, onStatus = () => {}, onEnd = () => {}, playerMode = false, mediaTimeline = false}) {
     if (session) stop();
-    if (!navigator.mediaDevices?.getDisplayMedia) throw new Error('이 브라우저에서는 화면 공유를 사용할 수 없습니다.');
+    if (!playerMode && !navigator.mediaDevices?.getDisplayMedia) throw new Error('이 브라우저에서는 화면 공유를 사용할 수 없습니다.');
     const s = {video, onCue, onStatus, onEnd, playerMode, stopped:false, busy:false, ready:false, pending:null};
     session = s;
     try {
@@ -54,9 +55,19 @@
         }
       }, 120000);
       let blocks = [], length = 0, position = 0, firstFrameWallTime = null;
+      let epoch = 0, dispatchedEpoch = 0, mediaStart = null, waiting = false;
+      if (mediaTimeline) {
+        function invalidate() { ++epoch; s.pending = null; blocks = []; length = 0; mediaStart = null; }
+        function wait() { waiting = true; invalidate(); }
+        function resume() { waiting = false; }
+        const events = {seeking:invalidate,ratechange:invalidate,pause:invalidate,waiting:wait,playing:resume,emptied:wait};
+        for (const [name, handler] of Object.entries(events)) video.addEventListener(name,handler);
+        s.removeMediaEvents = () => { for (const [name, handler] of Object.entries(events)) video.removeEventListener(name,handler); };
+      }
       const rate = s.context.sampleRate, chunkSamples = Math.round(rate * 8);
       function dispatch(chunk) {
         s.busy = true;
+        dispatchedEpoch = epoch;
         s.worker.postMessage({type:'audio', ...chunk}, [chunk.samples.buffer]);
       }
       s.worker.onmessage = ({data}) => {
@@ -71,7 +82,7 @@
           if (s.pending) { const next=s.pending; s.pending=null; dispatch(next); }
         } else if (data.type === 'result') {
           s.busy = false;
-          if (data.text.trim()) onCue({text:data.text.trim(), rawText:data.text.trim(), rejected:!!data.rejected, start:data.start, end:data.end, observedAt:firstFrameWallTime === null ? null : firstFrameWallTime + Number(data.start) * 1000});
+          if (dispatchedEpoch === epoch && data.text.trim()) onCue({text:data.text.trim(), rawText:data.text.trim(), rejected:!!data.rejected, start:data.start, end:data.end, observedAt:mediaTimeline || firstFrameWallTime === null ? null : firstFrameWallTime + Number(data.start) * 1000});
           if (s.pending) { const next=s.pending; s.pending=null; dispatch(next); }
         } else if (data.type === 'error') {
           onStatus('음성 인식 오류: ' + data.message); stop();
@@ -80,6 +91,10 @@
       s.worker.onerror = e => { onStatus('음성 인식 모듈 오류: ' + e.message); stop(); };
       s.processor.onaudioprocess = e => {
         const input = e.inputBuffer.getChannelData(0);
+        if (mediaTimeline) {
+          if (waiting || video.paused || video.seeking || video.ended || video.readyState < 2) return;
+          if (mediaStart === null) mediaStart = Math.max(0, video.currentTime - input.length / rate * video.playbackRate);
+        }
         // The callback receives a completed input block; anchor its first sample, then use the sample clock.
         if (firstFrameWallTime === null) firstFrameWallTime = Date.now() - input.length / rate * 1000;
         blocks.push(new Float32Array(input)); length += input.length;
@@ -94,9 +109,12 @@
           output[i]=joined[j]*(1-f)+(joined[Math.min(j+1,joined.length-1)]||0)*f;
           energy += output[i]*output[i];
         }
-        const start=position; position += joined.length/rate;
+        const start = mediaTimeline ? mediaStart : position;
+        const end = mediaTimeline ? video.currentTime : position + joined.length/rate;
+        mediaStart = null; position += joined.length/rate;
+        if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return;
         if (Math.sqrt(energy/output.length) < 0.003) return;
-        const chunk={samples:output, start, end:position};
+        const chunk={samples:output, start, end};
         if (s.ready && !s.busy) dispatch(chunk);
         else { if (s.pending) onStatus('인식 속도가 느려 일부 구간을 건너뜁니다.'); s.pending=chunk; }
       };

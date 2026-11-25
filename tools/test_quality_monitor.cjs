@@ -15,3 +15,9 @@ test('observations are stable across unchanged runs and preserve absent earlier 
   assert.deepEqual(observations(meeting, {...archive, cues:archive.cues.slice(2)}, result), result);
   assert.throws(() => observations({...meeting,id:'2855'}, archive));
 });
+
+test('newly reported construction and agency-inquiry spellings enter the quality log', () => {
+  const meeting = {id:'2853',members:[]};
+  const cues = ['아직 중공이 되지 않아서요.', '국토부에 관원 질의를 했습니다.'].map((text,i) => ({id:String(i), start:i, end:i+1, text, rawText:text, flags:[]}));
+  assert.deepEqual(observations(meeting,{meetingId:'2853',cues}).map(r => r.spelling), ['corrected_in_context','corrected_in_context']);
+});

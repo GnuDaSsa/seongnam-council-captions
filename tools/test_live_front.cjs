@@ -20,7 +20,7 @@ const ids = new Map();
 const el = id => { if (!ids.has(id)) ids.set(id,new Element()); return ids.get(id); };
 const timers = new Map(); let timerId=0;
 const calls=[]; const pending=[];
-const meeting = id => ({id,title:'위원회'+id,label:'감사',scheduledAt:'2020-01-01T00:00:00Z',endsAt:'2099-01-01T00:00:00Z',source:'https://example.com',playlist:'https://example.com/a.m3u8',agenda:[]});
+const meeting = id => ({id,title:'위원회'+id,label:'감사',scheduledAt:'2020-01-01T00:00:00Z',endsAt:'2099-01-01T00:00:00Z',provider:'hls',source:'https://example.com',playlist:'https://example.com/a.m3u8',agenda:[]});
 const response = data => ({ok:true,status:200,json:async()=>data});
 const feed = (id,text,status='live') => ({meetingId:id,updatedAt:new Date().toISOString(),status,cues:[{id:'x',start:1,end:2,text,rawText:'원문',flags:['number','name']}]});
 const location = {href:'https://example.test/?live=invalid'};
@@ -89,6 +89,58 @@ async function run() {
   el('live-save').onclick();
   assert.match(context.exported.segments[0].text,/갈음하겠습니다/);
   assert.match(context.exported.segments[0].text,/인식 원문:.*가름하겠습니다/);
+  for (const [id,timer] of [...timers.entries()].filter(([,t])=>t.delay===3000)) { timers.delete(id); timer.fn(); }
+  const speakerFeed=feed('2852','발언 내용');
+  speakerFeed.cues[0].speaker={name:'정연화',role:'위원',confidence:'low',method:'호명 단서',evidence:['x']};
+  speakerFeed.cues.push({...speakerFeed.cues[0]});
+  pending.shift().resolve(response(speakerFeed)); await settle();
+  assert.match(el('live-captions').allText,/정연화 위원 · 추정/);
+  assert.match(el('live-captions').allText,/발언자 추정 근거/);
+  assert.match(el('live-captions').allText,/호명 단서/);
+  assert.equal((el('live-captions').allText.match(/정연화 위원 · 추정/g)||[]).length,1);
+  el('live-save').onclick();
+  assert.equal(context.exported.segments.length,1);
+  assert.equal(context.exported.segments[0].speaker,'정연화 위원 · 추정');
+  for (const [id,timer] of [...timers.entries()].filter(([,t])=>t.delay===3000)) { timers.delete(id); timer.fn(); }
+  const changedSpeaker=feed('2852','발언 내용');
+  changedSpeaker.cues[0].speaker={name:'김정아',role:'과장',confidence:'medium',method:'self_intro',evidence:['x']};
+  pending.shift().resolve(response(changedSpeaker)); await settle();
+  assert.match(el('live-captions').allText,/김정아 과장 · 자기소개 단서 · 추정/);
+  assert.doesNotMatch(el('live-captions').allText,/정연화/);
+  for (const [id,timer] of [...timers.entries()].filter(([,t])=>t.delay===3000)) { timers.delete(id); timer.fn(); }
+  const roleOnly=feed('2852','환경정책 과장입니다.');
+  roleOnly.cues[0].speaker={name:'',role:'환경정책 과장',method:'직책 자기소개',evidence:['x']};
+  pending.shift().resolve(response(roleOnly)); await settle();
+  assert.match(el('live-captions').allText,/환경정책 과장 \(실명 미확인\)/);
+  for (const [id,timer] of [...timers.entries()].filter(([,t])=>t.delay===3000)) { timers.delete(id); timer.fn(); }
+  const cleared=feed('2852','발언 내용','interrupted'); cleared.updatedAt='2000-01-01T00:00:00Z';
+  pending.shift().resolve(response(cleared)); await settle();
+  assert.match(el('live-captions').allText,/발언자 미확인/);
+  assert.doesNotMatch(el('live-captions').allText,/김정아|현재 발언/);
+  assert.match(el('caption-status').textContent,/중단/);
+  let localOptions, attributionCalls=0;
+  context.window.CouncilLiveSpeaker={attribute(_meeting, cues) {
+    attributionCalls++;
+    return {[String(cues[0].id)]:{name:'박정민',role:'의원',confidence:'low',method:'자기소개 단서',evidence:[String(cues[0].id)]}};
+  }};
+  context.window.CouncilTabCapture={
+    async startPlayer(options) { localOptions=options; }, async start(options) { localOptions=options; },
+    stop() { localOptions.onEnd(); }
+  };
+  await el('player-captions').onclick();
+  localOptions.onCue({text:'영상 발언',start:0,end:1,observedAt:Date.now()});
+  assert.equal(attributionCalls,1);
+  assert.match(el('live-captions').allText,/박정민 의원 · 자기소개 단서 · 추정/);
+  el('local-save').onclick();
+  assert.equal(context.exported.segments[0].speaker,'박정민 의원 · 자기소개 단서 · 추정');
+  el('capture-stop').onclick();
+  await el('capture-start').onclick();
+  localOptions.onCue({text:'다른 탭 발언',start:0,end:1,observedAt:Date.now()});
+  assert.equal(attributionCalls,1,'unrelated tab audio never uses the council roster');
+  assert.match(el('live-captions').allText,/발언자 미확인/);
+  assert.doesNotMatch(el('live-captions').allText,/박정민/);
+  el('local-save').onclick();
+  assert.equal(context.exported.segments[0].speaker,'발언자 미확인');
   console.log('PASS: second polling, late response isolation, default selection, status, flags and export');
 }
 run().catch(error=>{console.error(error);process.exitCode=1});

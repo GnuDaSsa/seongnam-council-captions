@@ -60,22 +60,13 @@ async function sealPage(bucket, id, cues) {
   await bucket.put(key, body, {onlyIf:new Headers({'If-None-Match':'*'})});
   return key;
 }
-async function writeSnapshot(bucket, key, previous, data) {
+async function writeSnapshot(bucket, key, previous, data, decorate) {
   const old = await jsonBody(previous);
   const pages = [...(old?.pages || [])], gaps = [...(old?.gaps || [])];
   // The producer repeats the tail on every heartbeat. Sealed pages always end
   // before the oldest of the most recent 100 cues, including on restart.
   let tail = combine(old?.cues, data.cues);
   if (old?.sealedThrough != null) tail = tail.filter(c => c.start >= old.sealedThrough);
-  let sealedThrough = old?.sealedThrough ?? null;
-  while (tail.length >= pageSize * 2) {
-    let cut = pageSize;
-    while (cut < tail.length - pageSize && tail[cut - 1].start === tail[cut].start) cut++;
-    if (tail[cut - 1].start === tail[cut].start) break;
-    pages.push(await sealPage(bucket, data.meetingId, tail.slice(0,cut)));
-    tail = tail.slice(cut);
-    sealedThrough = tail[0].start;
-  }
   if (old && old.status !== 'interrupted' && data.status === 'interrupted') {
     gaps.push({start:old.updatedAt, end:null, reason:'interrupted'});
   } else if (old && old.status === 'interrupted' && data.status !== 'interrupted') {
@@ -84,7 +75,19 @@ async function writeSnapshot(bucket, key, previous, data) {
   } else if (old && old.status !== 'interrupted' && Date.parse(data.updatedAt) - Date.parse(old.updatedAt) > 120000) {
     gaps.push({start:old.updatedAt, end:data.updatedAt, reason:'updates_missing'});
   }
-  const state = {...snapshot(data,tail),pages,sealedThrough,gaps};
+  let sealedThrough = old?.sealedThrough ?? null;
+  let speakerContext = old?.speakerContext || [];
+  tail = await decorate(tail, speakerContext, gaps);
+  while (tail.length >= pageSize * 2) {
+    let cut = pageSize;
+    while (cut < tail.length - pageSize && tail[cut - 1].start === tail[cut].start) cut++;
+    if (tail[cut - 1].start === tail[cut].start) break;
+    pages.push(await sealPage(bucket, data.meetingId, tail.slice(0,cut)));
+    speakerContext = tail.slice(Math.max(0,cut - 8),cut);
+    tail = tail.slice(cut);
+    sealedThrough = tail[0].start;
+  }
+  const state = {...snapshot(data,tail),pages,sealedThrough,gaps,speakerContext};
   return bucket.put(key, JSON.stringify(state), {onlyIf:condition(previous), customMetadata:{updatedAt:data.updatedAt}, httpMetadata:{contentType:jsonHeaders['Content-Type']}});
 }
 async function minutes(bucket, state, id) {
@@ -223,8 +226,20 @@ async function nameplates(request, bucket, url, meetings, publicKey, clock, veri
   return error(409, 'Concurrent nameplate update');
 }
 
-export function createSite({assets, meetings, publicKey}, clock = Date.now) {
+export function createSite({assets, meetings, publicKey, attributeSpeakers, resolveArchiveVideo}, clock = Date.now) {
   let verifier;
+  const visualCache = new Map();
+  async function visualEvidence(bucket, meeting) {
+    const cached = visualCache.get(meeting.id);
+    if (cached && clock() < cached.expires) return cached.rows;
+    let rows = [];
+    try {
+      const data = await jsonBody(await bucket.get(nameplateKey(meeting.id)));
+      if (data && validStoredNameplates(data, meeting)) rows = data.observations.filter(o => o.matchedMembers.length);
+    } catch { /* Text-based attribution still works when camera evidence is unavailable. */ }
+    visualCache.set(meeting.id, {expires:clock() + 3000, rows});
+    return rows;
+  }
   async function verifySignature(key, signature, bytes) {
     verifier ??= crypto.subtle.importKey('raw', fromBase64url(key), 'Ed25519', false, ['verify']);
     return crypto.subtle.verify('Ed25519', await verifier, fromBase64url(signature), bytes);
@@ -237,6 +252,12 @@ export function createSite({assets, meetings, publicKey}, clock = Date.now) {
     if (!meeting && !(isMinutes && request.method === 'GET' && /^\d{1,12}$/.test(id))) return error(404, 'Unknown meeting');
     if (!bucket) return error(503, 'Captions storage unavailable');
     const storageKey = 'council-captions/' + id + '.json';
+    async function decorate(cues, context, gaps) {
+      const raw = cues.map(({speaker, ...cue}) => cue);
+      if (!attributeSpeakers || !raw.length) return raw;
+      const speakers = attributeSpeakers(meeting, [...context,...raw], await visualEvidence(bucket,meeting), gaps);
+      return raw.map(cue => Object.hasOwn(speakers,cue.id) ? {...cue,speaker:speakers[cue.id]} : cue);
+    }
     if (isMinutes) {
       if (request.method !== 'GET') return error(405,'Read only');
       return minutes(bucket, await jsonBody(await bucket.get(storageKey)), id);
@@ -246,7 +267,8 @@ export function createSite({assets, meetings, publicKey}, clock = Date.now) {
       if (!object) return error(404, 'Captions have not started');
       if (request.method === 'HEAD') return new Response(null,{headers:jsonHeaders});
       const current = await jsonBody(object);
-      return Response.json(snapshot(current,current.cues.slice(-pageSize)),{headers:jsonHeaders});
+      const labeled = await decorate(current.cues,current.speakerContext || [],current.gaps || []);
+      return Response.json(snapshot(current,labeled.slice(-pageSize)),{headers:jsonHeaders});
     }
     if (request.method !== 'PUT') return new Response(null, {status:405, headers:{...headers, Allow:'GET, HEAD, PUT'}});
     const signature = request.headers.get('X-Council-Signature') || '';
@@ -264,19 +286,25 @@ export function createSite({assets, meetings, publicKey}, clock = Date.now) {
       const previous = await bucket.get(key);
       const old = await jsonBody(previous);
       const gapMap = new Map([...(old?.gaps || []), ...data.gaps].map(g => [g.start,g]));
-      const value = {updatedAt:data.updatedAt, cues:combine(old?.cues,data.cues), gaps:[...gapMap.values()]};
+      const gaps = [...gapMap.values()];
+      const value = {updatedAt:data.updatedAt, cues:await decorate(combine(old?.cues,data.cues),[],gaps), gaps};
       const saved = await bucket.put(key,JSON.stringify(value),{onlyIf:condition(previous), httpMetadata:{contentType:jsonHeaders['Content-Type']}});
       return saved ? new Response(null,{status:204,headers}) : error(409,'Concurrent recovery');
     }
     if (data?.purpose || !validate(data, meeting, clock())) return error(400, 'Invalid captions');
     const previous = await bucket.get(storageKey);
     if (previous && Date.parse(previous.customMetadata.updatedAt) >= Date.parse(data.updatedAt)) return error(409, 'A newer snapshot is available');
-    const saved = await writeSnapshot(bucket, storageKey, previous, data);
+    const saved = await writeSnapshot(bucket, storageKey, previous, data, decorate);
     return saved ? new Response(null, {status:204, headers}) : error(409, 'Concurrent update');
   }
   return {async fetch(request, env) {
     const url = new URL(request.url);
-    if (url.pathname === '/api/live/nameplates') return nameplates(request, env.BUCKET, url, meetings, publicKey, clock, verifySignature);
+    if (url.pathname === '/api/vod/resolve') return resolveArchiveVideo ? resolveArchiveVideo(request) : error(503,'VOD lookup unavailable');
+    if (url.pathname === '/api/live/nameplates') {
+      const result = await nameplates(request, env.BUCKET, url, meetings, publicKey, clock, verifySignature);
+      if (request.method === 'PUT' && result.ok) visualCache.delete(url.searchParams.get('meetingId'));
+      return result;
+    }
     if (['/api/live/captions','/api/live/minutes','/api/live/minutes/recover'].includes(url.pathname)) return captions(request, env.BUCKET, url);
     if (!['HEAD', 'GET'].includes(request.method)) return error(405, 'Method not allowed');
     const path = url.pathname === '/' ? '/index.html' : url.pathname;
