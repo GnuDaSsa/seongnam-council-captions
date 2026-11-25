@@ -48,8 +48,11 @@ class ProducerTests(unittest.TestCase):
         self.assertEqual(original, visible)
         self.assertNotIn('repetition', flags)
         _, visible, flags = stt.quality_decision(SimpleNamespace(text='안건입니다', avg_logprob=-1.5, no_speech_prob=0.1))
-        self.assertEqual(visible, '[음성 재확인]')
+        self.assertEqual(visible, '안건입니다')
         self.assertIn('low_confidence', flags)
+        _, visible, flags = stt.quality_decision(SimpleNamespace(text='불확실한 발언', avg_logprob=-1.5, no_speech_prob=0.8))
+        self.assertEqual(visible, '[음성 재확인]')
+        self.assertIn('severe_uncertainty', flags)
 
 
 if __name__ == '__main__': unittest.main()

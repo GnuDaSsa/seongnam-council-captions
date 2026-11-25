@@ -2,11 +2,12 @@ const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
 class Element {
-  constructor() { this.children=[]; this.handlers={}; this.scrollHeight=0; this.scrollTop=0; this.clientHeight=0; this.readyState=1; this.srcObject=null; }
+  constructor() { this.children=[]; this.handlers={}; this.dataset={}; this.scrollHeight=0; this.scrollTop=0; this.clientHeight=0; this.readyState=1; this.srcObject=null; }
   addEventListener(name, fn) { this.handlers[name]=fn; }
   append(...items) { this.children.push(...items); }
   replaceChildren(...items) { this.children=items; }
   querySelector() { return this.child ||= new Element(); }
+  querySelectorAll() { return []; }
   removeAttribute(key) { delete this[key]; }
   pause() {}
   load() {}

@@ -11,6 +11,7 @@ import threading
 import subprocess
 import time
 import urllib.request
+import urllib.error
 from urllib.parse import urlencode, parse_qs
 from urllib.parse import urlparse
 
@@ -23,11 +24,13 @@ PROMPT = '성남시의회 회의 발언입니다. 의장, 의원, 위원장, 성
 
 def load_model():
     from faster_whisper import WhisperModel
-    return WhisperModel(str(MODEL), device='cpu', compute_type='int8', local_files_only=True)
+    return WhisperModel(str(MODEL), device='cpu', compute_type='int8', cpu_threads=2, num_workers=1, local_files_only=True)
 
 
 def transcribe_audio(model, audio, previous_text='', hints=''):
-    segments, _ = model.transcribe(audio, language='ko', beam_size=5, vad_filter=True,
+    duration = len(audio) / 16000 if not isinstance(audio, (str, Path)) else 20
+    segments, _ = model.transcribe(audio, language='ko', beam_size=2, temperature=0.0,
+        max_new_tokens=max(32, min(160, int(duration * 8))), vad_filter=True,
         vad_parameters={'min_silence_duration_ms': 500, 'speech_pad_ms': 300},
         condition_on_previous_text=True, initial_prompt=(PROMPT + ' ' + hints[:500] + ' ' + previous_text[-300:]))
     return list(segments)
@@ -50,9 +53,15 @@ def quality_decision(segment):
     flags = cue_flags(raw)
     if len(compact) >= 12 and re.search(r'(.{2,20}?)\1{3,}', compact):
         flags.append('repetition')
-    if getattr(segment, 'avg_logprob', 0) < -1.0 or getattr(segment, 'no_speech_prob', 0) > 0.6:
+    weak = getattr(segment, 'avg_logprob', 0) < -1.0
+    silent = getattr(segment, 'no_speech_prob', 0) > 0.6
+    compressed = getattr(segment, 'compression_ratio', 0) > 2.4
+    if weak or silent:
         flags.append('low_confidence')
-    text = '[음성 재확인]' if 'repetition' in flags or 'low_confidence' in flags else raw
+    severe = (weak and silent) or (compressed and (weak or silent))
+    if severe:
+        flags.append('severe_uncertainty')
+    text = '[음성 재확인]' if 'repetition' in flags or severe else raw
     return raw, text, flags
 
 
@@ -68,7 +77,8 @@ def signed_put(url, payload, key_path=KEY):
     body = json.dumps(payload, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
     key = serialization.load_pem_private_key(Path(key_path).read_bytes(), password=None)
     signature = base64.urlsafe_b64encode(key.sign(body)).decode('ascii').rstrip('=')
-    req = urllib.request.Request(url, body, {'Content-Type': 'application/json', 'X-Council-Signature': signature}, method='PUT')
+    req = urllib.request.Request(url, body, {'Content-Type': 'application/json', 'X-Council-Signature': signature,
+                                             'User-Agent': 'SeongnamCouncilCaptionPublisher/1.0'}, method='PUT')
     with urllib.request.urlopen(req, timeout=15) as response:
         response.read(4096)
 
@@ -152,18 +162,27 @@ def run(endpoint, end_at, meeting_id, model, decode):
     base_mono = time.monotonic()
     cues = []
     try:
-        with urllib.request.urlopen(endpoint, timeout=10) as response:
+        request = urllib.request.Request(endpoint, headers={'User-Agent': 'SeongnamCouncilCaptionPublisher/1.0'})
+        with urllib.request.urlopen(request, timeout=10) as response:
             existing = json.load(response)
-        if existing.get('meetingId') == meeting_id and isinstance(existing.get('cues'), list):
-            cues = existing['cues'][-100:]
-            base_position = max(base_position, max((float(c['end']) for c in cues), default=0.0))
-    except (OSError, ValueError, KeyError, TypeError):
-        pass
+        if existing.get('meetingId') != meeting_id or not isinstance(existing.get('cues'), list):
+            raise ValueError('unreadable existing caption snapshot')
+        cues = existing['cues'][-100:]
+        base_position = max(base_position, max((float(c['end']) for c in cues), default=0.0))
+    except urllib.error.HTTPError as error:
+        if error.code != 404:
+            raise
     previous = ''
     counter = time.time_ns()
     progress = [time.monotonic()]
+    publish_failed = False
     def publish(status):
-        signed_put(endpoint, {'meetingId': meeting_id, 'updatedAt': utc_now(), 'status': status, 'cues': cues[-100:]})
+        nonlocal publish_failed
+        try:
+            signed_put(endpoint, {'meetingId': meeting_id, 'updatedAt': utc_now(), 'status': status, 'cues': cues[-100:]})
+        except Exception:
+            publish_failed = True
+            raise
         print('{} meeting={} status={} cues={}'.format(utc_now(), meeting_id, status, len(cues)), flush=True)
     command = ['ffmpeg', '-nostdin', '-v', 'error', '-rw_timeout', '15000000', '-live_start_index', '-1', '-i', source, '-vn', '-ac', '1',
                '-ar', '16000', '-f', 's16le', 'pipe:1']
@@ -235,7 +254,8 @@ def run(endpoint, end_at, meeting_id, model, decode):
             process.wait(timeout=5)
         thread.join(timeout=5)
         # A time limit or capture failure does not prove the meeting has ended.
-        publish('interrupted')
+        if not publish_failed:
+            publish('interrupted')
 
 
 def main():
@@ -258,14 +278,19 @@ def main():
             try:
                 if job['lag']() > 60:
                     raise RuntimeError('transcription is over 60 seconds behind capture')
+                started = time.monotonic()
+                print('{} decode_start meeting={} audio_seconds={:.2f} queue={} lag={:.2f}'.format(
+                    utc_now(), job['mid'], len(job['audio']) / 16000, jobs.qsize(), job['lag']()), flush=True)
                 job['result'] = transcribe_audio(model, job['audio'], job['previous'], job['hints'])
+                print('{} decode_end meeting={} wall_seconds={:.2f} segments={}'.format(
+                    utc_now(), job['mid'], time.monotonic() - started, len(job['result'])), flush=True)
             except Exception as error:
                 job['error'] = error
             finally:
                 job['done'].set()
     threading.Thread(target=decoder, daemon=True).start()
     def decode(mid, audio, previous, hints, lag):
-        job = {'audio': audio, 'previous': previous, 'hints': hints,
+        job = {'mid': mid, 'audio': audio, 'previous': previous, 'hints': hints,
                'lag': lag, 'done': threading.Event()}
         jobs.put((0 if mid == '2853' else 1, time.monotonic_ns(), job))
         job['done'].wait()
@@ -290,6 +315,8 @@ def main():
         except Exception as error:
             errors.append((mid, error))
             print('meeting {} interrupted: {}'.format(mid, error), flush=True)
+            if isinstance(error, urllib.error.HTTPError):
+                print('HTTP response: {}'.format(error.read(300).decode('utf-8', 'replace').replace('\n', ' ')), flush=True)
     threads = [threading.Thread(target=worker, args=(mid,)) for mid in ids]
     for thread in threads:
         thread.start()
