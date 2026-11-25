@@ -20,6 +20,7 @@
   }
   function cueList() { return mergedCues; }
   function sourceLabel(cue) {
+    if (cue.source === 'minutes_aligned') return '공식 회의록 대조';
     if (cue.source === 'asr') return '기존 자동 전사 · 미검토';
     if (cue.source === 'local') return '개인 자동 전사 · 미검토';
     return '제공 자막';
@@ -48,7 +49,10 @@
     }
     let index = -1;
     for (let i = 0; i < cues.length; i++) {
-      if (Number(cues[i].start) <= now && now < Number(cues[i].end)) index = i;
+      if (Number(cues[i].start) <= now && now < Number(cues[i].end)) {
+        index = i;
+        if (cues[i].source === 'minutes_aligned') break;
+      }
     }
     const current = index < 0 ? null : cues[index];
     const nextButton = index < 0 ? null : cueButtons[index];
@@ -59,7 +63,7 @@
     const output = el('vod-caption-now');
     const main = current ? [speaker(current), safeText(current), sourceLabel(current)].filter(Boolean).join(' · ')
       : cues.length ? '현재 재생 위치에 자막이 없습니다.' : '표시할 자막이 없습니다.';
-    const fresh = capture && !video.paused && !video.seeking && recentCue &&
+    const fresh = current?.source !== 'minutes_aligned' && capture && !video.paused && !video.seeking && recentCue &&
       Date.now() - recentCue.receivedAt <= 15000 && now >= recentCue.cue.start && now - recentCue.cue.end <= 60;
     const message = fresh && current !== recentCue.cue
       ? `${main}\n최근 인식 [${stamp(recentCue.cue.start)}] · 인식 지연: ${safeText(recentCue.cue)}` : main;
@@ -90,6 +94,12 @@
     el('vod-stop').hidden = true; el('vod-generate').hidden = true;
     if (!meeting) { placeholder.querySelector('p').textContent = '회의를 선택해 주세요.'; render(); return; }
     el('vod-source').href = validSource(meeting.officialPage);
+    const minutesLink = el('vod-minutes');
+    minutesLink.hidden = true; minutesLink.removeAttribute('href');
+    if (/^https:\/\/www\.sncouncil\.go\.kr\/record\/recordView\.do\?key=[a-f0-9]+$/.test(meeting.minutesUrl || '')) {
+      minutesLink.href = meeting.minutesUrl;
+      minutesLink.hidden = false;
+    }
     catalogCues = (Array.isArray(meeting.cues) ? meeting.cues : []).filter(cue => Number.isFinite(Number(cue.start)) && Number.isFinite(Number(cue.end)) && Number(cue.end) > Number(cue.start) && typeof cue.text === 'string').sort((a,b) => Number(a.start) - Number(b.start));
     updateCues();
     el('vod-caption-status').textContent = catalogCues.length ? '기존 자막이 일부 구간에 제공됩니다. 영상을 재생하며 자막을 추가 생성할 수 있습니다.' : '시간별 자막이 없습니다. 영상을 재생한 뒤 자막을 생성할 수 있습니다.';

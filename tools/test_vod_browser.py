@@ -19,7 +19,7 @@ def server():
 
 catalog = {'meetings':[
     {'id':'5483','title':'Test council','date':'2026-10-07','officialPage':'https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5483',
-     'playlist':'https://cast.sncouncil.go.kr/vod/test.m3u8','cues':[{'id':'a','start':2,'end':5,'text':'first cache','speaker':'Chair','source':'asr'},{'id':'b','start':8,'end':11,'text':'second cache','source':'asr'}]},
+     'playlist':'https://cast.sncouncil.go.kr/vod/test.m3u8','minutesUrl':'https://www.sncouncil.go.kr/record/recordView.do?key=abc123','cues':[{'id':'a','start':2,'end':5,'text':'first cache','speaker':'Chair','source':'minutes_aligned'},{'id':'b','start':8,'end':11,'text':'second cache','source':'asr'}]},
     {'id':'2','title':'Other council','date':'2026-10-08','officialPage':'https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=2',
      'playlist':'https://cast.sncouncil.go.kr/vod/test2.m3u8','cues':[]}]}
 
@@ -98,7 +98,12 @@ with server() as base, sync_playwright() as p:
     assert 'new speech' not in page.locator('#vod-caption-now').inner_text()
     page.evaluate("v.pause();v.play()")
     assert page.locator('#vod-stop').is_visible()
+    page.evaluate("window.captureArgs.onCue({start:2.9,end:5.3,text:'unreviewed overlap'});v._time=3;v.dispatchEvent(new Event('timeupdate'))")
+    assert 'first cache' in page.locator('#vod-caption-now').inner_text()
+    assert 'unreviewed overlap' not in page.locator('#vod-caption-now').inner_text()
+    assert page.locator('#vod-minutes').is_visible()
     page.select_option('#vod-meeting-select','2')
+    assert page.locator('#vod-minutes').is_hidden()
     assert page.locator('#vod-stop').is_hidden()
     assert page.locator('.vod-cue').count() == 0
     page.evaluate("window.oldCapture.onCue({start:1,end:2,text:'stale'});")
