@@ -51,6 +51,7 @@
   function preview() { el('minutes-preview').textContent = CouncilExports.minutesText(model()); }
   function render() {
     const container = el('minutes-cues'); container.replaceChildren();
+    const cueFields = new Map();
     const guesses = window.CouncilSpeakerReview?.guesses(meeting, archive.cues) || {};
     const candidateCount = archive.cues.filter(cue => !!guesses[String(cue.id)]).length;
     el('minutes-speaker-filter').checked = false;
@@ -77,6 +78,7 @@
       function updateMeta() { saveMeta(cue,{speaker:speaker.value,kind:kind.value,confirmed:confirmed.checked}); showSpeaker(speaker.value); preview(); }
       speaker.addEventListener('input',updateMeta); kind.addEventListener('change',updateMeta); confirmed.addEventListener('change',updateMeta); metaBox.append(speaker,kind,confirmLabel);
       const guess = guesses[String(cue.id)];
+      cueFields.set(String(cue.id), {speaker, metaBox, guess, cue});
       card.dataset.speakerCandidate = guess ? 'yes' : 'no';
       if (guess) {
         const hint = document.createElement('div'), accept = document.createElement('button');
@@ -126,6 +128,80 @@
     }
     preview(); el('minutes-content').hidden = false;
     el('minutes-status').textContent = coverage();
+    return cueFields;
+  }
+  const sampleTime = new Intl.DateTimeFormat('ko-KR', {timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
+  async function loadNameplates(token, cueFields) {
+    const status = el('nameplate-status'), list = el('nameplate-list');
+    list.replaceChildren();
+    if (meeting.provider !== 'hls') { status.textContent = '이 중계에는 명패 수집이 연결되어 있지 않습니다.'; return; }
+    status.textContent = '명패 기록을 불러오는 중입니다.';
+    try {
+      const res = await fetch('/api/live/nameplates?meetingId=' + encodeURIComponent(meeting.id), {cache:'no-store',signal:AbortSignal.timeout(10000)});
+      if (!res.ok) throw Error('Nameplate fetch failed');
+      const data = await res.json();
+      if (token !== version) return;
+      const samples = window.CouncilNameplateReview.observations(meeting, archive, data);
+      if (!samples.length) { status.textContent = '이 회의에서 수집된 명패 기록이 없습니다.'; return; }
+      const found = samples.filter(item => item.names.length);
+      status.textContent = `방송 화면 ${samples.length}장 중 ${found.length}장에서 위원 이름을 읽었습니다. 마지막 수집 ${sampleTime.format(samples.at(-1).time)} (한국시간). 화면과 자막의 중계 지연이 달라, 수집 시각 앞뒤 15초의 발언을 함께 대조할 수 있습니다.`;
+      const link = document.createElement('a');
+      link.href = meeting.officialPage; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = '의회 공식 중계 열기';
+      status.append(' ', link);
+      for (const sample of found.reverse()) {
+        const fields = cueFields.get(sample.cueId);
+        const time = sampleTime.format(sample.time), names = sample.names.join(' · ');
+        const item = document.createElement('li');
+        item.textContent = time + '　' + names + ' ';
+        function jumpTo(target) {
+          const filter = el('minutes-speaker-filter');
+          if (filter.checked) { filter.checked = false; filter.dispatchEvent(new Event('change')); }
+          target.speaker.focus();
+        }
+        const shown = new Set();
+        function showEvidence(fields) {
+          if (shown.has(fields)) return;
+          shown.add(fields);
+          const note = document.createElement('div');
+          note.className = 'cue-nameplate';
+          const label = document.createElement('p');
+          label.textContent = '발언 근처 화면에서 읽은 이름 · ' + time + ' 수집　' + names;
+          if (fields.guess?.name && sample.names.length === 1) {
+            label.textContent += fields.guess.name === names ? ' · 발언 내용에서 찾은 후보와 일치' : ' · 발언 내용에서 찾은 후보와 다름';
+          }
+          note.append(label);
+          if (sample.names.length === 1) {
+            const apply = document.createElement('button');
+            apply.type = 'button'; apply.textContent = '영상 확인 후 ' + names + ' 적용';
+            apply.onclick = () => { fields.speaker.value = names; fields.speaker.dispatchEvent(new Event('input', {bubbles:true})); };
+            note.append(apply);
+          } else note.append(document.createTextNode('여러 이름이 보입니다. 영상을 대조해 발언자를 입력하세요.'));
+          fields.metaBox.append(note);
+        }
+        if (fields) {
+          const jump = document.createElement('button');
+          jump.type = 'button'; jump.textContent = '수집 시각이 겹치는 발언 보기';
+          jump.onclick = () => jumpTo(fields);
+          item.append(jump);
+          showEvidence(fields);
+        } else if (sample.nearbyIds.length) {
+          const nearby = document.createElement('details'), title = document.createElement('summary');
+          title.textContent = `앞뒤 발언 ${sample.nearbyIds.length}개 대조`;
+          nearby.append(title);
+          for (const id of sample.nearbyIds) {
+            const target = cueFields.get(id), go = document.createElement('button');
+            go.type = 'button';
+            go.textContent = sampleTime.format(Date.parse(target.cue.observedAt)) + '　' + read(target.cue).slice(0,60);
+            go.onclick = () => { showEvidence(target); jumpTo(target); };
+            nearby.append(go);
+          }
+          item.append(nearby);
+        } else item.append(document.createTextNode('· 대응 발언 구간 미확인'));
+        list.append(item);
+      }
+    } catch (_) {
+      if (token === version) status.textContent = '명패 기록을 불러오지 못했습니다. 기록 새로고침으로 다시 확인할 수 있습니다.';
+    }
   }
   el('minutes-speaker-filter').addEventListener('change', event => {
     for (const card of el('minutes-cues').children) {
@@ -146,7 +222,8 @@
       if (String(data.meetingId) !== id || !Array.isArray(data.cues)) throw new Error();
       archive = data;
       if (!archive.cues.length) { el('minutes-status').textContent = '이 회의에 수집된 공유 기록이 없습니다. 유튜브 중계는 공유 기록이 제공되지 않을 수 있습니다.'; return; }
-      render();
+      const fields = render();
+      void loadNameplates(token, fields);
     } catch (_) { if (token === version) el('minutes-status').textContent = '공유 기록을 불러오지 못했습니다. 잠시 후 새로고침해 주세요.'; }
   }
   function save(hwpx) {

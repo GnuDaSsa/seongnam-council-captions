@@ -25,7 +25,13 @@ with serve_dist() as base_url, sync_playwright() as p:
  cue={'id':'1','start':0,'end':8,'observedAt':'2026-11-25T04:00:00Z','text':'original statement','rawText':'original statement','flags':['low_confidence','number','name']}
  def route(r):
   u=r.request.url
-  if '/api/live/minutes?' in u: r.fulfill(json={'meetingId':u.split('meetingId=')[1].split('&')[0],'cues':[cue,{'id':'2','start':8,'end':16,'text':'bad segment secret','rawText':'bad segment secret','flags':['segment_review']},{'id':'3','start':17,'end':20,'text':'placeholder','rawText':'user retained source','flags':['segment_review']}],'status':'live','updatedAt':'2026-11-25T04:00:00Z','gaps':[{'start':'2026-11-25T04:00:00Z','end':None,'reason':'interrupted'}]})
+  if '/api/live/minutes?' in u: r.fulfill(json={'meetingId':u.split('meetingId=')[1].split('&')[0],'cues':[cue,{'id':'2','start':8,'end':16,'text':'bad segment secret','rawText':'bad segment secret','flags':['segment_review']},{'id':'3','start':17,'end':20,'text':'placeholder','rawText':'user retained source','flags':['segment_review']}],'status':'live','updatedAt':'2026-11-25T04:00:00Z','gaps':[{'start':'2026-11-25T04:00:08Z','end':None,'reason':'interrupted'}]})
+  elif '/api/live/nameplates?' in u:
+   if 'meetingId=2853' in u: r.fulfill(json={'meetingId':'2853','observations':[
+    {'capturedAt':'2026-11-25T04:00:02Z','matchedMembers':['김옥수']},
+    {'capturedAt':'2026-11-25T04:00:05Z','matchedMembers':['정연화','김옥수']},
+    {'capturedAt':'2026-11-25T04:01:00Z','matchedMembers':['정연화','김옥수']}]})
+   else: r.fulfill(status=503,body='')
   elif '/api/live/captions?' in u: r.fulfill(status=404,body='')
   elif 'cast.sncouncil.go.kr' in u or 'youtube.com' in u: r.abort()
   else: r.continue_()
@@ -38,6 +44,19 @@ with serve_dist() as base_url, sync_playwright() as p:
  assert '1' in page.locator('#minutes-speaker-filter-label').inner_text()
  assert page.locator('.minutes-cue:visible').count() == 3
  full_preview = page.locator('#minutes-preview').inner_text()
+ page.locator('#minutes-nameplates > summary').click()
+ page.wait_for_selector('#nameplate-list li',state='visible')
+ assert '3장 중 3장' in page.locator('#nameplate-status').inner_text()
+ assert '대응 발언 구간 미확인' in page.locator('#nameplate-list').inner_text()
+ assert page.locator('#nameplate-list button').count() == 2
+ assert '김옥수' not in full_preview
+ page.locator('#nameplate-list button').first.click()
+ field = page.locator('.minutes-cue').first.locator('input[aria-label]')
+ assert field.evaluate('input => document.activeElement === input')
+ assert page.locator('.cue-nameplate button').count() == 1
+ page.get_by_role('button', name='영상 확인 후 김옥수 적용').click()
+ assert field.input_value() == '김옥수' and '김옥수' in page.locator('#minutes-preview').inner_text()
+ field.fill('')
  page.locator('#minutes-speaker-filter').check()
  assert page.locator('.minutes-cue:visible').count() == 1
  assert page.locator('#minutes-preview').inner_text() == full_preview
@@ -57,7 +76,7 @@ with serve_dist() as base_url, sync_playwright() as p:
  assert 'Candidate' not in page.locator('#minutes-preview').inner_text()
  page.locator('.minutes-cue').first.locator('button').nth(0).click()
  assert 'Candidate' in page.locator('#minutes-preview').inner_text()
- page.locator('.minutes-cue').first.locator('button').nth(1).click()
+ page.locator('.minutes-cue').first.get_by_role('button',name='이 표기로 수정').first.click()
  assert page.locator('.minutes-cue').first.locator('textarea').input_value()=='corrected statement'
  assert 'original statement' not in page.locator('#minutes-preview').inner_text()
  assert 'bad segment secret' in page.locator('#minutes-preview').inner_text()
@@ -93,6 +112,8 @@ with serve_dist() as base_url, sync_playwright() as p:
  page.wait_for_function("!document.querySelector('#minutes-content').hidden && document.querySelector('#minutes-speaker-filter-label').textContent.includes('(0')")
  assert not page.locator('#minutes-speaker-filter').is_checked()
  assert page.locator('#minutes-speaker-empty').is_visible()
+ page.wait_for_function("document.querySelector('#nameplate-status').textContent.includes('불러오지 못했습니다')")
+ assert page.locator('#nameplate-list li').count() == 0
  assert page.locator('.minutes-cue:visible').count() == 3
  page.locator('#minutes-speaker-filter').check()
  assert page.locator('.minutes-cue:visible').count() == 0
@@ -100,6 +121,21 @@ with serve_dist() as base_url, sync_playwright() as p:
  page.select_option('#live-meeting-select',value='2853')
  page.wait_for_function("!document.querySelector('#minutes-content').hidden && document.querySelector('#minutes-speaker-filter-label').textContent.includes('(1')")
  assert not page.locator('#minutes-speaker-filter').is_checked()
+ assert page.locator('.minutes-cue').first.locator('input[aria-label]').input_value() == 'Test Person'
+ # When two ASR turns fall near one frame, staff choose a turn before applying a name.
+ near_cue = {**cue, 'id':'4', 'start':8,'end':16,'observedAt':'2026-11-25T04:00:08Z','text':'second voice','rawText':'second voice'}
+ page.route('**/api/live/minutes?meetingId=2853',lambda r:r.fulfill(json={'meetingId':'2853','cues':[cue,near_cue],'status':'live','gaps':[]}))
+ page.locator('#minutes-refresh').click()
+ choices=page.locator('#nameplate-list li').filter(has_text='앞뒤 발언 2개 대조').filter(has_not_text='정연화')
+ if not page.locator('#minutes-nameplates').evaluate('node => node.open'):
+  page.locator('#minutes-nameplates > summary').click()
+ choices.locator('summary').click()
+ assert page.locator('.cue-nameplate button').count() == 0
+ choices.locator('button').filter(has_text='second voice').click()
+ second=page.locator('.minutes-cue').nth(1)
+ assert second.locator('input[aria-label]').input_value() == ''
+ second.get_by_role('button',name='영상 확인 후 김옥수 적용').click()
+ assert second.locator('input[aria-label]').input_value() == '김옥수'
  assert page.locator('.minutes-cue').first.locator('input[aria-label]').input_value() == 'Test Person'
  page.evaluate("() => { Storage.prototype.setItem = function() { throw new Error('quota'); }; }")
  page.locator('.minutes-cue').first.locator('textarea').fill('quota edit')

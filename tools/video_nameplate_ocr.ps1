@@ -2,8 +2,9 @@
     [Parameter(Mandatory = $true)]
     [string]$ImagePath,
 
-    [Parameter(Mandatory = $true)]
     [string[]]$Members,
+
+    [string]$MembersBase64,
 
     [Parameter(Mandatory = $true)]
     [string]$VideoUrl,
@@ -13,6 +14,13 @@
 )
 
 $ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+if ($MembersBase64) {
+    if ($Members) { throw 'Supply either Members or MembersBase64.' }
+    $decoded = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($MembersBase64))
+    $Members = ConvertFrom-Json -InputObject $decoded
+}
+if (-not $Members -or @($Members).Count -lt 2) { throw 'A complete member roster is required.' }
 Add-Type -AssemblyName System.Runtime.WindowsRuntime
 
 $null = [Windows.Storage.StorageFile, Windows.Storage, ContentType = WindowsRuntime]

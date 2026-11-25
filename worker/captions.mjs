@@ -103,8 +103,132 @@ async function minutes(bucket, state, id) {
   return Response.json({...data,coverageStart:cues[0]?.observedAt || null,gaps:[...gapMap.values()].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start))},{headers:jsonHeaders});
 }
 
+const nameplateMaxBytes = 128 * 1024;
+const nameplateMaxBatch = 100;
+const nameplateMaxObservations = 1440;
+const nameplateMaxAgeMs = 10 * 60 * 1000;
+function nameplateKey(id) { return 'council-nameplates/' + id + '.json'; }
+function exactKeys(value, keys) {
+  return !!value && typeof value === 'object' && !Array.isArray(value) &&
+    Object.keys(value).length === keys.length && keys.every(key => Object.hasOwn(value, key));
+}
+function dateTime(value) { return typeof value === 'string' ? Date.parse(value) : NaN; }
+function canonicalUtcTime(value) {
+  const time = dateTime(value);
+  return Number.isFinite(time) && new Date(time).toISOString() === value ? time : NaN;
+}
+function validMemberList(names, meeting) {
+  if (!Array.isArray(names) || names.length > 20) return false;
+  const roster = Array.isArray(meeting.members) && meeting.members.length ? new Set(meeting.members) : null;
+  const seen = new Set();
+  for (const raw of names) {
+    if (typeof raw !== 'string') return false;
+    const name = raw.normalize('NFC');
+    if (name !== raw) return false;
+    if (!/^[가-힣]{2,4}$/.test(name) || seen.has(name) || roster && !roster.has(name)) return false;
+    seen.add(name);
+  }
+  return true;
+}
+function validObservation(observation, meeting, updatedTime) {
+  if (!exactKeys(observation, ['capturedAt', 'matchedMembers']) || !validMemberList(observation.matchedMembers, meeting)) return false;
+  const capturedTime = canonicalUtcTime(observation.capturedAt);
+  const scheduledAt = dateTime(meeting.scheduledAt), endsAt = dateTime(meeting.endsAt);
+  if (!Number.isFinite(capturedTime) || !Number.isFinite(scheduledAt) || !Number.isFinite(endsAt)) return false;
+  if (capturedTime < scheduledAt || capturedTime > endsAt || capturedTime > updatedTime + 10000 || updatedTime - capturedTime > nameplateMaxAgeMs) return false;
+  return true;
+}
+function validateNameplateUpdate(data, meeting, now) {
+  if (!exactKeys(data, ['meetingId', 'updatedAt', 'observations']) || data.meetingId !== meeting.id || !Array.isArray(data.observations) ||
+      data.observations.length < 1 || data.observations.length > nameplateMaxBatch) return false;
+  const updatedTime = canonicalUtcTime(data.updatedAt);
+  const scheduledAt = dateTime(meeting.scheduledAt), endsAt = dateTime(meeting.endsAt);
+  if (!Number.isFinite(updatedTime) || Math.abs(now - updatedTime) > 120000 ||
+      !Number.isFinite(scheduledAt) || !Number.isFinite(endsAt) || updatedTime < scheduledAt || updatedTime > endsAt + 120000) return false;
+  return data.observations.every(observation => validObservation(observation, meeting, updatedTime));
+}
+function validStoredNameplates(data, meeting) {
+  if (!exactKeys(data, ['meetingId', 'updatedAt', 'observations']) || data.meetingId !== meeting.id ||
+      !Array.isArray(data.observations) || data.observations.length > nameplateMaxObservations) return false;
+  const updatedTime = data.updatedAt == null ? NaN : canonicalUtcTime(data.updatedAt);
+  if (data.updatedAt != null && !Number.isFinite(updatedTime)) return false;
+  const seen = new Set();
+  let lastTime = -Infinity;
+  for (const observation of data.observations) {
+    if (!exactKeys(observation, ['capturedAt', 'matchedMembers']) || !validMemberList(observation.matchedMembers, meeting)) return false;
+    const capturedTime = canonicalUtcTime(observation.capturedAt);
+    if (!Number.isFinite(capturedTime) || capturedTime < dateTime(meeting.scheduledAt) || capturedTime > dateTime(meeting.endsAt) || capturedTime < lastTime || seen.has(observation.capturedAt)) return false;
+    seen.add(observation.capturedAt);
+    lastTime = capturedTime;
+  }
+  return data.observations.length === 0 ? data.updatedAt == null : Number.isFinite(updatedTime);
+}
+function mergeNameplateObservations(previous, incoming) {
+  const byTime = new Map();
+  for (const observation of [...(previous || []), ...incoming]) {
+    const old = byTime.get(observation.capturedAt);
+    byTime.set(observation.capturedAt, old
+      ? {capturedAt:observation.capturedAt, matchedMembers:[...new Set([...old.matchedMembers, ...observation.matchedMembers])].sort()}
+      : {capturedAt:observation.capturedAt, matchedMembers:[...observation.matchedMembers].sort()});
+  }
+  return [...byTime.values()].sort((a,b)=>dateTime(a.capturedAt)-dateTime(b.capturedAt));
+}
+async function nameplates(request, bucket, url, meetings, publicKey, clock, verify) {
+  const id = url.searchParams.get('meetingId') || '';
+  const meeting = meetings.find(item => item.id === id);
+  if (!meeting) return error(404, 'Unknown meeting');
+  if (!bucket) return error(503, 'Nameplate storage unavailable');
+  const key = nameplateKey(id);
+  if (request.method === 'GET' || request.method === 'HEAD') {
+    const object = await bucket.get(key);
+    if (!object) {
+      if (request.method === 'HEAD') return new Response(null, {headers:jsonHeaders});
+      return Response.json({meetingId:id, updatedAt:null, observations:[]}, {headers:jsonHeaders});
+    }
+    let stored;
+    try { stored = await jsonBody(object); } catch { return error(503, 'Nameplate archive is unavailable'); }
+    if (!validStoredNameplates(stored, meeting)) return error(503, 'Nameplate archive is invalid');
+    if (request.method === 'HEAD') return new Response(null, {headers:jsonHeaders});
+    return Response.json(stored, {headers:jsonHeaders});
+  }
+  if (request.method !== 'PUT') return new Response(null, {status:405, headers:{...headers, Allow:'GET, HEAD, PUT'}});
+  const signature = request.headers.get('X-Council-Signature') || '';
+  if (!/^[A-Za-z0-9_-]{86}$/.test(signature)) return error(401, 'Invalid signature');
+  const bytes = await readBytes(request);
+  if (!bytes || bytes.byteLength > nameplateMaxBytes) return error(413, 'Invalid body size');
+  if (!await verify(publicKey, signature, bytes)) return error(401, 'Invalid signature');
+  let data;
+  try { data = JSON.parse(new TextDecoder('utf-8', {fatal:true}).decode(bytes)); }
+  catch { return error(400, 'Invalid JSON'); }
+  if (!validateNameplateUpdate(data, meeting, clock())) return error(400, 'Invalid nameplate observations');
+
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const previous = await bucket.get(key);
+    let old = {meetingId:id, updatedAt:null, observations:[]};
+    if (previous) {
+      try { old = await jsonBody(previous); } catch { return error(503, 'Nameplate archive is unavailable'); }
+      if (!validStoredNameplates(old, meeting)) return error(503, 'Nameplate archive is invalid');
+    }
+    const observations = mergeNameplateObservations(old.observations, data.observations);
+    if (observations.length > nameplateMaxObservations) return error(413, 'Nameplate archive limit reached');
+    const oldUpdateTime = dateTime(old.updatedAt), incomingUpdateTime = dateTime(data.updatedAt);
+    const updatedAt = Number.isFinite(oldUpdateTime) && oldUpdateTime > incomingUpdateTime ? old.updatedAt : data.updatedAt;
+    const next = {meetingId:id, updatedAt, observations};
+    if (previous && JSON.stringify(old) === JSON.stringify(next)) return new Response(null, {status:204, headers});
+    const saved = await bucket.put(key, JSON.stringify(next), {
+      onlyIf:condition(previous), customMetadata:{updatedAt}, httpMetadata:{contentType:jsonHeaders['Content-Type']},
+    });
+    if (saved) return new Response(null, {status:204, headers});
+  }
+  return error(409, 'Concurrent nameplate update');
+}
+
 export function createSite({assets, meetings, publicKey}, clock = Date.now) {
   let verifier;
+  async function verifySignature(key, signature, bytes) {
+    verifier ??= crypto.subtle.importKey('raw', fromBase64url(key), 'Ed25519', false, ['verify']);
+    return crypto.subtle.verify('Ed25519', await verifier, fromBase64url(signature), bytes);
+  }
   async function captions(request, bucket, url) {
     const id = url.searchParams.get('meetingId') ?? meetings[0]?.id;
     const meeting = meetings.find(item => item.id === id);
@@ -129,8 +253,7 @@ export function createSite({assets, meetings, publicKey}, clock = Date.now) {
     if (!/^[A-Za-z0-9_-]{86}$/.test(signature)) return error(401, 'Invalid signature');
     const bytes = await readBytes(request);
     if (!bytes) return error(413, 'Invalid body size');
-    verifier ??= crypto.subtle.importKey('raw', fromBase64url(publicKey), 'Ed25519', false, ['verify']);
-    if (!await crypto.subtle.verify('Ed25519', await verifier, fromBase64url(signature), bytes)) return error(401, 'Invalid signature');
+    if (!await verifySignature(publicKey, signature, bytes)) return error(401, 'Invalid signature');
     let data;
     try { data = JSON.parse(new TextDecoder('utf-8', {fatal:true}).decode(bytes)); }
     catch { return error(400, 'Invalid JSON'); }
@@ -153,6 +276,7 @@ export function createSite({assets, meetings, publicKey}, clock = Date.now) {
   }
   return {async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname === '/api/live/nameplates') return nameplates(request, env.BUCKET, url, meetings, publicKey, clock, verifySignature);
     if (['/api/live/captions','/api/live/minutes','/api/live/minutes/recover'].includes(url.pathname)) return captions(request, env.BUCKET, url);
     if (!['HEAD', 'GET'].includes(request.method)) return error(405, 'Method not allowed');
     const path = url.pathname === '/' ? '/index.html' : url.pathname;
