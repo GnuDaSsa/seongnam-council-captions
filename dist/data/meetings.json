@@ -1,0 +1,179 @@
+[
+  {
+    "id": "5411",
+    "title": "제311회 임시회 제3차 본회의",
+    "date": "2026-07-08",
+    "body": "성남시의회 본회의",
+    "sourceUrl": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5411",
+    "minutesUrl": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5411",
+    "coverage": "공개 회의록에 근거한 전 회의 진행 요약 · 4개 구간 · 시간은 발언별 정확한 시각이 아닌 원본 장 경계",
+    "agenda": [
+      "각 위원회 부위원장 선임 및 의석 배정 결과보고",
+      "폐회사",
+      "산회"
+    ],
+    "segments": [
+      {
+        "id": "5411-0",
+        "start": 0,
+        "end": 14,
+        "speaker": "의장 강상태",
+        "text": "의장이 제3차 본회의 개의를 알렸다.",
+        "status": "공식 회의록 기반 요약 · 구간 단위 시간",
+        "timingPrecision": "chapter",
+        "sourceUrl": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5411&position=0"
+      },
+      {
+        "id": "5411-1a",
+        "start": 14,
+        "end": 104,
+        "speaker": "의장 강상태",
+        "text": "의장이 위원회 운영 사항에 관한 보고를 요청했다.",
+        "status": "공식 회의록 기반 요약 · 구간 단위 시간",
+        "timingPrecision": "chapter",
+        "sourceUrl": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5411&position=14"
+      },
+      {
+        "id": "5411-1b",
+        "start": 14,
+        "end": 104,
+        "speaker": "의사팀장 이상준",
+        "text": "각 위원회의 부위원장 선임과 의석 배치 결과를 보고했다.",
+        "status": "공식 회의록 기반 요약 · 구간 단위 시간",
+        "timingPrecision": "chapter",
+        "sourceUrl": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5411&position=14"
+      },
+      {
+        "id": "5411-1c",
+        "start": 14,
+        "end": 104,
+        "speaker": "의장 강상태",
+        "text": "의장이 보고에 감사를 표했다.",
+        "status": "공식 회의록 기반 요약 · 구간 단위 시간",
+        "timingPrecision": "chapter",
+        "sourceUrl": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5411&position=14"
+      },
+      {
+        "id": "5411-2",
+        "start": 104,
+        "end": 313,
+        "speaker": "의장 강상태",
+        "text": "의장이 원 구성과 첫 임시회 일정을 돌아보고 위원회 중심의 의정활동, 의회와 집행부의 소통을 당부했다.",
+        "status": "공식 회의록 기반 요약 · 구간 단위 시간",
+        "timingPrecision": "chapter",
+        "sourceUrl": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5411&position=104"
+      },
+      {
+        "id": "5411-3",
+        "start": 313,
+        "end": 330,
+        "speaker": "의장 강상태",
+        "text": "의장이 제3차 본회의를 마치고 산회를 선포했다.",
+        "status": "공식 회의록 기반 요약 · 구간 단위 시간",
+        "timingPrecision": "chapter",
+        "sourceUrl": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5411&position=313"
+      }
+    ]
+  },
+  {
+    "id": "5467",
+    "title": "제312회 임시회 제2차 본회의",
+    "date": "2026-09-07",
+    "body": "성남시의회 본회의",
+    "sourceUrl": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5467",
+    "minutesUrl": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5467",
+    "coverage": "공식 회의록에 근거한 5분 자유발언 선별 요약 · 시간은 공식 장 경계",
+    "agenda": [
+      "5분 자유발언"
+    ],
+    "segments": [
+      {
+        "id": "5467-3",
+        "start": 591,
+        "end": 979,
+        "speaker": "추선미 의원",
+        "text": "경기도 재정과 도비 보조사업 검토, 성남시 부시장 공석 및 도와 시·군 간 재정 협의에 관한 의견을 밝혔다.",
+        "status": "공식 회의록 기반 요약 · 구간 단위 시간",
+        "timingPrecision": "chapter",
+        "sourceUrl": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5467&position=591"
+      },
+      {
+        "id": "5467-4",
+        "start": 979,
+        "end": 1346,
+        "speaker": "윤혜선 의원",
+        "text": "도촌야탑역 신설의 사전타당성조사와 경제성 분석 결과, 교통대책 추진을 언급했다.",
+        "status": "공식 회의록 기반 요약 · 구간 단위 시간",
+        "timingPrecision": "chapter",
+        "sourceUrl": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5467&position=979"
+      },
+      {
+        "id": "5467-7",
+        "start": 1999,
+        "end": 2429,
+        "speaker": "김건우 의원",
+        "text": "분당 1기 신도시 슈퍼블록 재건축과 도로·주차장 등 기반시설 확충의 필요성을 제안했다.",
+        "status": "공식 회의록 기반 요약 · 구간 단위 시간",
+        "timingPrecision": "chapter",
+        "sourceUrl": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5467&position=1999"
+      }
+    ]
+  },
+  {
+    "id": "5544",
+    "title": "제315회 제2차 정례회 개회식 및 제1차 본회의",
+    "date": "2026-11-20",
+    "body": "성남시의회 본회의",
+    "sourceUrl": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5544&position=700",
+    "minutesUrl": "https://www.sncouncil.go.kr/record/recordView.do?key=a45df9cc8ff01b8c2daa31901715ceb23024ea7025b2400d6d92d9a52db3783b18d3fbde3d12dc8c",
+    "coverage": "원본 700.700초부터 20.024초 발췌 · 로컬 AI 전사 원문 · 미검토, 오류 포함 · 발언자 미확인",
+    "agenda": [],
+    "segments": [
+      {
+        "id": "5544-1",
+        "start": 700.7,
+        "end": 701.9,
+        "speaker": "발언자 미확인",
+        "text": "했습니다.",
+        "status": "AI 전사 원문 · 미검토",
+        "sourceUrl": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5544&position=700"
+      },
+      {
+        "id": "5544-2",
+        "start": 701.9,
+        "end": 707.94,
+        "speaker": "발언자 미확인",
+        "text": "지하철파로선 판교의 현장은 예비탄성 조사 대상에 선정비여서",
+        "status": "AI 전사 원문 · 미검토",
+        "sourceUrl": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5544&position=701"
+      },
+      {
+        "id": "5544-3",
+        "start": 707.94,
+        "end": 712.74,
+        "speaker": "발언자 미확인",
+        "text": "철도망 확충에 한 걸음 또 다가왔습니다.",
+        "status": "AI 전사 원문 · 미검토",
+        "sourceUrl": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5544&position=707"
+      },
+      {
+        "id": "5544-4",
+        "start": 712.74,
+        "end": 716.14,
+        "speaker": "발언자 미확인",
+        "text": "분양보호소 신축공사는 원활하게 추진되고 있으며",
+        "status": "AI 전사 원문 · 미검토",
+        "sourceUrl": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5544&position=712"
+      },
+      {
+        "id": "5544-5",
+        "start": 716.14,
+        "end": 720.724,
+        "speaker": "발언자 미확인",
+        "text": "성남시 의료원은 분당소리대병은 명이 13명이 혀빈",
+        "status": "AI 전사 원문 · 미검토",
+        "sourceUrl": "https://cast.sncouncil.go.kr/vod/vod_view.jsp?pk_vod_no=5544&position=716"
+      }
+    ]
+  }
+]
