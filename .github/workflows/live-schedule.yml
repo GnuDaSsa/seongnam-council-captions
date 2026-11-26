@@ -1,7 +1,7 @@
 name: Public council schedule snapshot
 on:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '0 23 * * *'  # 08:00 Asia/Seoul
   workflow_dispatch:
 permissions:
   contents: read
