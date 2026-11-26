@@ -1,0 +1,48 @@
+name: Public council schedule snapshot
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  refresh:
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    concurrency:
+      group: public-council-schedule-snapshot
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: caption-quality-log
+          path: schedule-log
+      - name: Check fresh snapshot output
+        run: node tools/test_refresh_schedule.mjs
+      - name: Fetch official schedule
+        run: node tools/refresh_schedule.mjs --if schedule-log/schedule/latest.json --output "$RUNNER_TEMP/council-schedule.json"
+      - name: Commit changed snapshot
+        working-directory: schedule-log
+        run: |
+          mkdir -p schedule
+          cp -- "$RUNNER_TEMP/council-schedule.json" schedule/latest.json
+          git add -- schedule/latest.json
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Update public council schedule snapshot'
+          for attempt in 1 2 3; do
+            git pull --rebase origin caption-quality-log
+            if git push origin HEAD:refs/heads/caption-quality-log; then exit 0; fi
+          done
+          echo 'Concurrent update prevented snapshot publication; rerun the workflow.' >&2
+          exit 1
