@@ -674,16 +674,21 @@ with server() as base, sync_playwright() as p:
     live_source = 'https://cast.sncouncil.go.kr/live/flashPlayer.jsp?live_no=' + live_id
     shared = {'id':'shared-one','start':1,'end':4,'text':'공유 자막 예제','rawText':'공유 음성 원문',
               'observedAt':'2026-11-25T07:30:00.000Z','flags':[]}
-    live_manifest = {'defaultMeetingId':live_id,'meetings':[
+    live_manifest = {'date':'2026-11-25','defaultMeetingId':live_id,'meetings':[
         {'id':live_id,'title':'공개 시험 회의','label':'제1차','scheduledAt':'2026-11-25T04:00:00Z',
          'endsAt':'2026-11-25T11:00:00Z','officialPage':live_source,'source':live_source,
          'provider':'hls','playlist':'https://cast.sncouncil.go.kr/vod/test.m3u8'}]}
 
+    submissions=[]
     def public_route(r):
         req = urlsplit(r.request.url)
         if req.netloc != 'council-preview.test':
             r.abort()
-        elif req.path == '/data/live-meetings.json':
+        elif req.path == '/api/reports':
+            payload=r.request.post_data_json
+            submissions.append(payload)
+            r.fulfill(json={'id':payload['id'],'receipt':True,'deliveryDay':'2026-11-25'})
+        elif req.path in ('/api/live/schedule','/data/live-meetings.json'):
             r.fulfill(json=live_manifest)
         elif req.path == '/api/live/captions':
             r.fulfill(json={'meetingId':live_id,'status':'ended','updatedAt':shared['observedAt'],'cues':[shared]})
@@ -701,6 +706,7 @@ with server() as base, sync_playwright() as p:
 
     public = browser.new_page()
     public.add_init_script(media_stub + "Object.defineProperty(HTMLMediaElement.prototype,'duration',{get(){return 500}});")
+    public.clock.set_fixed_time('2026-11-25T07:30:00Z')
     public.route('**/*',public_route)
     public.goto(public_origin+'/',wait_until='domcontentloaded')
     expect(public.locator('.maker-credit')).to_have_text('AI반도체과 사진우 제작')
@@ -710,20 +716,42 @@ with server() as base, sync_playwright() as p:
     public.locator('[data-report-cue=shared-one]').click()
     expect(public.locator('#live-report-hold')).to_have_attribute('aria-pressed','true')
     assert public.evaluate("document.getElementById('live-video').paused")
-    live_link = public.get_by_role('link',name='GitHub에서 이슈 작성 ↗')
-    draft = urlsplit(live_link.get_attribute('href'))
-    assert draft.netloc == 'github.com' and draft.path.endswith('/seongnam-council-captions/issues/new')
-    assert live_source in parse_qs(draft.query)['body'][0]
-    assert '공유 자막 예제' in parse_qs(draft.query)['body'][0]
+    form=public.locator('#live-report form')
+    expect(form.locator('blockquote')).to_have_text('공유 자막 예제')
+    expect(form.get_by_role('button',name='제보 보내기')).to_be_disabled()
+    form.get_by_label('수정 의견').fill('공유 원문 확인 요청')
+    form.get_by_role('button',name='제보 보내기').click()
+    expect(form.get_by_role('status')).to_contain_text('접수했습니다')
+    assert submissions[-1]['context']['source']=='live-shared'
+    assert submissions[-1]['context']['meetingId']==live_id
     expect(public.get_by_role('link',name='등록된 이슈 ↗')).to_have_attribute('href',
         'https://github.com/GnuDaSsa/seongnam-council-captions/issues')
     public.locator('#live-report-cancel').click()
-    expect(public.locator('#live-report-open')).to_have_attribute('aria-disabled','true')
+    expect(form).to_be_hidden()
     public.locator('#live-report-hold').click()
     assert public.evaluate("!document.getElementById('live-video').paused")
 
+    public.locator('#player-captions').click()
+    public.evaluate("window.captureArgs.onCue({start:10,end:15,text:'이 방송의 개인 자막',observedAt:Date.now()})")
+    public.locator('[data-report-cue="1"]').click()
+    form.get_by_label('수정 의견').fill('개인 인식 수정')
+    public.evaluate("window.captureArgs.onCue({start:15,end:20,text:'다음 자막',observedAt:Date.now()+5000})")
+    expect(form.get_by_label('수정 의견')).to_have_value('개인 인식 수정')
+    form.get_by_role('button',name='제보 보내기').click()
+    expect(form.get_by_role('status')).to_contain_text('접수했습니다')
+    assert submissions[-1]['context']['source']=='live-personal'
+    public.locator('#capture-stop').click()
     public.locator('#tab-vod').click()
     expect(public.locator('#vod-meeting-select')).to_have_value('5483')
+    public.locator('.vod-cue').first.click()
+    assert public.evaluate("document.getElementById('vod-video').currentTime")==2
+    public.locator('.vod-report-cue').nth(1).click()
+    assert public.evaluate("document.getElementById('vod-video').currentTime")==2
+    vod_form=public.locator('#vod-report form')
+    vod_form.get_by_label('수정 의견').fill('기존 자막 수정')
+    vod_form.get_by_role('button',name='제보 보내기').click()
+    expect(vod_form.get_by_role('status')).to_contain_text('접수했습니다')
+    assert submissions[-1]['context']['source']=='vod-existing'
     public.locator('#vod-meeting-select').select_option('2')
     public.evaluate("const video=document.getElementById('vod-video'); video.currentTime=126.25; video.dispatchEvent(new Event('timeupdate'))")
     fast = public.get_by_role('link',name='빠른 자막 사용')
@@ -741,11 +769,13 @@ with server() as base, sync_playwright() as p:
     public.locator('.vod-cue').click()
     expect(public.locator('.vod-cue')).to_have_attribute('aria-pressed','true')
     assert public.evaluate("document.getElementById('vod-video').paused")
-    vod_link = public.get_by_role('link',name='GitHub에서 이슈 작성 ↗')
-    vod_body = parse_qs(urlsplit(vod_link.get_attribute('href')).query)['body'][0]
-    assert 'pk_vod_no=2&position=126' in vod_body and '다시보기에서 발생한 자막 예제' in vod_body
+    expect(vod_form.locator('blockquote')).to_have_text('다시보기에서 발생한 자막 예제')
+    vod_form.get_by_label('수정 의견').fill('다시보기 오류')
+    vod_form.get_by_role('button',name='제보 보내기').click()
+    expect(vod_form.get_by_role('status')).to_contain_text('접수했습니다')
+    assert submissions[-1]['context']['source']=='vod-personal' and submissions[-1]['context']['start']==126.25
     public.locator('#vod-report-cancel').click()
-    expect(public.locator('#vod-report-open')).to_have_attribute('aria-disabled','true')
+    expect(vod_form).to_be_hidden()
     back = public.get_by_role('link',name='기본 인식으로 돌아가기')
     settings = parse_qs(urlsplit(back.get_attribute('href')).query)
     assert 'asr' not in settings and settings['vod']==['2'] and settings['t']==['126.25']

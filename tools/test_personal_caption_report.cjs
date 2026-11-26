@@ -47,10 +47,10 @@ test('shared reports carry a real wall timestamp and cannot encode a VOD seek',(
   assert.equal(reports.reportUrl({...shared,observedAt:'2026-11-25T18:50:07+09:00'}),'');
 });
 
-test('HTTPS report links prefill only the official GitHub issue form with inert caption excerpts',()=>{
+test('legacy issue links preserve inert caption excerpts and hosted HTTPS selects the site form',()=>{
   const url=new URL(reports.issueUrl({...context,meetingTitle:'회의 @someone',
     quote:'@someone\n## 가짜 제목\n<img src=x>',rawQuote:'원래 인식'}));
-  assert.equal(reports.modeFor('https://council.example'),'github');
+  assert.equal(reports.modeFor('https://council.example'),'hosted');
   assert.equal(reports.modeFor('http://127.0.0.1:4186'),'local');
   assert.equal(reports.modeFor('http://example.test'),'');
   assert.equal(reports.modeFor('https://user@example.test'),'');
@@ -74,4 +74,74 @@ test('bounded public issue links retain source and headings for long multilingua
   assert.match(shared.searchParams.get('body'),/live_no=2853\)/);
   assert.match(shared.searchParams.get('body'),/2026-11-25 18:50:07 \(한국시간\)/);
   assert.ok(!shared.searchParams.get('body').includes('position='));
+});
+
+test('site stores validated reports with the observed source, allows a long VOD cue and waits for a matching receipt',async()=>{
+  assert.equal(reports.hostedDraft(context,'live-personal'),null);
+  assert.equal(reports.hostedDraft({...context,sourceUrl:'https://other.invalid'},'vod-existing'),null);
+  const entry=reports.hostedDraft({...context,end:context.start+85},'vod-existing');
+  const sent=[];
+  const accepted=async(url,opts)=>{
+    assert.equal(url,'/api/reports'); assert.equal(opts.method,'POST');
+    assert.equal(opts.headers['Content-Type'],'application/json');
+    const data=JSON.parse(opts.body); sent.push(data);
+    return Response.json({receipt:true,id:data.id,deliveryDay:'2026-11-27'});
+  };
+  await reports.submit(entry,accepted);
+  assert.equal(sent.length,0);
+  entry.note='기관명 확인'; entry.kind='자막 내용 오류';
+  await reports.submit(entry,async(url,opts)=>{sent.push(JSON.parse(opts.body)); return new Response(null,{status:503});});
+  assert.equal(entry.deliveryDay,''); assert.equal(entry.note,'기관명 확인');
+  await reports.submit(entry,async(url,opts)=>{sent.push(JSON.parse(opts.body));return Response.json({id:'wrong',receipt:true,deliveryDay:'2026-11-27'});});
+  assert.equal(entry.deliveryDay,'');
+  await reports.submit(entry,accepted);
+  await reports.submit(entry,accepted);
+  assert.equal(sent.length,3); assert.deepEqual(sent[0],sent[1]); assert.deepEqual(sent[1],sent[2]);
+  assert.equal(sent[0].context.source,'vod-existing');
+  assert.equal(sent[0].context.end,context.start+85);
+  assert.equal(entry.deliveryDay,'2026-11-27');
+});
+
+test('concurrent submit is suppressed; a changed payload after a failed send gets a new key',async()=>{
+  const {start,end,...rest}=context;
+  const value={...rest,observedAt:'2026-11-26T01:00:00.000Z'};
+  const draft=reports.hostedDraft(value,'live-personal');
+  assert.equal(draft.context.source,'live-personal');
+  const id=draft.id;
+  draft.note='첫 제보';
+  let resolve, calls=0;
+  const delayed=() => {calls++;return new Promise(done=>{resolve=done;});};
+  const a=reports.submit(draft,delayed);
+  await reports.submit(draft,delayed);
+  assert.equal(calls,1);
+  resolve(new Response(null,{status:503})); await a;
+  draft.note='수정한 의견';
+  await reports.submit(draft,async()=>new Response(null,{status:429}));
+  assert.notEqual(draft.id,id);assert.match(draft.message,/잠시 후/);
+});
+
+test('editing the site form preserves a selected cue and restores its receipt after switching cues',async t=>{
+  const field=()=>({value:'',events:{},addEventListener(type,handler){this.events[type]=handler;}});
+  const kind=field(),note=field(),status={},button={},excerpt={};
+  const form={...field(),elements:{namedItem:key=>key==='kind'?kind:note},
+    querySelector:selector=>selector==='[role=status]'?status:selector==='[type=submit]'?button:excerpt};
+  const show=reports.bindForm({append(){}},{content:{firstElementChild:{cloneNode:()=>form}}});
+  const first=reports.hostedDraft(context,'vod-existing');
+  const second=reports.hostedDraft({...context,cueId:'other',quote:'다른 자막'},'vod-existing');
+  show(first); assert.equal(button.disabled,true);
+  note.value='이 구간의 발언자를 확인해 주세요.';note.events.input();
+  kind.value='발언자 오류';kind.events.change();
+  let resolve,body;
+  t.mock.method(globalThis,'fetch',(url,opts)=>{
+    assert.equal(url,'/api/reports');body=JSON.parse(opts.body);
+    return new Promise(done=>{resolve=done;});
+  });
+  const result=form.events.submit({preventDefault(){}});
+  assert.equal(button.disabled,true);assert.deepEqual(body.context,first.context);
+  assert.equal(body.note,'이 구간의 발언자를 확인해 주세요.');assert.equal(body.kind,'발언자 오류');
+  show(second);assert.equal(note.value,'');assert.equal(excerpt.textContent,'다른 자막');
+  resolve(Response.json({receipt:true,id:body.id,deliveryDay:'2026-11-27'}));await result;
+  assert.equal(status.textContent,'');show(first);
+  assert.match(status.textContent,/접수했습니다. 2026-11-27 오후 9시/);assert.equal(button.disabled,true);
+  assert.equal(note.value,body.note);
 });

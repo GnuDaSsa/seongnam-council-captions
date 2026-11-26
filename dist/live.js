@@ -11,6 +11,7 @@
   let historyGeneration = 0, historyScrollPending = false;
   const reportTools=window.CouncilPersonalCaptionReport;
   const reportMode=reportTools?.modeFor?.(location.origin);
+  const showReportForm=reportMode==='hosted' ? reportTools.bindForm(el('live-report'),el('caption-report-template')) : null;
   const reportDrafts=new Map();
   let sharedHold=null, selectedReport=null;
   const historySize=220, historyOverlap=56;
@@ -112,7 +113,7 @@
     return `${identity} · ${selfIntro ? '자기소개 단서 · ' : ''}추정`;
   }
   function reportSupported() {
-    return !!reportMode && !mode && !!meetingId &&
+    return !!reportMode && (!mode || (mode==='player' && !!showReportForm && meeting?.provider==='hls')) && !!meetingId &&
       meeting?.officialPage===reportTools.officialLiveUrl(meetingId);
   }
   function sharedTail() { return sharedHold?.cues || lastShared?.cues || []; }
@@ -190,32 +191,38 @@
       void browseSharedHistory('earlier');
   },{passive:true});
   function reportContext(cue) {
-    if (!reportSupported() || !reportTools.koreanWallTime(cue.observedAt)) return null;
-    const observed=Date.parse(cue.observedAt);
+    if (!reportSupported()) return null;
+    const observed=mode==='player' && Number.isFinite(cue.observedAt) ? cue.observedAt : Date.parse(cue.observedAt);
+    const at=new Date(observed);
+    if (!Number.isFinite(at.getTime())) return null;
+    const observedAt=mode==='player' ? at.toISOString() : cue.observedAt;
+    if (!reportTools.koreanWallTime(observedAt)) return null;
     const scheduled=Date.parse(meeting.scheduledAt), ended=Date.parse(meeting.endsAt);
     if (!Number.isFinite(scheduled) || !Number.isFinite(ended) || observed<scheduled-3600000 || observed>ended+3600000) return null;
     return {meetingId,meetingTitle:[meeting.title,meeting.label].filter(Boolean).join(' '),cueId:String(cue.id||''),
-      observedAt:cue.observedAt,speaker:speakerLabel(cue),quote:safeText(cue),rawQuote:String(cue.rawText||cue.text||'')};
+      observedAt,speaker:speakerLabel(cue),quote:safeText(cue),rawQuote:String(cue.rawText||cue.text||'')};
   }
   function updateSharedReportControl() {
     if (!reportMode) return;
     const panel=el('live-report'), hold=el('live-report-hold'), action=el('live-report-open'), status=el('live-report-status');
     if (!panel || !hold || !action || !status) return;
-    const available=reportSupported() && shownShared().some(cue=>reportTools.koreanWallTime(cue.observedAt));
-    panel.hidden=hold.hidden=!available;
+    const personal=mode==='player';
+    const available=reportSupported() && (personal ? localCues.length>0 : shownShared().some(cue=>reportTools.koreanWallTime(cue.observedAt)));
+    panel.hidden=!available && !selectedReport;
+    hold.hidden=!available || personal;
     hold.setAttribute('aria-pressed',String(!!sharedHold));
     hold.textContent=sharedHold?'재생 재개':'자막 멈추기';
     const href=selectedReport?.url||'', disabled=String(!href);
     const cancel=el('live-report-cancel'), issues=el('live-report-issues');
     if (cancel) cancel.hidden=!selectedReport;
-    if (issues) { issues.hidden=reportMode!=='github'; issues.href=reportTools.issuesUrl; }
-    const actionText=reportMode==='github' ? 'GitHub에서 이슈 작성 ↗' : '선택한 자막 신고 ↗';
-    if (action.textContent!==actionText) action.textContent=actionText;
+    action.hidden=!!showReportForm;
+    if (issues) { issues.hidden=!showReportForm; issues.href=reportTools.issuesUrl; }
+    if (showReportForm) showReportForm(selectedReport?.form);
     if ((action.getAttribute('href')||'')!==href) {
       if (href) action.href=href; else action.removeAttribute('href');
     }
     if (action.getAttribute('aria-disabled')!==disabled) action.setAttribute('aria-disabled',disabled);
-    const message=selectedReport?.status || (sharedHold?'멈춘 목록에서 신고할 자막 줄을 선택하세요.':'신고할 자막 줄을 선택하면 목록이 멈춥니다.');
+    const message=selectedReport?.status || (personal?'제보할 개인 자막 줄을 선택하세요.':sharedHold?'멈춘 목록에서 신고할 자막 줄을 선택하세요.':'신고할 자막 줄을 선택하면 목록이 멈춥니다.');
     if (status.textContent!==message) status.textContent=message;
   }
   function holdShared() {
@@ -234,22 +241,25 @@
   el('live-report-hold')?.addEventListener('click',toggleSharedHold);
   el('live-report-cancel')?.addEventListener('click',()=>{
     selectedReport=null;
-    render(shownShared());
+    render(mode==='player' ? localCues : shownShared());
   });
   function chooseSharedReport(cue,context) {
-    holdShared();
-    if (!sharedHold) return;
-    const signature=JSON.stringify(context), existing=reportDrafts.get(context.cueId);
-    const url=existing?.signature===signature ? existing.url : reportMode==='github' ? reportTools.issueUrl(context) :
-      reportTools.reportUrl(context,{id:crypto.randomUUID(),kind:'자막 내용 오류',note:''});
-    if (url && !reportDrafts.has(context.cueId) && reportDrafts.size>=200) reportDrafts.delete(reportDrafts.keys().next().value);
-    if (url) reportDrafts.set(context.cueId,{signature,url});
+    const personal=mode==='player';
+    if (!personal) { holdShared(); if (!sharedHold) return; }
+    const key=(personal?'personal:':'shared:')+context.cueId;
+    const signature=JSON.stringify(context), existing=reportDrafts.get(key);
     const time=reportTools.koreanWallTime(context.observedAt);
-    const message=reportMode==='github' ? ' 자막을 선택했습니다. GitHub 로그인 후 내용을 확인하고 제출하세요.' : ' 자막을 선택했습니다.';
-    const recent={id:cue.id,url,status:url ? time+message : '이 자막의 신고 정보를 준비할 수 없습니다.'};
+    let recent=existing;
+    if (recent?.signature!==signature) {
+      const form=showReportForm ? reportTools.hostedDraft(context,personal ? 'live-personal' : 'live-shared') : null;
+      const url=showReportForm ? '' : reportTools.reportUrl(context,{id:crypto.randomUUID(),kind:'자막 내용 오류',note:''});
+      recent={id:cue.id,signature,form,url,status:form || url ? time+(personal?' 개인 자막을 선택했습니다.':' 자막을 선택했습니다.') : '이 자막의 신고 정보를 준비할 수 없습니다.'};
+      if (!existing && reportDrafts.size>=200) reportDrafts.delete(reportDrafts.keys().next().value);
+      reportDrafts.set(key,recent);
+    }
     selectedReport=recent;
-    render(shownShared());
-    if (url && reportMode==='local') void reportTools.bridgeReady().then(available=>{
+    render(personal ? localCues : shownShared());
+    if (recent.url && reportMode==='local') void reportTools.bridgeReady().then(available=>{
       if (selectedReport!==recent || available) return;
       recent.status=time+' 자막을 선택했습니다. 먼저 GitHub_이슈_연결.cmd를 실행한 뒤 신고 양식을 열어 주세요.';
       updateSharedReportControl();

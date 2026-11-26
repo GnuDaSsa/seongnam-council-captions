@@ -349,7 +349,7 @@ async function nameplates(request, bucket, url, meetings, publicKey, clock, veri
   return error(409, 'Concurrent nameplate update');
 }
 
-export function createSite({assets, meetings, archiveMeetings = [], publicKey, attributeSpeakers, validateAcousticProof, validatePodiumProof, resolveArchiveVideo, resolveArchiveTranscript, dailyCatalog}, clock = Date.now) {
+export function createSite({assets, meetings, archiveMeetings = [], publicKey, attributeSpeakers, validateAcousticProof, validatePodiumProof, resolveArchiveVideo, resolveArchiveTranscript, dailyCatalog, reportHandler}, clock = Date.now) {
   let verifier;
   const visualCache = new Map();
   const archiveMetadataById = new Map([...archiveMeetings,...meetings].map(archiveMetadata).filter(Boolean).map(m=>[m.id,m]));
@@ -492,6 +492,9 @@ export function createSite({assets, meetings, archiveMeetings = [], publicKey, a
   }
   return {async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname === '/api/reports' || url.pathname.startsWith('/api/reports/')) {
+      return reportHandler ? reportHandler(request,env,clock) : error(503,'Reports unavailable');
+    }
     if (url.pathname.startsWith('/api/archive/')) return archive(request,env.BUCKET,url);
     if (url.pathname === '/api/vod/resolve') return resolveArchiveVideo ? resolveArchiveVideo(request) : error(503,'VOD lookup unavailable');
     if (url.pathname === '/api/vod/transcript') return resolveArchiveTranscript ? resolveArchiveTranscript(request) : error(503,'VOD transcript unavailable');

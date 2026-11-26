@@ -23,7 +23,7 @@
     const text=value.trim();
     return required && !text ? null : text;
   }
-  function contextOf(value) {
+  function contextOf(value, maxDuration=30) {
     const shared=value && Object.hasOwn(value,'observedAt');
     const times=shared ? ['observedAt'] : ['start','end'];
     if (!shape(value,[...contextKeys,...times]) || typeof value.meetingId!=='string'||!idPattern.test(value.meetingId) ||
@@ -31,7 +31,7 @@
       return null;
     const {meetingId,cueId,start,end,observedAt}=value;
     if (shared ? !koreanWallTime(observedAt) : !Number.isFinite(start) || !Number.isFinite(end) ||
-        !(0<=start && start<end && end<=604800 && end-start<=30)) return null;
+        !(0<=start && start<end && end<=604800 && end-start<=maxDuration)) return null;
     const context={meetingId,cueId,...(shared ? {observedAt} : {start,end})};
     for (const [key,limit] of Object.entries(limits)) {
       const text=plain(value[key],limit,key!=='speaker');
@@ -88,7 +88,7 @@
     if (localPlayback.has(originValue)) return 'local';
     try {
       const page=new URL(originValue);
-      return page.protocol==='https:' && page.origin===originValue ? 'github' : '';
+      return page.protocol==='https:' && page.origin===originValue ? 'hosted' : '';
     } catch (_) { return ''; }
   }
   function mediaStamp(seconds) {
@@ -120,6 +120,82 @@
     }
     return '';
   }
+  const kinds = ['자막 내용 오류','발언자 오류','시각 오류','기타'];
+  function hostedDraft(value,source) {
+    const context = contextOf(value,604800);
+    if (!context || !(context.observedAt ? ['live-shared','live-personal'] : ['vod-existing','vod-personal']).includes(source)) return null;
+    context.source=source;
+    return {context,id:crypto.randomUUID(),kind:kinds[0],note:'',submitted:null,
+      sending:false,deliveryDay:'',message:''};
+  }
+  async function submit(draft, fetcher=fetch) {
+    if (!draft || draft.sending || draft.deliveryDay) return;
+    const note=draft.note.trim(), kind=draft.kind;
+    if (!kinds.includes(kind) || !note || !plain(note,1200,true)) {
+      draft.message='의견을 1~1,200자로 입력해 주세요.';
+      return;
+    }
+    if (draft.submitted && (draft.submitted.note!==note || draft.submitted.kind!==kind)) draft.id=crypto.randomUUID();
+    draft.submitted={kind,note};
+    draft.sending=true;
+    draft.message='제보를 저장하고 있습니다.';
+    try {
+      const response=await fetcher('/api/reports',{method:'POST',credentials:'same-origin',
+        headers:{'Content-Type':'application/json'},body:JSON.stringify({id:draft.id,kind,note,context:draft.context})});
+      if (!response.ok) {
+        if (response.status===429) throw Error('접수가 몰려 잠시 후 다시 제출해 주세요.');
+        throw Error('저장을 확인하지 못했습니다. 다시 제출해 주세요.');
+      }
+      const data=await response.json();
+      if (data.receipt!==true || data.id!==draft.id || !/^\d{4}-\d\d-\d\d$/.test(data.deliveryDay)) {
+        throw Error('저장을 확인하지 못했습니다. 다시 제출해 주세요.');
+      }
+      draft.deliveryDay=data.deliveryDay;
+      draft.message='접수했습니다. '+data.deliveryDay+' 오후 9시 취합분에 포함됩니다.';
+    } catch (error) {
+      draft.message=error.message==='접수가 몰려 잠시 후 다시 제출해 주세요.' ? error.message :
+        '저장을 확인하지 못했습니다. 다시 제출해 주세요.';
+    } finally {
+      draft.sending=false;
+    }
+  }
+  function bindForm(panel,template) {
+    const form=template.content.firstElementChild.cloneNode(true);
+    panel.append(form);
+    const kind=form.elements.namedItem('kind'),note=form.elements.namedItem('note');
+    const button=form.querySelector('[type=submit]'),status=form.querySelector('[role=status]');
+    const excerpt=form.querySelector('blockquote');
+    let active=null;
+    function draw(draft) {
+      active=draft;
+      form.hidden=!draft;
+      if (!draft) return;
+      if (kind.value!==draft.kind) kind.value=draft.kind;
+      if (note.value!==draft.note) note.value=draft.note;
+      if (excerpt.textContent!==draft.context.quote) excerpt.textContent=draft.context.quote;
+      const locked=draft.sending || !!draft.deliveryDay;
+      kind.disabled=note.disabled=locked;
+      button.disabled=locked || !draft.note.trim();
+      if (status.textContent!==draft.message) status.textContent=draft.message;
+    }
+    function edit() {
+      if (!active || active.sending || active.deliveryDay) return;
+      active.kind=kind.value; active.note=note.value; active.message='';
+      draw(active);
+    }
+    kind.addEventListener('change',edit); note.addEventListener('input',edit);
+    form.addEventListener('submit',async event=>{
+      event.preventDefault();
+      const draft=active;
+      if (!draft) return;
+      const pending=submit(draft);
+      draw(draft);
+      await pending;
+      if (active===draft) draw(draft);
+    });
+    draw(null);
+    return draw;
+  }
   function bridgeReady() {
     return new Promise(resolve=>{
       const image=new Image();
@@ -131,5 +207,5 @@
     });
   }
   return Object.freeze({origin,prefix,reportUrl,fromHash,isReportHash,officialUrl,officialLiveUrl,koreanWallTime,modeFor,issueUrl,issuesUrl,
-    bridgeReady,localPlayback:value=>localPlayback.has(value)});
+    hostedDraft,submit,bindForm,bridgeReady,localPlayback:value=>localPlayback.has(value)});
 });

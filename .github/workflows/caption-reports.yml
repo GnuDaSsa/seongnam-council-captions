@@ -1,0 +1,31 @@
+name: Daily council caption reports
+on:
+  schedule:
+    - cron: '0 12 * * *'  # 21:00 Asia/Seoul
+  workflow_dispatch:
+permissions: {}
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+    concurrency:
+      group: daily-council-caption-reports
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Verify digest delivery with fixtures
+        run: node --test tools/test_publish_caption_reports.mjs
+      - name: Publish due reports
+        env:
+          CAPTION_REPORT_DIGEST_KEY: ${{ secrets.CAPTION_REPORT_DIGEST_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node tools/publish_caption_reports.mjs

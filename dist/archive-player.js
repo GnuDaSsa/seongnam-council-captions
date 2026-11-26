@@ -12,6 +12,7 @@
   const captureContexts = new WeakMap(), followingCue = new WeakMap();
   const reportTools=window.CouncilPersonalCaptionReport;
   const reportMode=reportTools?.modeFor?.(location.origin);
+  const showReportForm=reportMode==='hosted' ? reportTools.bindForm(el('vod-report'),el('caption-report-template')) : null;
   const reportDrafts=new WeakMap();
   let selectedReport=null;
   const pageUrl=new URL(location.href);
@@ -260,13 +261,14 @@
     if (!reportMode) return;
     const panel=el('vod-report'), action=el('vod-report-open');
     if (!panel || !action) return;
-    panel.hidden=track!=='personal' || (!generated.length && !selectedReport);
+    panel.hidden=showReportForm ? !selectedReport && (track==='existing' || !generated.length) :
+      track!=='personal' || (!generated.length && !selectedReport);
     const href=selectedReport?.url || '', disabled=String(!href);
     const cancel=el('vod-report-cancel'), issues=el('vod-report-issues');
     if (cancel) cancel.hidden=!selectedReport;
-    if (issues) { issues.hidden=reportMode!=='github'; issues.href=reportTools.issuesUrl; }
-    const actionText=reportMode==='github' ? 'GitHub에서 이슈 작성 ↗' : '선택한 자막 신고 ↗';
-    if (action.textContent!==actionText) action.textContent=actionText;
+    action.hidden=!!showReportForm;
+    if (issues) { issues.hidden=!showReportForm; issues.href=reportTools.issuesUrl; }
+    if (showReportForm) showReportForm(selectedReport?.form);
     if ((action.getAttribute('href')||'')!==href) {
       if (href) action.href=href;
       else action.removeAttribute('href');
@@ -282,15 +284,16 @@
     const quote=safeText(cue), input={meetingId,meetingTitle:meeting.title,cueId:String(cue.id),
       start:cue.start,end:cue.end,speaker:speaker(cue),quote,rawQuote:String(cue.rawText||cue.text||'')};
     const signature=JSON.stringify(input), existing=reportDrafts.get(cue);
-    const url=existing?.signature===signature ? existing.url : reportMode==='github' ? reportTools.issueUrl(input) :
-      reportTools.reportUrl(input,{id:crypto.randomUUID(),kind:'자막 내용 오류',note:''});
-    if (url) reportDrafts.set(cue,{signature,url});
-    const message=reportMode==='github' ? ' 자막을 선택했습니다. GitHub 로그인 후 내용을 확인하고 제출하세요.' :
-      ' 자막을 선택했습니다. 연결 화면이 열리지 않으면 GitHub_이슈_연결.cmd를 실행하세요.';
-    const draft={id:cue.id,url,status:url ? stamp(cue.start)+message :
-      '이 자막의 신고 정보를 준비할 수 없습니다.'};
+    let draft=existing;
+    if (draft?.signature!==signature) {
+      const form=showReportForm ? reportTools.hostedDraft(input,track==='existing' ? 'vod-existing' : 'vod-personal') : null;
+      const url=showReportForm ? '' : reportTools.reportUrl(input,{id:crypto.randomUUID(),kind:'자막 내용 오류',note:''});
+      draft={id:cue.id,signature,form,url,status:form || url ? stamp(cue.start)+' 자막을 선택했습니다.' :
+        '이 자막의 신고 정보를 준비할 수 없습니다.'};
+      reportDrafts.set(cue,draft);
+    }
     selectedReport=draft; renderedCues=null;
-    if (url && reportMode==='local') void reportTools.bridgeReady().then(available=>{
+    if (draft.url && reportMode==='local') void reportTools.bridgeReady().then(available=>{
       if (selectedReport!==draft) return;
       draft.status=stamp(cue.start)+(available ? ' 자막을 선택했습니다.' :
         ' 자막을 선택했습니다. 먼저 GitHub_이슈_연결.cmd를 실행한 뒤 신고 양식을 열어 주세요.');
@@ -306,7 +309,7 @@
     const cues = cueList(), now = video.currentTime || 0, box = el('vod-captions');
     if (renderedCues !== cues) {
       const savedScroll=box.scrollTop, focused=box.contains(document.activeElement) ? document.activeElement : null;
-      const focusedId=focused?.dataset?.cueId, focusedReference=focused?.dataset?.cueAction==='reference';
+      const focusedId=focused?.dataset?.cueId, focusedAction=focused?.dataset?.cueAction;
       let referenceToFocus=null;
       renderedCues = cues; cueButtons = []; activeButton = null; box.replaceChildren();
       for (const cue of cues) {
@@ -322,12 +325,29 @@
           if (reportMode && track==='personal') render();
         };
         const href=window.CouncilLiveSpeaker?.registeredVodHref?.(cue.speaker?.registeredVodReference);
-        if (href) {
-          const row=part('div','vod-cue-row',''), link=part('a','registered-vod-reference','발언자 근거 영상');
-          link.href=href; link.target='_blank'; link.rel='noopener noreferrer';
-          link.dataset.cueId=button.dataset.cueId; link.dataset.cueAction='reference';
-          row.append(button,link); box.append(row);
-          if (focusedReference && link.dataset.cueId===focusedId) referenceToFocus=link;
+        const canReport=!!showReportForm && track==='existing' && parseVodId(meeting?.officialPage||'')===String(meeting?.id);
+        if (href || canReport) {
+          const row=part('div','vod-cue-row',''); row.append(button);
+          if (href) {
+            const link=part('a','registered-vod-reference','발언자 근거 영상');
+            link.href=href; link.target='_blank'; link.rel='noopener noreferrer';
+            link.dataset.cueId=button.dataset.cueId; link.dataset.cueAction='reference';
+            row.append(link);
+            if (focusedAction==='reference' && link.dataset.cueId===focusedId) referenceToFocus=link;
+          }
+          if (canReport) {
+            const reportButton=part('button','vod-report-cue','오류 제보');
+            reportButton.type='button'; reportButton.dataset.cueId=button.dataset.cueId;
+            reportButton.dataset.cueAction='report';
+            reportButton.setAttribute('aria-label',stamp(cue.start)+' 자막 오류 제보');
+            reportButton.onclick=()=>{
+              chooseReportCue(cue); render();
+              el('vod-report').querySelector('[name=note]')?.focus();
+            };
+            row.append(reportButton);
+            if (focusedAction==='report' && reportButton.dataset.cueId===focusedId) referenceToFocus=reportButton;
+          }
+          box.append(row);
         } else box.append(button);
         cueButtons.push(button);
       }
