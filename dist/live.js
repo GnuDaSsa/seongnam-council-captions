@@ -1,10 +1,11 @@
-(() => {
+﻿(() => {
   'use strict';
   const el = id => document.getElementById(id);
   let meeting = null, meetingId = '', source = '', playlist = '', selection = 0, meetings = [];
   let defaultMeeting = null;
   const councilDate = new Intl.DateTimeFormat('sv-SE', {timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'});
-  let pollTimer, scheduleTimer, liveVisible = true;
+  let pollTimer, scheduleTimer, refreshTimer, liveVisible = true;
+  let scheduleDate = '', scheduleGeneration = 0, scheduleLoading = false, linkedHistorical = false;
   const video = el('live-video'), frame = el('live-video-placeholder'), captions = el('live-captions');
   let hls, retry, mode = '', generation = 0, lastShared = null, localCues = [];
   let historyGeneration = 0, historyScrollPending = false;
@@ -50,7 +51,8 @@
     }
     inlineFrame.hidden = true; inlineFrame.removeAttribute('src'); video.hidden = false;
     if (!playlist) {
-      el('live-status').textContent = '영상 주소 확인 불가';
+      frame.hidden = false;
+      el('live-status').textContent = '공식 페이지에서 시청';
       frame.querySelector('p').textContent = '공식 중계 페이지에서 확인하세요.';
       return;
     }
@@ -429,6 +431,7 @@
   }
   el('live-speaker-filter').addEventListener('change', () => render(mode ? localCues : shownShared()));
   async function loadSpeakerHistory() {
+    if (!/^[1-9]\d{0,7}$/.test(meetingId)) return;
     const panel = el('live-speaker-history'), status = el('live-speaker-history-status'), list = el('live-speaker-history-list');
     const ticket = ++historyGeneration, selected = selection, id = meetingId;
     list.replaceChildren();
@@ -616,54 +619,129 @@
     if (inline && !inline.hidden) { inline.removeAttribute('src'); inline.hidden = true; }
   });
   report('공유 자막을 확인하는 중입니다.');
-  function selectMeeting(id) {
+  function selectMeeting(id, updateUrl = true) {
     const chosen = meetings.find(item => String(item.id) === String(id)) || defaultMeeting;
     if (!chosen) return;
     ++selection; ++generation; ++historyGeneration; clearTimeout(pollTimer); clearTimeout(scheduleTimer);
     if (mode) { mode = ''; window.CouncilTabCapture?.stop(); controls(false); }
     stopPlayer(); video.pause(); video.srcObject = null; video.removeAttribute('src'); video.load(); video.muted = true;
     frame.hidden = false; frame.querySelector('p').textContent = '공유 자막을 확인하는 중입니다.';
-    meeting = chosen; meetingId = String(chosen.id); source = chosen.source; playlist = chosen.playlist;
+    meeting = chosen; meetingId = String(chosen.id);
+    const identified = /^[1-9]\d{0,7}$/.test(meetingId);
+    source = chosen.allExternal ? (chosen.externalBroadcastUrl || chosen.officialPage || '') : (chosen.officialPage || chosen.source || chosen.broadcastUrl || chosen.externalBroadcastUrl || ''); playlist = chosen.playlist;
     sharedHold=null;selectedReport=null;reportDrafts.clear();resetSharedHistory();
-    window.CouncilLiveMinutes.select(chosen);
+    el('live-minutes').hidden = true; window.CouncilLiveMinutes.select(identified ? chosen : null);
+    el('player-captions').disabled = false; el('capture-start').disabled = false; el('minutes-open').disabled = !identified;
     el('live-inline-frame').hidden = true; el('live-inline-frame').removeAttribute('src');
-    lastShared = null; localCues = []; el('live-speaker-history').hidden = false; el('live-speaker-history-list').replaceChildren(); el('live-speaker-history-status').textContent = ''; el('local-save').disabled = true; el('local-save-txt').disabled = true; render([]);
+    lastShared = null; localCues = []; el('live-speaker-history').hidden = !identified; el('live-speaker-history-list').replaceChildren(); el('live-speaker-history-status').textContent = ''; el('local-save').disabled = true; el('local-save-txt').disabled = true; render([]);
     const linkUrl = new URL(location.href);
-    if (String(linkUrl.searchParams.get('live')) !== meetingId) { linkUrl.searchParams.delete('cue'); linkUrl.searchParams.delete('speaker'); }
-    linkUrl.searchParams.set('live', meetingId); history.replaceState(null, '', linkUrl);
+    if (linkUrl.searchParams.has('live') && String(linkUrl.searchParams.get('live')) !== meetingId) { linkUrl.searchParams.delete('live'); linkUrl.searchParams.delete('cue'); linkUrl.searchParams.delete('speaker'); history.replaceState(null, '', linkUrl); }
+    if (updateUrl) { linkUrl.searchParams.set('live', meetingId); history.replaceState(null, '', linkUrl); }
     const panel = el('live-speaker-history');
     const linked = linkUrl.searchParams.has('cue') || linkUrl.searchParams.get('speaker') === 'recent';
     historyScrollPending = linked;
-    if (linked && !panel.open) panel.open = true;
-    else if (panel.open) loadSpeakerHistory();
+    if (identified && linked && !panel.open) panel.open = true;
+    else if (identified && panel.open) loadSpeakerHistory();
     el('live-meeting-select').value = meetingId;
-    el('live-title').textContent = `${chosen.title} ${chosen.label}`;
+    el('live-title').textContent = [chosen.title, chosen.label].filter(Boolean).join(' ');
     const when = chosen.scheduledAt ? new Intl.DateTimeFormat('ko-KR', {timeZone:'Asia/Seoul',month:'numeric',day:'numeric',weekday:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(chosen.scheduledAt)) : '';
     el('live-meeting-date').textContent = [when, ...(chosen.agenda || [])].filter(Boolean).join(' · ');
-    el('live-source').href = source;
-    el('live-source').textContent = chosen.provider === 'youtube' ? '유튜브에서 보기 ↗' : '공식 중계 보기 ↗';
-    el('live-official').href = chosen.officialPage || source;
-    el('live-official').hidden = !chosen.officialPage || chosen.officialPage === source;
-    report('공유 자막을 확인하는 중입니다.'); openBroadcast(); poll(selection);
+    el('live-source').href = source; el('live-source').hidden = !source;
+    el('live-source').textContent = (chosen.provider === 'youtube' || chosen.allExternal) ? '유튜브에서 보기 ↗' : '공식 중계 보기 ↗';
+    el('live-official').href = chosen.externalBroadcastUrl || '';
+    el('live-official').hidden = !chosen.externalBroadcastUrl || chosen.externalBroadcastUrl === source;
+    el('live-official').textContent = '외청 유튜브 보기 ↗';
+    report(identified ? '공유 자막을 확인하는 중입니다.' : '회의 식별자 확인 전입니다. 공식 일정을 확인하세요.'); openBroadcast(); if (identified) poll(selection);
   }
-  el('live-meeting-select').addEventListener('change', event => selectMeeting(event.target.value));
-  fetch('/data/live-meetings.json', {cache:'no-store'}).then(response => {
-    if (!response.ok) throw new Error('회의 목록을 불러오지 못했습니다.');
-    return response.json();
-  }).then(data => {
-    const valid = Array.isArray(data.meetings) ? data.meetings.filter(item => item &&
-      /^[1-9]\d{0,7}$/.test(String(item.id)) && typeof item.title === 'string' && item.title.trim()) : [];
-    const idCounts = new Map();
-    for (const item of valid) idCounts.set(String(item.id), (idCounts.get(String(item.id)) || 0) + 1);
-    meetings = valid.filter(item => idCounts.get(String(item.id)) === 1);
-    if (!meetings.length) throw new Error('등록된 생중계가 없습니다.');
-    defaultMeeting = meetings.find(item => String(item.id) === String(data.defaultMeetingId)) ||
-      meetings.find(item => item.title === '경제환경위원회') || meetings[0];
-    const scheduled = Date.parse(defaultMeeting.scheduledAt);
-    const manifestDate = /^\d{4}-\d{2}-\d{2}$/.test(data.date) ? data.date :
-      (Number.isFinite(scheduled) ? councilDate.format(scheduled) : '');
-    el('live-today').hidden = !(manifestDate && manifestDate < councilDate.format(new Date()));
-    for (const item of meetings) { const option = document.createElement('option'); option.value = String(item.id); option.textContent = item.title; el('live-meeting-select').append(option); }
-    selectMeeting(new URL(location.href).searchParams.get('live'));
-  }).catch(error => { report(error.message || '회의 목록을 불러오지 못했습니다.'); el('live-status').textContent = '회의 목록 확인 불가'; });
+  el('live-meeting-select').addEventListener('change', event => { if (String(event.target.value) !== meetingId) linkedHistorical = false; selectMeeting(event.target.value); });
+  function clearMeeting(message) {
+    ++selection; ++generation; ++historyGeneration; clearTimeout(pollTimer); clearTimeout(scheduleTimer);
+    if (mode) { mode = ''; window.CouncilTabCapture?.stop(); controls(false); }
+    sharedHold=null; selectedReport=null; reportDrafts.clear(); resetSharedHistory();
+    stopPlayer(); video.pause(); video.srcObject = null; video.removeAttribute('src'); video.load();
+    const inline = el('live-inline-frame'); inline.hidden = true; inline.removeAttribute('src');
+    meeting = null; meetingId = ''; source = ''; playlist = ''; lastShared = null; localCues = [];
+    el('live-minutes').hidden = true; window.CouncilLiveMinutes.select(null);
+    render([]); el('live-save').disabled = true; el('local-save').disabled = true; el('local-save-txt').disabled = true;
+    el('live-speaker-history-list').replaceChildren(); el('live-speaker-history-status').textContent = '';
+    el('live-speaker-history').hidden = true;
+    frame.hidden = false; frame.querySelector('p').textContent = message;
+    el('live-title').textContent = '생중계'; el('live-meeting-date').textContent = '';
+    el('live-source').hidden = true; el('live-official').hidden = true; el('live-note').textContent = '';
+    el('player-captions').disabled = true; el('capture-start').disabled = true; el('minutes-open').disabled = true;
+    el('live-source').removeAttribute('href'); el('live-official').removeAttribute('href');
+    el('live-status').textContent = message; report(message);
+  }
+  async function refreshSchedule(initial = false) {
+    if (scheduleLoading) return;
+    scheduleLoading = true;
+    const ticket = ++scheduleGeneration;
+    try {
+      const response = await fetch('/api/live/schedule', {cache:'no-store'});
+      if (!response.ok) throw new Error('일정을 불러오지 못했습니다.');
+      const data = await response.json();
+      if (!data || data.date !== councilDate.format(new Date()) || !Array.isArray(data.meetings)) throw new Error('일정을 확인할 수 없습니다.');
+      const valid = data.meetings.filter(item => item && (/^[1-9]\d{0,7}$/.test(String(item.id)) || new RegExp('^schedule-' + data.date + '-[1-9]\\d*$').test(String(item.id))) && typeof item.title === 'string' && item.title.trim());
+      const counts = new Map(); for (const item of valid) counts.set(String(item.id), (counts.get(String(item.id)) || 0) + 1);
+      let next = valid.filter(item => counts.get(String(item.id)) === 1);
+      let requested = initial ? new URL(location.href).searchParams.get('live') : null;
+      let replaceAutoLink = false;
+      const link = new URL(location.href);
+      const recordLink = link.searchParams.has('cue') || link.searchParams.has('speaker');
+      if (requested && !next.some(item => String(item.id) === requested)) {
+        try {
+          const linkedResponse = await fetch(`/api/live/schedule?meetingId=${encodeURIComponent(requested)}`, {cache:'no-store'});
+          if (linkedResponse.ok) {
+            const linked = await linkedResponse.json();
+            const found = Array.isArray(linked.meetings) && linked.meetings.find(item => String(item.id) === requested);
+            if (found && recordLink) { next = [...next, found]; linkedHistorical = true; }
+            else if (found) { const equivalent = next.find(item => (item.committee || item.title) === (found.committee || found.title)); requested = equivalent ? String(equivalent.id) : null; replaceAutoLink = true; }
+            else { requested = null; replaceAutoLink = true; }
+          } else { requested = null; replaceAutoLink = true; }
+        } catch (_) { requested = null; replaceAutoLink = true; }
+      }
+      if (ticket !== scheduleGeneration) return;
+      const sameDay = scheduleDate === data.date;
+      if (sameDay && linkedHistorical && meeting && new URL(location.href).searchParams.get('live') === meetingId && !next.some(item => String(item.id) === meetingId)) next = [...next, meeting];
+      const old = meeting && JSON.stringify(meeting);
+      if (!sameDay && !initial) linkedHistorical = false;
+      meetings = next;
+      const now = Date.now();
+      const rank = item => { const start=Date.parse(item.scheduledAt), end=Date.parse(item.endsAt); return Number.isFinite(start) && start > now ? 1 : (Number.isFinite(end) && end < now ? 2 : 0); };
+      defaultMeeting = [...meetings].sort((a,b) => rank(a)-rank(b) ||
+        (String(b.id) === String(data.defaultMeetingId)) - (String(a.id) === String(data.defaultMeetingId)) ||
+        (b.title === '경제환경위원회') - (a.title === '경제환경위원회'))[0] || null;
+      scheduleDate = data.date;
+      const officialSchedule = typeof data.schedule === 'string' ? data.schedule : '';
+      let scheduleUrl; try { scheduleUrl = new URL(officialSchedule); } catch (_) {}
+      const validSchedule = scheduleUrl?.protocol === 'https:' && scheduleUrl.hostname === 'cast.sncouncil.go.kr' && scheduleUrl.pathname === '/schedule/live_schedule.jsp';
+      el('live-today').hidden = !validSchedule;
+      if (validSchedule) el('live-today').href = scheduleUrl.href;
+      el('live-session-title').textContent = data.sessionTitle || ''; el('live-schedule-status').textContent = '';
+      const select = el('live-meeting-select'); select.replaceChildren();
+      for (const item of meetings) { const option = document.createElement('option'); option.value = String(item.id); option.textContent = item.title; select.append(option); }
+      select.disabled = !meetings.length;
+      const nextCommittee = !sameDay && !initial && meeting ? meetings.find(item => (item.committee || item.title) === (meeting.committee || meeting.title)) : null;
+      const desired = (initial && requested) || (sameDay && meetingId) || (nextCommittee && String(nextCommittee.id)) || '';
+      const chosen = meetings.find(item => String(item.id) === desired) || defaultMeeting;
+      if (!chosen) { const url = new URL(location.href); url.searchParams.delete('live'); url.searchParams.delete('cue'); url.searchParams.delete('speaker'); history.replaceState(null, '', url); clearMeeting('오늘 예정된 회의가 없습니다.'); return; }
+      el('live-source').hidden = false;
+      if (!meeting || String(chosen.id) !== meetingId || old !== JSON.stringify(chosen)) {
+        if (!sameDay && !initial) { const url = new URL(location.href); url.searchParams.delete('live'); url.searchParams.delete('cue'); url.searchParams.delete('speaker'); history.replaceState(null, '', url); }
+        selectMeeting(chosen.id, !!(replaceAutoLink || (initial && requested && String(chosen.id) === requested) || (!sameDay && !initial && nextCommittee)));
+      }
+      else select.value = meetingId;
+    } catch (_) {
+      if (ticket !== scheduleGeneration) return;
+      if (scheduleDate === councilDate.format(new Date())) { el('live-schedule-status').textContent = '일정 갱신에 실패해 마지막으로 확인한 오늘 일정을 표시합니다.'; return; }
+      meetings = []; el('live-meeting-select').replaceChildren(); el('live-meeting-select').disabled = true;
+      el('live-session-title').textContent = ''; el('live-today').hidden = true; clearMeeting('회의 일정을 불러오지 못했습니다. 잠시 후 다시 확인합니다.');
+    } finally {
+      scheduleLoading = false; clearTimeout(refreshTimer);
+      const now = Date.now(), untilMidnight = 86400000 - ((now + 9 * 3600000) % 86400000);
+      refreshTimer = setTimeout(() => refreshSchedule(), Math.min(60000, untilMidnight + 1));
+    }
+  }
+  window.addEventListener?.('online', () => refreshSchedule());
+  refreshSchedule(true);
 })();

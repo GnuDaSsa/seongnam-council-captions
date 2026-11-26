@@ -52,7 +52,7 @@ async function getJson(route, beforeFirstCue = false) {
 }
 
 async function collect(directory) {
-  const manifest = await getJson('/data/live-meetings.json');
+  const manifest = await getJson('/api/live/schedule');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(manifest.date) || !Array.isArray(manifest.meetings)) throw Error('Invalid schedule');
   const updates = [];
   for (const meeting of manifest.meetings.filter(m => m.provider === 'hls')) {

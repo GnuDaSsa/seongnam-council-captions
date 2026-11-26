@@ -349,7 +349,7 @@ async function nameplates(request, bucket, url, meetings, publicKey, clock, veri
   return error(409, 'Concurrent nameplate update');
 }
 
-export function createSite({assets, meetings, archiveMeetings = [], publicKey, attributeSpeakers, validateAcousticProof, validatePodiumProof, resolveArchiveVideo, resolveArchiveTranscript}, clock = Date.now) {
+export function createSite({assets, meetings, archiveMeetings = [], publicKey, attributeSpeakers, validateAcousticProof, validatePodiumProof, resolveArchiveVideo, resolveArchiveTranscript, dailyCatalog}, clock = Date.now) {
   let verifier;
   const visualCache = new Map();
   const archiveMetadataById = new Map([...archiveMeetings,...meetings].map(archiveMetadata).filter(Boolean).map(m=>[m.id,m]));
@@ -437,9 +437,9 @@ export function createSite({assets, meetings, archiveMeetings = [], publicKey, a
     verifier ??= crypto.subtle.importKey('raw', fromBase64url(key), 'Ed25519', false, ['verify']);
     return crypto.subtle.verify('Ed25519', await verifier, fromBase64url(signature), bytes);
   }
-  async function captions(request, bucket, url) {
-    const id = url.searchParams.get('meetingId') ?? meetings[0]?.id;
-    const meeting = meetings.find(item => item.id === id);
+  async function captions(request, bucket, url, scheduledMeetings) {
+    const id = url.searchParams.get('meetingId') ?? scheduledMeetings[0]?.id;
+    const meeting = scheduledMeetings.find(item => item.id === id);
     const isMinutes = url.pathname === '/api/live/minutes';
     const isRecovery = url.pathname === '/api/live/minutes/recover';
     if (!meeting && !(isMinutes && request.method === 'GET' && /^\d{1,12}$/.test(id))) return error(404, 'Unknown meeting');
@@ -495,12 +495,30 @@ export function createSite({assets, meetings, archiveMeetings = [], publicKey, a
     if (url.pathname.startsWith('/api/archive/')) return archive(request,env.BUCKET,url);
     if (url.pathname === '/api/vod/resolve') return resolveArchiveVideo ? resolveArchiveVideo(request) : error(503,'VOD lookup unavailable');
     if (url.pathname === '/api/vod/transcript') return resolveArchiveTranscript ? resolveArchiveTranscript(request) : error(503,'VOD transcript unavailable');
-    if (url.pathname === '/api/live/nameplates') {
-      const result = await nameplates(request, env.BUCKET, url, meetings, publicKey, clock, verifySignature);
+    const isSchedule = url.pathname === '/api/live/schedule' || (dailyCatalog && url.pathname === '/data/live-meetings.json');
+    const isCaption = ['/api/live/captions','/api/live/minutes','/api/live/minutes/recover'].includes(url.pathname);
+    const isNameplate = url.pathname === '/api/live/nameplates';
+    let scheduledMeetings = meetings;
+    if (dailyCatalog && (isSchedule || isCaption || isNameplate)) {
+      if (isSchedule && !['GET','HEAD'].includes(request.method)) return error(405,'Read only');
+      const id = url.searchParams.get('meetingId');
+      if (id !== null && !/^[1-9]\d{0,11}$/.test(id)) return error(400,'Invalid meeting');
+      // Stored minutes already contain their original roster and date.
+      if (!(id && url.pathname === '/api/live/minutes' && request.method === 'GET')) {
+        let catalog;
+        try { catalog = id ? await dailyCatalog.forId(env.BUCKET,id) : await dailyCatalog.today(env.BUCKET); }
+        catch { return error(503,'Official schedule unavailable'); }
+        if (!catalog) return error(404,'Unknown meeting');
+        if (isSchedule) return request.method === 'HEAD' ? new Response(null,{headers:jsonHeaders}) : Response.json(catalog,{headers:jsonHeaders});
+        scheduledMeetings = catalog.meetings;
+      }
+    }
+    if (isNameplate) {
+      const result = await nameplates(request, env.BUCKET, url, scheduledMeetings, publicKey, clock, verifySignature);
       if (request.method === 'PUT' && result.ok) visualCache.delete(url.searchParams.get('meetingId'));
       return result;
     }
-    if (['/api/live/captions','/api/live/minutes','/api/live/minutes/recover'].includes(url.pathname)) return captions(request, env.BUCKET, url);
+    if (isCaption) return captions(request, env.BUCKET, url, scheduledMeetings);
     if (!['HEAD', 'GET'].includes(request.method)) return error(405, 'Method not allowed');
     const path = url.pathname === '/' ? '/index.html' : url.pathname;
     if (!Object.hasOwn(assets, path)) return error(404, 'Not found');

@@ -129,6 +129,41 @@ function validateLiveManifest(manifest) {
 
 let liveCatalog, readingCatalog;
 const rememberedMeetings=new Map();
+function playbackSite(meetings) {
+  return createSite({assets:{},meetings,archiveMeetings:[...archiveMeetings,...rememberedMeetings.values()],publicKey:'',
+    attributeSpeakers:speaker.attribute,validateAcousticProof:speaker.acousticProof,validatePodiumProof:speaker.podiumProof});
+}
+
+// Retain recently displayed days for record links and their local captures across midnight.
+const displayedDays=new Map();
+async function previewSchedule(local,id) {
+  const today=liveDay.format(Date.now());
+  if (id) {
+    for (const {catalog} of displayedDays.values()) {
+      if (catalog.date<today && catalog.meetings.some(row=>row.id===id)) return catalog;
+    }
+    const saved=rememberedMeetings.get(id);
+    if (saved) {
+      const date=liveDay.format(Date.parse(saved.scheduledAt));
+      if (date<today) {
+        if (local.manifest.date===date && local.manifest.meetings.some(row=>row.id===id)) return local.manifest;
+        return {date,meetings:[...rememberedMeetings.values()].filter(row=>liveDay.format(Date.parse(row.scheduledAt))===date)};
+      }
+    }
+  }
+  // A playback-only session can open its existing captures without consulting the official schedule.
+  local.daily ??= Promise.all([import('../worker/schedule.mjs'),import('../worker/daily-catalog.mjs'),
+    readJson(new URL('../worker/schedule-seeds.json',import.meta.url))]).then(([official,cache,datedSeeds])=>
+    cache.createDailyCatalog({load:(date,roster,now)=>official.loadOfficialSchedule(date,fetch,roster,now),
+      mirror:cache.readScheduleMirror,seed:local.manifest,datedSeeds}));
+  const daily=await local.daily;
+  try { return await (id ? daily.forId(undefined,id) : daily.today()); }
+  catch (error) {
+    const last=displayedDays.get(today)?.catalog;
+    if (last && (!id || last.meetings.some(row=>row.id===id))) return {...last,cached:true};
+    throw error;
+  }
+}
 async function refreshLiveCatalog() {
   const raw=await readFile(liveManifestPath,'utf8');
   if (liveCatalog?.raw===raw) return liveCatalog;
@@ -137,10 +172,7 @@ async function refreshLiveCatalog() {
   for(const row of manifest.meetings) rememberedMeetings.set(row.id,row);
   const history=[...rememberedMeetings.values()].sort((a,b)=>Date.parse(b.scheduledAt)-Date.parse(a.scheduledAt));
   for(const old of history.slice(256)) rememberedMeetings.delete(old.id);
-  const site=createSite({assets:{},meetings:manifest.meetings,
-    archiveMeetings:[...archiveMeetings,...rememberedMeetings.values()],publicKey:'',
-    attributeSpeakers:speaker.attribute, validateAcousticProof:speaker.acousticProof, validatePodiumProof:speaker.podiumProof});
-  return liveCatalog={raw,manifest,site};
+  return liveCatalog={raw,manifest,site:playbackSite(manifest.meetings)};
 }
 function currentLiveCatalog() {
   readingCatalog ??= refreshLiveCatalog().catch(error=>{
@@ -201,6 +233,22 @@ const server=http.createServer(async(req,res)=>{
       installationId,localCaptures:Boolean(roots.captures),hybridAssets:Boolean(roots['asr-runtime'] && roots['asr-model'])}));
     if(route==='/data/vod-index.json') return await forward(req,res,Response.json(indexData));
     if(route==='/data/live-meetings.json') return await forward(req,res,Response.json((await currentLiveCatalog()).manifest));
+    if(route==='/api/live/schedule') {
+      const ids=url.searchParams.getAll('meetingId');
+      if ([...url.searchParams.keys()].some(k=>k!=='meetingId') || ids.length>1 || (ids.length && !/^[1-9]\d{0,7}$/.test(ids[0])))
+        return send(res,400,'Invalid meeting');
+      const local=await currentLiveCatalog();
+      let catalog;
+      try { catalog=await previewSchedule(local,ids[0]); }
+      catch { return send(res,503,'Official schedule unavailable'); }
+      if (!catalog) return send(res,404,'Unknown meeting');
+      if (displayedDays.get(catalog.date)?.catalog!==catalog) {
+        displayedDays.delete(catalog.date);
+        displayedDays.set(catalog.date,{catalog,site:playbackSite(catalog.meetings)});
+        if (displayedDays.size>14) displayedDays.delete(displayedDays.keys().next().value);
+      }
+      return forward(req,res,Response.json(catalog));
+    }
     if(route==='/api/vod/resolve') {
       const {manifest}=await currentLiveCatalog();
       return await forward(req,res,await resolveVod(new Request(url),fetch,vodIndex,manifest.meetings,rosters,registeredStaff));
@@ -213,7 +261,10 @@ const server=http.createServer(async(req,res)=>{
         if (ids.length !== 1 || !/^\d{1,8}$/.test(ids[0]) || [...url.searchParams.keys()].some(k=>k!=='meetingId'))
           return send(res,400,'Invalid meeting');
       }
-      const {site}=await currentLiveCatalog();
+      const local=await currentLiveCatalog();
+      const id=url.searchParams.get('meetingId');
+      const displayed=liveRoute && [...displayedDays.values()].find(({catalog})=>catalog.meetings.some(row=>row.id===id));
+      const site=displayed?.site || local.site;
       return forward(req,res,await site.fetch(new Request(url,{method:req.method}),{BUCKET:captureBucket()}));
     }
     if(route.startsWith('/asr-local/')){

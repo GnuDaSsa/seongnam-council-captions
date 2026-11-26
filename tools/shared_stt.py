@@ -287,7 +287,7 @@ def audio_chunks(read_frame):
 
 
 def run(endpoint, end_at, meeting_id, model, decode, *, acoustic_extractor=None, acoustic_profile=None,
-        podium_floor=False, on_capture_started=None, lag_reconnects=DEFAULT_LAG_RECONNECTS):
+        podium_floor=False, on_capture_started=None, lag_reconnects=DEFAULT_LAG_RECONNECTS, manifest_override=None):
     import numpy as np
     if end_at.tzinfo is None or end_at <= dt.datetime.now(dt.timezone.utc):
         raise ValueError('end time must be a future timezone-aware timestamp')
@@ -295,7 +295,7 @@ def run(endpoint, end_at, meeting_id, model, decode, *, acoustic_extractor=None,
         raise ValueError('invalid meeting ID')
     if type(lag_reconnects) is not int or not 0 <= lag_reconnects <= DEFAULT_LAG_RECONNECTS:
         raise ValueError('invalid lag reconnect budget')
-    manifest = json.loads(MANIFEST.read_text(encoding='utf-8-sig'))
+    manifest = manifest_override if manifest_override is not None else json.loads(MANIFEST.read_text(encoding='utf-8-sig'))
     matches = [m for m in manifest['meetings'] if str(m['id']) == meeting_id]
     if len(matches) != 1:
         raise ValueError('meeting not uniquely present in official-source manifest')
@@ -608,6 +608,7 @@ def default_capture_meeting_id(manifest):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--endpoint', required=True)
+    parser.add_argument('--live-schedule', action='store_true', help='read current schedule from the deployed API')
     parser.add_argument('--end-at', help='bounded ISO 8601 timestamp with timezone; required for capture')
     parser.add_argument('--meeting-id', action='append',
                         help='repeat for each meeting; defaults to the configured live HLS meeting')
@@ -651,7 +652,11 @@ def main():
         if failed:
             raise SystemExit(1)
         return
-    manifest = json.loads(MANIFEST.read_text(encoding='utf-8-sig'))
+    if args.live_schedule:
+        from live_schedule import fetch_schedule
+        manifest = fetch_schedule(args.endpoint)
+    else:
+        manifest = json.loads(MANIFEST.read_text(encoding='utf-8-sig'))
     if manifest.get('date') != dt.datetime.now(COUNCIL_TZ).date().isoformat():
         parser.error('manifest is not for today')
     default_mid = default_capture_meeting_id(manifest)
@@ -729,7 +734,7 @@ def main():
                     try:
                         run(args.endpoint, end_at, mid, model, decode, acoustic_extractor=acoustic_extractor,
                             acoustic_profile=args.speaker_profile, podium_floor=args.podium_floor,
-                            on_capture_started=capture_started if builder else None, lag_reconnects=args.lag_reconnects)
+                            on_capture_started=capture_started if builder else None, lag_reconnects=args.lag_reconnects, manifest_override=manifest if args.live_schedule else None)
                     finally:
                         if builder and archive_meeting is not None:
                             try:

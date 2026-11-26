@@ -245,6 +245,7 @@ def run_loop(args, meeting, end):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--meeting-id', required=True)
+    parser.add_argument('--live-schedule', action='store_true', help='read current schedule from the deployed API')
     parser.add_argument('--end-at', required=True, help='ISO 8601 timestamp with timezone, within meeting bounds')
     parser.add_argument('--interval', type=int, default=MIN_INTERVAL_SECONDS, help='minimum 20 seconds between attempts')
     parser.add_argument('--once', action='store_true')
@@ -254,7 +255,12 @@ def main():
         parser.error('interval must be between 20 and 300 seconds')
     end = dt.datetime.fromisoformat(args.end_at.replace('Z', '+00:00'))
     now = dt.datetime.now(dt.timezone.utc)
-    meeting = validate_meeting(json.loads(MANIFEST.read_text(encoding='utf-8-sig')), args.meeting_id, end, now)
+    if args.live_schedule:
+        from live_schedule import fetch_schedule
+        manifest = fetch_schedule('https://' + PUBLIC_HOST)
+    else:
+        manifest = json.loads(MANIFEST.read_text(encoding='utf-8-sig'))
+    meeting = validate_meeting(manifest, args.meeting_id, end, now)
     with meeting_lock(args.meeting_id):
         run_loop(args, meeting, end)
 

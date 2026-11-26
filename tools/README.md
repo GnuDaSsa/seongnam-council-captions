@@ -39,19 +39,19 @@ python tools/council_minutes.py --from-meeting 'C:\recordings\meeting.json' --ou
 모의 테스트: `python -m unittest discover -s tools -p "test_*.py"` (API 호출 및 실제 음성 파일 불필요).
 ## 생중계 공유 자막 운영
 
-운영 PC 한 대에서 회의별 음성을 받아 모델 하나로 처리한다. 2026년 11월 25일 편성에는 공식 인터넷방송 3개 채널과 별도로 송출하는 현지감사 유튜브 1개 채널이 있다. 공유 전사기는 공식 인터넷방송 채널을 지원한다. 방송 선택과 자막 열람에는 시청자의 API 키가 필요 없다.
+운영 PC가 오늘의 공식 인터넷방송 편성을 조회해 회의장 HLS 채널의 공유 자막을 생성한다. 외청 유튜브 일정은 시청 링크를 제공한다. 방송 선택과 자막 열람에는 시청자의 API 키가 필요 없다.
 
 Windows 운영 환경은 FFmpeg, Python 3.11, `faster-whisper` 1.2.1, NumPy, cryptography를 사용한다. 운영 PC의 `%LOCALAPPDATA%\SeongnamCouncilDesk\models\faster-whisper-small`에 변환된 다국어 small 모델이 있어야 한다. 서명용 Ed25519 개인키는 같은 운영 디렉터리의 `signing.pem`에 보관한다. 사이트에는 검증용 공개키만 `worker/publisher.pub`에 둔다.
 
 ```powershell
-python tools/shared_stt.py --meeting-id 2853 --meeting-id 2855 --meeting-id 2852 --endpoint https://seongnam-council-desk.gnudas0923.chatgpt.site --end-at 2026-11-25T23:59:59+09:00
+python -u tools/schedule_supervisor.py
 ```
 
 운영 PC의 모델 폴더 또는 검증 패키지의 `source` 옆 `models`에 동봉된 CAM++ 파일이 있으면 수집기는 해시를 확인한 뒤 같은 회의의 자기소개와 후속 음성을 비교한다. 음성 특징은 수집기 메모리에만 둔다. 텍스트만 비교하려면 `--text-only-speakers`, 별도 위치의 Whisper 모델을 쓰려면 `--asr-model <폴더>`를 지정한다. 본회의의 연단 호명·후속 연설까지 음성으로 대조하려면 `--podium-floor`를 추가한다. 모델이 없거나 검증에 실패하면 텍스트로 수집을 계속한다.
 
 오래된 음성을 현재 자막으로 내보내지 않도록 청크 시작부터 60초가 지나면 폐기한다. 입력 버퍼가 가득 차거나 이 제한을 넘으면 FFmpeg를 생방송의 최신 위치에서 최대 두 번 다시 연다. 이때 이전 자막과 ID는 보존하고, 새 음성에는 앞 화자의 이름과 전사 문맥을 넘기지 않는다. 수집기는 마지막으로 처리한 음성 끝과 재개 후 처음 처리한 음성 시작을 회의록의 중단 구간으로 기록한다. 재개 시각을 확인하지 못한 경우 끝은 열린 채로 남는다. `--lag-reconnects 0`은 재연결을 끈다. `--latency-policy standard`가 기본이며, `adaptive`는 대기 중인 음성의 나이가 30초 이상이면 첫 탐색 폭을 2에서 1로 낮춘다. 두 설정 모두 같은 60초 게시 기한을 적용한다.
 
-새 회의를 편성할 때는 공식 일정, 회의별 플레이어, 회의명이 일치하는지 확인해 `dist/data/live-meetings.json`을 갱신한다. `defaultMeetingId`에는 화면과 기본 수집에서 먼저 선택할 공식 회의 ID를 지정한다. 이 항목이 없으면 경제환경위원회, 그다음 첫 번째 편성을 사용한다. 수집기는 HLS 편성 중에서 선택하고, 다른 회의는 `--meeting-id`로 지정한다. 이전 날짜의 편성에는 화면에 **오늘 중계 목록** 링크가 표시되며 수집기는 시작하지 않는다. 외청 현지감사는 해당 날짜와 기관이 명시된 공식 유튜브 영상 ID를 쓴다. 사이트 소스를 바꾸면 `node tools/build_live_site.mjs`로 Worker를 다시 생성한 뒤 게시한다.
+웹과 운영 PC는 `/api/live/schedule`에서 서울 기준 당일 편성을 읽는다. Worker는 공식 일정, 회의 번호, 위원회명과 방송 시간을 대조하며 당일 응답을 2분간 캐시한다. 공식 원천이 응답하지 않으면 같은 날짜로 확인된 편성만 사용한다. 운영 PC에서 감독 프로그램을 실행하면 1분마다 시작할 HLS 회의를 확인한다. 로그인 예약 작업 `SeongnamCouncilSchedulePublisher`를 사용하는 PC에서는 예약 작업이 활성화돼 있어야 한다. 운영을 일시 중지할 때는 예약 작업을 끄고 `%LOCALAPPDATA%\SeongnamCouncilDesk\schedule-supervisor.pause`를 두면 수동으로 실행해도 송출을 시작하지 않는다. 편성 조회는 운영 PC가 꺼져 있어도 사용할 수 있다. 공유 자막은 운영 PC가 켜져 있고 실제 음성이 수신될 때 생성된다.
 
 실시간 화면은 `/api/live/captions?meetingId=2853`에서 최근 100개 구간을 읽는다. **회의록 초안 열기**는 `/api/live/minutes?meetingId=2853`에서 해당 회의에 누적된 구간·수집 범위·확인된 중단을 읽는다. 화면의 시각은 운영 PC의 음성 수집 시각을 기준으로 한다. 위원 명단은 이름 표기의 참고 자료이며 출석 및 발언자는 원음과 공식 기록으로 확인한다.
 

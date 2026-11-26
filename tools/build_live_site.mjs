@@ -42,6 +42,9 @@ const archiveCatalog = JSON.parse(await readFile(join(dist, 'data/archive-seed-m
 const publicKey = (await readFile(join(root, 'worker/publisher.pub'), 'utf8')).trim();
 if (!/^[A-Za-z0-9_-]{43}$/.test(publicKey)) throw Error('Invalid Ed25519 public key');
 const worker = await readFile(join(root, 'worker/captions.mjs'), 'utf8');
+const scheduleSource = await readFile(join(root,'worker/schedule.mjs'),'utf8');
+const dailySource = await readFile(join(root,'worker/daily-catalog.mjs'),'utf8');
+const datedSeeds = JSON.parse(await readFile(join(root,'worker/schedule-seeds.json'),'utf8'));
 const vodResolver = await readFile(join(root,'worker/vod.mjs'),'utf8');
 const vodRosters = JSON.parse(await readFile(join(dist,'data/vod-rosters.json'),'utf8'));
 const registeredStaff = JSON.parse(await readFile(join(dist,'data/registered-vod-staff.json'),'utf8'));
@@ -57,9 +60,11 @@ const speakerRegistry = 'const speakerModel = (() => { const window = {}, module
 const siteConfig = JSON.stringify({assets, meetings:catalog.meetings, archiveMeetings:archiveCatalog.meetings, publicKey});
 await mkdir(join(dist, 'server'), {recursive:true});
 await writeFile(join(dist, 'server/index.js'), worker + '\n' + vodResolver + '\n' + speakerRegistry +
+  'const dailyCatalog=(()=>{\n' + scheduleSource.replace(/^export /gm,'') + '\n' + dailySource.replace(/^export /gm,'') +
+  '\nreturn createDailyCatalog({load:(date,roster,now)=>loadOfficialSchedule(date,fetch,roster,now),mirror:readScheduleMirror,seed:' + JSON.stringify(catalog) + ',datedSeeds:' + JSON.stringify(datedSeeds) + '});})();\n' +
   'const vodIndex = new Map('+JSON.stringify(vodIndex)+'.map(row => [row.id,row]));\n' +
   'const vodRosters='+JSON.stringify(vodRosters)+';\n' +
   'const registeredVodStaff='+JSON.stringify(registeredStaff)+';\n' +
   'const siteConfig='+siteConfig+';\n' +
-  'export default createSite({...siteConfig, attributeSpeakers:speakerModel.attribute, validateAcousticProof:speakerModel.acousticProof, validatePodiumProof:speakerModel.podiumProof, resolveArchiveVideo:req => resolveVod(req,fetch,vodIndex,siteConfig.meetings,vodRosters,registeredVodStaff), resolveArchiveTranscript:req => resolveVodTranscript(req,fetch)});\n');
+  'export default createSite({...siteConfig, dailyCatalog, attributeSpeakers:speakerModel.attribute, validateAcousticProof:speakerModel.acousticProof, validatePodiumProof:speakerModel.podiumProof, resolveArchiveVideo:req => resolveVod(req,fetch,vodIndex,siteConfig.meetings,vodRosters,registeredVodStaff), resolveArchiveTranscript:req => resolveVodTranscript(req,fetch)});\n');
 console.log('Packaged', Object.keys(assets).length, 'assets and', catalog.meetings.length, 'meetings');

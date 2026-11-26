@@ -23,6 +23,8 @@ const el = id => { if (!ids.has(id)) ids.set(id,new Element()); return ids.get(i
 const timers = new Map(); let timerId=0;
 const calls=[]; const pending=[];
 const meeting = (id,title='위원회'+id) => ({id,title,label:'감사',scheduledAt:'2020-01-01T00:00:00Z',endsAt:'2099-01-01T00:00:00Z',provider:'hls',source:'https://example.com',playlist:'https://example.com/a.m3u8',agenda:[]});
+let scheduleData = {date:new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()),sessionTitle:'session',schedule:'https://cast.sncouncil.go.kr/schedule/live_schedule.jsp',meetings:[meeting('2853','경제환경위원회'),meeting('2852')]};
+let scheduleFail = false;
 const response = data => ({ok:true,status:200,json:async()=>data});
 const feed = (id,text,status='live') => ({meetingId:id,updatedAt:new Date().toISOString(),status,cues:[{id:'x',start:1,end:2,text,rawText:'원문',flags:['number','name']}]});
 const location = {href:'https://example.test/?live=invalid'};
@@ -32,7 +34,7 @@ const context = {
   history:{replaceState(_a,_b,url){location.href=String(new URL(url,location.href))}},
   fetch(url) {
     calls.push(url);
-    if (url.includes('live-meetings')) return Promise.resolve(response({meetings:[meeting('2852'),meeting('2853','경제환경위원회')]}));
+    if (url.includes('/api/live/schedule')) return Promise.resolve(scheduleFail ? {ok:false,status:503} : response(scheduleData));
     return new Promise((resolve,reject)=>pending.push({url,resolve,reject}));
   },
   setTimeout(fn, delay) { const id=++timerId; timers.set(id,{fn,delay}); return id; },
@@ -64,45 +66,10 @@ assert.equal(context.CouncilQuality.repeated('사업은 중요합니다. 사업�
 vm.runInNewContext(fs.readFileSync('dist/live.js','utf8'),context);
 const flush = () => new Promise(resolve=>setImmediate(resolve));
 async function settle() { for(let i=0;i<5;i++) await flush(); }
-async function checkMeetingSelection(manifest, url, expected, past) {
-  const elements = new Map();
-  const find = id => {
-    if (!elements.has(id)) elements.set(id,new Element());
-    return elements.get(id);
-  };
-  const testLocation = {href:url};
-  const opened = [];
-  const fetches = [];
-  vm.runInNewContext(fs.readFileSync('dist/live.js','utf8'),{
-    ...context,
-    document:{getElementById:find,createElement:()=>new Element()},
-    window:{CouncilLiveMinutes:{select(row){opened.push(row.id);}}},
-    location:testLocation,
-    history:{replaceState(_a,_b,next){testLocation.href=String(next);}},
-    fetch(path){
-      if (path.includes('live-meetings')) return Promise.resolve(response(manifest));
-      fetches.push(path);
-      return new Promise(()=>{});
-    },
-  });
-  await settle();
-  assert.deepEqual(opened,[expected]);
-  assert.equal(find('live-meeting-select').value,expected);
-  assert.equal(find('live-today').hidden,!past);
-  assert.equal(find('live-source').href,'https://example.com');
-  assert.ok(fetches[0].includes('meetingId='+expected));
-}
 async function run() {
   await settle();
   assert.match(pending[0].url,/2853/,'invalid link uses economic committee');
-  assert.equal(el('live-today').hidden,false);
-  const future = {date:'2098-01-15',defaultMeetingId:'4361',
-    meetings:[meeting('4360','경제환경위원회'),meeting('4361','행정교육위원회')]};
-  await checkMeetingSelection(future,'https://example.test/','4361',false);
-  await checkMeetingSelection(future,'https://example.test/?live=4360','4360',false);
-  await checkMeetingSelection({date:'2020-01-01',defaultMeetingId:'4361',
-    meetings:[meeting('bad'),meeting('4362'),meeting('4363')]},
-  'https://example.test/?live=9999','4362',true);
+  assert.equal(el('live-today').hidden,false); assert.equal(el('live-today').href,'https://cast.sncouncil.go.kr/schedule/live_schedule.jsp');
   const first=feed('2853','첫 번째');
   first.nameplateStatus={latest:{capturedAt:new Date().toISOString(),matchedMembers:[]},lastMatch:{capturedAt:new Date().toISOString(),matchedMembers:['테스트 의원']}};
   pending.shift().resolve(response(first));
@@ -321,6 +288,15 @@ async function run() {
   pending.filter(item=>item.url.includes('minutes?meetingId=2852')).at(-1).resolve(response({meetingId:'2852',cues:[]}));
   pending.filter(item=>item.url.includes('nameplates?meetingId=2852')).at(-1).resolve({ok:false,status:404,json:async()=>({})}); await settle();
   assert.match(el('live-speaker-history-status').textContent,/아직 이름이 추정된 발언이 없습니다/);
+  async function refresh() { const timer=[...timers.entries()].find(([,t])=>t.delay===60000); assert.ok(timer); timers.delete(timer[0]); timer[1].fn(); await settle(); }
+  assert.equal(el('live-session-title').textContent,'session');
+  scheduleData = {...scheduleData, sessionTitle:'changed', meetings:[meeting('2852'),meeting('2853')]};
+  await refresh(); assert.equal(el('live-meeting-select').value,'2852');
+  scheduleData = {...scheduleData, meetings:[]}; await refresh();
+  assert.equal(el('live-source').hidden,true); assert.equal(el('live-captions').children.length,0);
+  scheduleFail=true; await refresh(); assert.equal(el('live-meeting-select').disabled,true);
+  scheduleFail=false; scheduleData = {...scheduleData, meetings:[meeting('2853')]}; await refresh();
+  assert.equal(el('live-meeting-select').value,'2853');
   console.log('PASS: second polling, late response isolation, default selection, status, flags and export');
 }
 run().catch(error=>{console.error(error);process.exitCode=1});
